@@ -531,7 +531,7 @@ namespace aiv
 		MySpline::ControlPointVectorType ctrlpts(this->splDim, this->noCtrlPts);
 		ctrlpts = auxSpline.ctrls();
 		this->auxSpline.~MySpline();
-		new (&this->auxSpline) MySpline(genKnots(0.0, this->finalPlanHorizon, false), ctrlpts); // has to be false, otherwise jacobien will be wrong
+		new (&this->auxSpline) MySpline(genKnots(0.0, this->finalPlanHorizon, false), ctrlpts); // has to be false, otherwise hardcoded jacobian will be wrong
 
 		////std::cout << this->auxSpline.ctrls() << std::endl;
 		//system("pause");
