@@ -46,7 +46,7 @@ namespace aiv {
 
 		double evalTime = std::max(((currentTime - (std::max((this->executingPlanIdx), 0)*this->compHorizon)) / this->planHorizon), 0.0);
 
-		// STATE MACHINE
+		// STATE MACHINE 1 (managing threads)
 		if (_planStage != DONE && _planStage != FINAL) //only necessery if the planning stage is INIT or INTER
 		{
 			// if plan 0 has not been computed yet
@@ -66,9 +66,12 @@ namespace aiv {
 
 			}
 			// If we've already created the thread for optimizing gain using plan 0
-			// let's check if it has alread found a solution.
-			// If so, let's update the gain
-			// otherwise, if evaltime became greater or equal to compHorizon / planHorizon
+			// 		Check if the optimization is still usefull (if none new plan from planner has arrived)
+			//		If not usefull 'cause a new plan has arrived, kill thread and create another
+			//		Else do nothing
+			//
+			// 		Check if the opt computation has finished
+			//		If so, update gain with mutex locked
 			else
 			{
 				if (evaltime >= ratio)
@@ -86,14 +89,15 @@ namespace aiv {
 
 				if (!_gainOptMutex.try_lock())
 				{
-					// if can't get lock we weather:
+					// if we can't lock (some thread is computing the optimal gain) we whether:
 					// do nothing or
-					// see if Tcc is getting "too" close to Tc and do something else regarding the gain
+					// see if Tcc is getting "too" close to Tc and do something else regarding the gain that will "probably" not be computed on time
 				}
-				else //successfully lock => thread had finished
+				else //successfully lock => thread had finished => we should right away update _gain
 				{
-					// update gain spline with auxGain
+					// update gain spline with auxGain (with mutex locked)
 					_gain = _auxGain;
+					_gainOptMutex.unlock();
 
 				}
 			}
@@ -104,7 +108,7 @@ namespace aiv {
 			_planStage = DONE;
 		}
 
-		
+		// STATE MACHINE 2 (managing output)
 		if (_planStage == INIT)
 		{
 			//DO NOTHING
@@ -161,7 +165,7 @@ namespace aiv {
 			// Only proportional gain
 			_gain(evalTime*_cntrlHorizon);
 			double w1 = _gain.k(0)*xi1;
-			double w2 = _gain.k(1)*xi2 + gain.k(2)(evalTime*_cntrlHorizon)*xi3;
+			double w2 = _gain.k(1)*xi2 + gain.k(2)*xi3;
 
 			//----------------- Back to u1, u2 from w1, w2 ---------------------
 
@@ -174,82 +178,123 @@ namespace aiv {
 
 		}
 	}
-	
-
-		//double evalTime = std::max(((currentPlanningTime - (std::max((this->executingPlanIdx), 0)*this->compHorizon)) / this->planHorizon), 0.0);
-
-		// See "Poursuite d'un vehicule de reference", item 4.2, equation 22 from Morin Palcal's book about control theory
-		
-		// double k1, k2, k3;
-		
-		// if (abs(plannedLinVel) > std::numeric_limits< double >::epsilon())
-		// {
-		// 	k1 = _k1/abs(plannedLinVel);
-		// 	k2 = _k2/plannedLinVel;
-		// 	k3 = _k3/abs(plannedLinVel);
-		// }
-		// //pid->calculate();
 
 
-		// //------------------ Generating input w1 w2 --------------------
+	void ControllerMonocycle::NCGPCKineModel(double u1_r, double u2_r, double x_r, double y_r, double theta_r, double x, double y, double theta)
+	{
+		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
-		// Eigen::Vector3d err = (Eigen::Vector3d() << x-x_r, y-y_r, theta-theta_r).finished(); // errors
+		double predictionTime = 0.8;
 
-		// Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
+		Eigen::Matrix< double, 3, 6 > K = Eigen::Matrix< double, 3, 6 >::Zero();
 
-		// Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
+		K(0,0) = 3/(2.*predictionTime);
+		K(1,2) = 3/(2.*predictionTime);
+		K(2,4) = 3/(2.*predictionTime);
+		K(0,1) = 1;
+		K(1,3) = 1;
+		K(2,5) = 1;
 
-		// double xi1 = -1*std::abs(u1_r)*(err_r(0)+err_r(1)*tan(err(2)));
-		// double xi2 = -1*u1_r*err_r(1);
-		// double xi3 = -1*std::abs(u1_r)*tan(err(2));
+		double xdot_r = u1_r * cos(theta_r);
+		double ydot_r = u1_r * sin(theta_r);
 
-		// // Only proportional gain
-		// double w1 = k1*xi1;
-		// double w2 = k2*xi2 + k3*xi3;
+		Eigen::Matrix < double, 6, 1> E = (Eigen::Matrix < double, 6, 1>() << x - x_r, -xdot_r, y - y_r, -ydot_r, theta - theta_r, - u2_r).finished();
 
-		// //----------------- Back to u1, u2 from w1, w2 ---------------------
+		Eigen::Matrix < double, 2, 3> DtDm1Dt = (Eigen::Matrix < double, 2, 3>() << cos(theta), sin(theta), 0, 0, 0, 1).finished();
 
-		// _u1 = (w1 + u1_r)/cos(err(2));
-		// _u2 = w2*std::pow(cos(err(2)), 2)+u2_r;
+		Eigen::Vector2d cntrlOut;
+		cntrlOut = -DtDm1Dt*K*E;
+		_u1 = cntrlOut(0,0);
+		_u2 = cntrlOut(1,0);
+	}
 
-		// _u1 = std::max(std::min(_u1, _maxU1), -1*_maxU1);
-		// _u2 = std::max(std::min(_u2, _maxU2), -1*_maxU2);
+	void ControllerMonocycle::NCGPCCompleteModel(
+		double a1_r,
+		double a2_r,
+		double u1_r,
+		double u2_r,
+		double x_r,
+		double y_r,
+		double theta_r,
+		double u,
+		double w,
+		double x,
+		double y,
+		double theta)
+	{
+		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
-		// //----------------- Estimation: velocities -------------------------
-		// _estq = Eigen::Vector3d::Zero();
-		// _estqdot = Eigen::Vector3d::Zero();
-		// _estqdotdot = Eigen::Vector3d::Zero();
+		// Just need to be computed once thruout the whole simulation (does using 'static const" accomplish that?):
+		static const double stateDim = 5;
+		static const double observDim = 5;
+		static const double outputDim = 2;
+		static const double dMParamDim = 6;
 
-		// Initialization
-		//_estq = (Eigen::Vector3d() << plannedXPos, plannedYPos, plannedOrientation)
-		//_estqdot = (Eigen::Vector3d() << plannedLinVel*cos(plannedOrientation), plannedLinVel*sin(plannedOrientation), plannedAngVel)
-		// could get accelereation from planner
+		static const typedef Eigen::Matrix< double, stateDim, 1 > StatVector;
+		static const typedef Eigen::Matrix< double, observDim, 1 > ObservVector;
+		static const typedef Eigen::Matrix< double, outputDim, 1 > OutputVector;
+		static const typedef Eigen::Matrix< double, dMParamDim, 1 > DyModParamVector;
 
-		// PREDICTIVE CONTROL. ONLY KINEMATIC MODEL
+		static const StatVector relativeDegOfNonLinMIMO = (StatVector() << 2, 2, 2, 1, 1).finished();
+		static const relativeDegOfNonLinMIMOSum = 13; // equals to (relativeDegOfNonLinMIMO+1).sum(), but sum() is runtime, I want it at compitation time
 
+		static const DyModParamVector dMParameters = (DyModParamVector() << 1, 1, 1, 1, 1, 1).finished(); //TODO do system identification
 
-		// double predictionTime = 0.8;
+		static const double predictionTime = 0.8;
 
-		// Eigen::Matrix< double, 3, 6 > K = Eigen::Matrix< double, 3, 6 >::Zero();
+		static const Eigen::Matrix<double, 1, 3> K2 = 
+			(Eigen::Matrix<double, 1, 3>() << 10./(3.*predictionTime*predictionTime), 5./2.*predictionTime, 1.).finished();
 
-		// K(0,0) = 3/(2.*predictionTime);
-		// K(1,2) = 3/(2.*predictionTime);
-		// K(2,4) = 3/(2.*predictionTime);
-		// K(0,1) = 1;
-		// K(1,3) = 1;
-		// K(2,5) = 1;
+		static const Eigen::Matrix<double, 1, 2> K1 =
+			(Eigen::Matrix<double, 1, 2>() << 3./(2.*predictionTime), 1.).finished();
 
-		// double xdot_r = u1_r * cos(theta_r);
-		// double ydot_r = u1_r * sin(theta_r);
+		static const Eigen::Matrix< double, observDim, relativeDegOfNonLinMIMOSum > K =
+			(Eigen::Matrix< double, observDim, relativeDegOfNonLinMIMOSum >() << K2, Eigen::Matrix<double, 1, 10>::Zero(),
+																				Eigen::Matrix<double, 1,  3>::Zero(), K2, Eigen::Matrix<double, 1, 7>::Zero(),
+																				Eigen::Matrix<double, 1,  6>::Zero(), K2, Eigen::Matrix<double, 1, 4>::Zero(),
+																				Eigen::Matrix<double, 1,  9>::Zero(), K1, Eigen::Matrix<double, 1, 2>::Zero(),
+																				Eigen::Matrix<double, 1, 11>::Zero(), K1).finished();
 
-		// Eigen::Matrix < double, 6, 1> E = (Eigen::Matrix < double, 6, 1>() << x - x_r, -xdot_r, y - y_r, -ydot_r, theta - theta_r, - u2_r).finished();
+		double xdot_r = u1_r * cos(theta_r);
+		double ydot_r = u1_r * sin(theta_r);
+		double thetadot_r = u2_r;
+		double xdotdot_r = a1_r * cos(theta_r);
+		double ydotdot_r = a1_r * sin(theta_r);
+		double thetadotdot_r = a2_r;
 
-		// Eigen::Matrix < double, 2, 3> DtDm1Dt = (Eigen::Matrix < double, 2, 3>() << cos(theta), sin(theta), 0, 0, 0, 1).finished();
+		double L2fy1 = cos(theta)*(dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u) - u*w*sin(theta);
+		double L2fy2 = sin(theta)*(dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u) + u*w*cos(theta);
+		double L2fy3 = -dMParameters[4]/dMParameters[1]*u*w - dMParameters[5]/dMParameters[1]*w;
+		double Lfy4 = dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u;
+		double Lfy5 = -dMParameters[4]/dMParameters[1]*u*w - dMParameters[5]/dMParameters[1]*w;
 
-		// Eigen::Vector2d cntrlOut;
-		// cntrlOut = -DtDm1Dt*K*E;
-		// _u1 = cntrlOut(0,0);
-		// _u2 = cntrlOut(1,0);
+		Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1> E =
+			(Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1>() <<
+			x - x_r,
+			u*cos(theta)-xdot_r,
+			L2fy1 - xdotdot_r,
+			y - y_r,
+			u*sin(theta)-ydot_r,
+			L2fy2 - ydotdot_r,
+			theta - theta_r,
+			w - thetadot_r,
+			L2fy3 - thetadotdot_r,
+			u - u1_r,
+			Lfy4 - a1_r,
+			w - u2_r,
+			Lfy5 - a2_r ).finished();
+
+		Eigen::Matrix < double, outputDim, observDim> DtDm1Dt =
+			(Eigen::Matrix < double, outputDim, observDim>() <<
+			cos(theta)*dMParameters[0]/2., sin(theta)*dMParameters[0]/2., 				   0, dMParameters[0]/2., 				   0,
+										0,							   0, dMParameters[1]/2., 				   0, dMParameters[1]/2.).finished();
+
+		Eigen::Vector2d cntrlOut;
+		cntrlOut = -DtDm1Dt*K*E;
+
+		_u1 = cntrlOut(0,0);
+		_u2 = cntrlOut(1,0);
+	}
 
 
 	void ControllerMonocycle::gainOpt()
