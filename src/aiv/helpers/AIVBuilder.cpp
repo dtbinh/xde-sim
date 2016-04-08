@@ -227,7 +227,7 @@ namespace aiv {
 				pt.get<unsigned short>("root.mpmethod.interknots"));
 
 			// This is needed only if we don't want to use the default values (it's like "advanced options")
-			std::cout << "offsetTime " << pt.get<double>("root.timeoffset") << std::endl;
+			//std::cout << "offsetTime " << pt.get<double>("root.timeoffset") << std::endl;
 			pplanner->setOption("offsetTime", pt.get<double>("root.timeoffset"));
 
 			pplanner->setOption("lastStepMinDist", pt.get<double>("root.mpmethod.terminationdist"));

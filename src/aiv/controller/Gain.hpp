@@ -4,23 +4,22 @@
 
 #include <unsupported/Eigen/Splines>
 
-extern const _gainDim;
-typedef Eigen::Spline< double, _gainDim, _derivDeg > GainSpline;
-
 namespace aiv {
 
 	class Gain
 	{
 	private:
-		static const unsigned _gainDim;
+		static const unsigned _gainDim = 3;
 		static const unsigned _derivDeg = 3;
-
-
-		bool _isSplRepValid;
-		Eigen::Vector<double, _gainDim, 1> _evaluatedGainValues;
-
 		typedef Eigen::Spline< double, _gainDim, _derivDeg > GainSpline;
+
 		GainSpline _gainSpline;
+
+		Eigen::Matrix<double, _gainDim, 1> _evaluatedGainValues;
+
+		bool _isSplUpToDate;
+
+		GainSpline::KnotVectorType _knots;
 
 	public:
 		
@@ -28,7 +27,8 @@ namespace aiv {
 		void operator()(double);
 		const double k(const unsigned idx);
 		void setGainValues(const double *gainValues);
-
+		Gain::Gain();
+		Gain::~Gain();
 	};
 
 }

@@ -2,17 +2,16 @@
 
 namespace aiv {
 
-	Gain::Gain(const unsigned gainDim):
-		_isSplRepValid(false),
-		_gainDim(gainDim)
+	Gain::Gain():
+		_isSplUpToDate(false)
 	{
 
 	}
 
-	void Gain::update(Eigen::Spline< double, _gainDim, _derivDeg >::ControlPointVectorType ctrlPts)
+	void Gain::update(GainSpline::ControlPointVectorType ctrlPts)
 	{
-		_gainSpline.~MySpline();
-		new (&_gainSpline) MySpline(_knots, ctrlPts);
+		_gainSpline.~GainSpline();
+		new (&_gainSpline) GainSpline(_knots, ctrlPts);
 		_isSplUpToDate = true;
 	}
 
@@ -39,7 +38,7 @@ namespace aiv {
 	{
 		_isSplUpToDate = false;
 
-		for (auto i; i < _gainDim; ++i)
+		for (auto i = 0; i < _gainDim; ++i)
 		{
 			_evaluatedGainValues(i,0) = gainValues[i];
 		}
@@ -48,6 +47,6 @@ namespace aiv {
 
 	Gain::~Gain(){}
 	
-
+}
 
 // cmake:sourcegroup=Controller

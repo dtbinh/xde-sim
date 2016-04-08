@@ -5,6 +5,7 @@
 #include "aiv/controller/Controller.hpp"
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
 #include <boost/thread.hpp>
+#include "aiv/controller/Gain.hpp"
 //#include "PID.hpp"
 
 namespace aiv {
@@ -20,7 +21,7 @@ namespace aiv {
 		double _maxU1, _maxU2;
 		double _firstPlanTimespan;
 
-		unsigned long long updateCallCntr;
+		unsigned long long _updateCallCntr;
 		//PID *pid;
 
 		enum PlanStage { INIT, INTER, FINAL, DONE } _planStage;
@@ -31,10 +32,18 @@ namespace aiv {
 		void ControllerMonocycle::NCGPCKineModel(
 			double u1_r, double u2_r, double x_r, double y_r, double theta_r, double x, double y, double theta);
 
+		void ControllerMonocycle::gainOpt();
+
+		boost::mutex _gainOptMutex;
+		boost::thread _ctrlThread;
+		bool _shouldUpdateGain;
+
 	public:
 		ControllerMonocycle(std::string name, double updateTimeStep, const double k1, const double k2, const double k3, const double maxU1, const double maxU2);
 		~ControllerMonocycle();
-		//void init();
+
+		void setOption(std::string optionName, double optionValue);
+		
 		void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double);
 
 		double getLinVelocity()	const	{return _u1;}	// m/s
