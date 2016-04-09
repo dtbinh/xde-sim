@@ -128,11 +128,13 @@ namespace aiv {
 			it->second->getController()->update(
 				it->second->getCurrentPosition(),
 				it->second->getCurrentVelocity(),
-				it->second->getPathPlanner()->getLinVelocity(),
-				it->second->getPathPlanner()->getAngVelocity(),
 				it->second->getPathPlanner()->getXPosition(),
 				it->second->getPathPlanner()->getYPosition(),
-				it->second->getPathPlanner()->getOrientation());
+				it->second->getPathPlanner()->getOrientation(),
+				it->second->getPathPlanner()->getLinVelocity(),
+				it->second->getPathPlanner()->getAngVelocity(),
+				it->second->getPathPlanner()->getLinAccel(),
+				it->second->getPathPlanner()->getAngAccel());
 		}
 
 		// update simu

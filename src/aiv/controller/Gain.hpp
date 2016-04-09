@@ -26,7 +26,8 @@ namespace aiv {
 		void update(Eigen::Spline< double, _gainDim, _derivDeg >::ControlPointVectorType ctrlPts);
 		void operator()(double);
 		const double k(const unsigned idx);
-		void setGainValues(const double *gainValues);
+		void setGainValue(const double *gainValues);
+		void setGainValue(const double gainValue,  const unsigned idx);
 		Gain::Gain();
 		Gain::~Gain();
 	};

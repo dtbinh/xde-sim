@@ -48,6 +48,7 @@ namespace aiv
 		, h(1e-15)
 		, comRange(15)
 		, secRho(0.55)
+		, firstPlanTimespan(1.0)
 	{
 		this->planOngoingMutex.initialize();
 		//this->opt_log.open("optlog///opt_log.txt");

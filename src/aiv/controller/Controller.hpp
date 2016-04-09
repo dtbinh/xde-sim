@@ -13,7 +13,7 @@ namespace aiv {
 
 	public:
 		Controller(std::string name);
-		virtual void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double) = 0;
+		virtual void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double, double, double) = 0;
 		std::string getName();
 
 	protected:

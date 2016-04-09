@@ -34,7 +34,7 @@ namespace aiv {
 		return _evaluatedGainValues(idx,0);
 	}
 
-	void Gain::setGainValues(const double *gainValues)
+	void Gain::setGainValue(const double *gainValues)
 	{
 		_isSplUpToDate = false;
 
@@ -43,6 +43,11 @@ namespace aiv {
 			_evaluatedGainValues(i,0) = gainValues[i];
 		}
 
+	}
+	void Gain::setGainValue(const double gainValue, const unsigned idx)
+	{
+		_isSplUpToDate = false;
+		_evaluatedGainValues(idx,0) = gainValue;
 	}
 
 	Gain::~Gain(){}

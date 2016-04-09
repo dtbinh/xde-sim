@@ -236,14 +236,14 @@ namespace aiv {
 			pplanner->setOption("waitPlanning", pt.get<bool>("root.mpmethod.waitplanning"));
 			pplanner->setOption("numderivativedelta", pt.get<double>("root.mpmethod.numderivativedelta"));
 
-			pplanner->setOption("optimizerType", pt.get<std::string>("root.optimizer.<xmlattr>.type"));
-			pplanner->setOption("xTol", pt.get<double>("root.optimizer.xtolerance"));
-			pplanner->setOption("eqTol", pt.get<double>("root.optimizer.eqtolerance"));
-			pplanner->setOption("ineqTol", pt.get<double>("root.optimizer.ineqtolerance"));
-			pplanner->setOption("fTol", pt.get<double>("root.optimizer.ftolerance"));
-			pplanner->setOption("lastMaxIteration", pt.get<unsigned>("root.optimizer.maxiteraction.last"));
-			pplanner->setOption("firstMaxIteration", pt.get<unsigned>("root.optimizer.maxiteraction.first"));
-			pplanner->setOption("interMaxIteration", pt.get<unsigned>("root.optimizer.maxiteraction.inter"));
+			pplanner->setOption("optimizerType", pt.get<std::string>("root.mpmethod.optimizer.<xmlattr>.type"));
+			pplanner->setOption("xTol", pt.get<double>("root.mpmethod.optimizer.xtolerance"));
+			pplanner->setOption("eqTol", pt.get<double>("root.mpmethod.optimizer.eqtolerance"));
+			pplanner->setOption("ineqTol", pt.get<double>("root.mpmethod.optimizer.ineqtolerance"));
+			pplanner->setOption("fTol", pt.get<double>("root.mpmethod.optimizer.ftolerance"));
+			pplanner->setOption("lastMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.last"));
+			pplanner->setOption("firstMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.first"));
+			pplanner->setOption("interMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.inter"));
 		}
 		else
 		{
@@ -253,21 +253,42 @@ namespace aiv {
 		//-------------- Controller --------------
 		std::cout << "======  Create Controller [ " << name +
 			std::string("_ControllerMonocycle") << " ] ================" << std::endl;
+
 		ControllerMonocycle * ctrller = new ControllerMonocycle(name + std::string("_ControllerMonocycle"),
 			app->getTimeStep(),
-			pt.get<double>("root.controller.k1"),
-			pt.get<double>("root.controller.k2"),
-			pt.get<double>("root.controller.k3"),
 			pt.get<double>("root.controller.threshold.u1"),
 			pt.get<double>("root.controller.threshold.u2"));
+
 		lynx->ctrler = ctrller;
 
+		ctrller->setOption("offsetTime", pt.get<double>("root.timeoffset"));
+		ctrller->setOption("ctrllerType", pt.get<std::string>("root.controller.<xmlattr>.type"));
+
+		if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "TRP" )
+		{
+			ctrller->setOption("k1", pt.get<double>("root.controller.k1"));
+			ctrller->setOption("k2", pt.get<double>("root.controller.k2"));
+			ctrller->setOption("k3", pt.get<double>("root.controller.k3"));
+		}
+		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCKM" )
+		{
+			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
+		}
+		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCDM" )
+		{
+			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
+		}
+		else
+		{
+			std::cout << "======  Unknown controller type [ " << pt.get<std::string>("root.controller.<xmlattr>.type") << " ] ================" << std::endl;
+		}
 
 		app->addVehicle(lynx);
 	}
 
 
-	void AIVBuilder::createDriveWheel(const std::string & name, 
+	void AIVBuilder::createDriveWheel(
+		const std::string & name, 
 		const std::string & daeFilePath, 
 		const std::string & nodeName, 
 		const Eigen::Displacementd & position,
