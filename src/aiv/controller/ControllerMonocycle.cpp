@@ -246,7 +246,7 @@ namespace aiv {
 					y,
 					theta);
 			}
-			else if (_ctrllerType == "NCGPCKM")
+			else if (_ctrllerType == "NCGPCCM")
 			{
 				_NCGPCKineModel(
 					u1_r,
@@ -334,12 +334,14 @@ namespace aiv {
 		double y,
 		double theta)
 	{
+		std::cout << "Inside NCGPCCM" << std::endl;
 		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
 		// Just need to be computed once thruout the whole simulation (does using 'static const" accomplish that?):
 
-		DyModParamVector dMParameters = (DyModParamVector() << 1, 1, 1, 1, 1, 1).finished(); //TODO do system identification
-
+		//DyModParamVector dMParameters = (DyModParamVector() << 1, 1, 1, 1, 1, 1).finished(); //TODO do system identification
+		DyModParamVector dMParameters = (DyModParamVector() << 1.65353375e+01, 3.71645375e+00,-2.82408046e-03, 1.00003767e+00, 9.80505149e-01,-3.47528431e-02).finished();
+		
 		double xdot_r = u1_r * cos(theta_r);
 		double ydot_r = u1_r * sin(theta_r);
 		double thetadot_r = u2_r;
@@ -347,11 +349,11 @@ namespace aiv {
 		double ydotdot_r = a1_r * sin(theta_r);
 		double thetadotdot_r = a2_r;
 
-		double L2fy1 = cos(theta)*(dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u) - u*w*sin(theta);
-		double L2fy2 = sin(theta)*(dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u) + u*w*cos(theta);
-		double L2fy3 = -dMParameters[4]/dMParameters[1]*u*w - dMParameters[5]/dMParameters[1]*w;
-		double Lfy4 = dMParameters[2]/dMParameters[0]*w*w - dMParameters[3]/dMParameters[0]*u;
-		double Lfy5 = -dMParameters[4]/dMParameters[1]*u*w - dMParameters[5]/dMParameters[1]*w;
+		double L2fy1 = cos(theta)*(dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u) - u*w*sin(theta);
+		double L2fy2 = sin(theta)*(dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u) + u*w*cos(theta);
+		double L2fy3 = -dMParameters[4]*dMParameters[1]*u*w - dMParameters[5]*dMParameters[1]*w;
+		double Lfy4 = dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u;
+		double Lfy5 = -dMParameters[4]*dMParameters[1]*u*w - dMParameters[5]*dMParameters[1]*w;
 
 		Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1> E =
 			(Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1>() <<
@@ -371,8 +373,8 @@ namespace aiv {
 
 		Eigen::Matrix < double, outputDim, observDim> DtDm1Dt =
 			(Eigen::Matrix < double, outputDim, observDim>() <<
-			cos(theta)*dMParameters[0]/2., sin(theta)*dMParameters[0]/2., 				   0, dMParameters[0]/2., 				   0,
-										0,							   0, dMParameters[1]/2., 				   0, dMParameters[1]/2.).finished();
+			cos(theta)/dMParameters[0]/2., sin(theta)/dMParameters[0]/2., 				   0, 1./dMParameters[0]/2., 				   0,
+										0,							   0, 1./dMParameters[1]/2., 				   0, 1./dMParameters[1]/2.).finished();
 
 		Eigen::Vector2d cntrlOut;
 		cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*_K.block<3, 3*3>(0,0)*E.block<3*3, 1>(0,0);

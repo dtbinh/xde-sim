@@ -483,19 +483,19 @@
     <interrobotsafetydist unit="m">0.1</interrobotsafetydist>
     <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
     <numderivativedelta>1</numderivativedelta>
+    <optimizer type="NONE">
+      <maxiteraction>
+        <first>100</first>
+        <inter>100</inter>
+        <last>100</last>
+      </maxiteraction>
+      <xtolerance>1e-2</xtolerance>
+      <ftolerance>1e-2</ftolerance> <!-- not used -->
+      <eqtolerance>1e-4</eqtolerance>
+      <ineqtolerance>1e-5</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
+    </optimizer>
   </mpmethod>
-  <optimizer type="NONE">
-    <maxiteraction>
-      <first>100</first>
-      <inter>100</inter>
-      <last>100</last>
-    </maxiteraction>
-    <xtolerance>1e-2</xtolerance>
-    <ftolerance>1e-2</ftolerance> <!-- not used -->
-    <eqtolerance>1e-4</eqtolerance>
-    <ineqtolerance>1e-5</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
-  </optimizer>
-  <controller type="tracking reference path">
+  <controller type="TRP"> <!--NCGPCCM,TRP,NCGPCKM-->
     <k1>1.0</k1>
     <k2>1.0</k2>
     <k3>2.0</k3>
@@ -503,5 +503,6 @@
       <u1>3.0</u1>
       <u2>12.0</u2>
     </threshold>
+    <predictionhorizon>1.0</predictionhorizon>
   </controller>
 </root>

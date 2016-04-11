@@ -274,7 +274,7 @@ namespace aiv {
 		{
 			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
 		}
-		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCDM" )
+		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCCM" )
 		{
 			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
 		}
