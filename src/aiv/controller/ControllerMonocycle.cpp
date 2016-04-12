@@ -5,9 +5,7 @@
 
 namespace aiv {
 
-
-	// _NCGPCCompleteModel constants
-	const ControllerMonocycle::StatVector ControllerMonocycle::relativeDegOfNonLinMIMO = (ControllerMonocycle::StatVector() << 2, 2, 2, 1, 1).finished();
+	ControllerMonocycle::~ControllerMonocycle(){}
 
 	ControllerMonocycle::ControllerMonocycle(std::string name, double updateTimeStep, const double maxU1, const double maxU2)
 		: Controller(name),
@@ -21,7 +19,8 @@ namespace aiv {
 		_shouldUpdateGain(false),
 		_predictionTime(0.8),
 		_ctrllerType("TRP"),
-		_firstPlanTimespan(1.0)
+		_firstPlanTimespan(1.0),
+		_timeSampling(50)
 	{
 		//pid = new PID(updateTimeStep,1000000000,-1000000000,1,0.3,0.1);
 		double gainValues[_gainDim] = {1, 1, 2};
@@ -38,7 +37,14 @@ namespace aiv {
 			Eigen::Matrix<double, 1, 11>::Zero(), _K1).finished();
 	}
 
-	void  ControllerMonocycle::setOption(std::string optionName, double optionValue)
+	void ControllerMonocycle::setOption(std::string optionName, DyModParamVector optionValue)
+	{
+		if (optionName == "dynModelParam")
+		{
+			_dMParameters = optionValue;
+		}
+	}
+	void ControllerMonocycle::setOption(std::string optionName, double optionValue)
 	{
 		if (optionName == "offsetTime")
 		{
@@ -72,7 +78,7 @@ namespace aiv {
 			_auxGain = _gain;
 		}
 	}
-	void  ControllerMonocycle::setOption(std::string optionName, std::string optionValue)
+	void ControllerMonocycle::setOption(std::string optionName, std::string optionValue)
 	{
 		if (optionName == "ctrllerType")
 		{
@@ -269,9 +275,11 @@ namespace aiv {
 
 		Eigen::Vector3d err = (Eigen::Vector3d() << x-x_r, y-y_r, theta-theta_r).finished(); // errors
 
-		Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
+		//Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
 
-		Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
+		//Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
+		Eigen::Vector2d err_r = err.block<2,1>(0,0);
+
 
 		double xi1 = -1*std::abs(u1_r)*(err_r(0)+err_r(1)*tan(err(2)));
 		double xi2 = -1*u1_r*err_r(1);
@@ -334,13 +342,14 @@ namespace aiv {
 		double y,
 		double theta)
 	{
-		std::cout << "Inside NCGPCCM" << std::endl;
+		//std::cout << "Inside NCGPCCM" << std::endl;
+		std::cout << _dMParameters << std::endl;
 		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
 		// Just need to be computed once thruout the whole simulation (does using 'static const" accomplish that?):
 
 		//DyModParamVector dMParameters = (DyModParamVector() << 1, 1, 1, 1, 1, 1).finished(); //TODO do system identification
-		DyModParamVector dMParameters = (DyModParamVector() << 1.65353375e+01, 3.71645375e+00,-2.82408046e-03, 1.00003767e+00, 9.80505149e-01,-3.47528431e-02).finished();
+		//DyModParamVector dMParameters = (DyModParamVector() << 1.65353375e+01, 3.71645375e+00,-2.82408046e-03, 1.00003767e+00, 9.80505149e-01,-3.47528431e-02).finished();
 		
 		double xdot_r = u1_r * cos(theta_r);
 		double ydot_r = u1_r * sin(theta_r);
@@ -349,11 +358,11 @@ namespace aiv {
 		double ydotdot_r = a1_r * sin(theta_r);
 		double thetadotdot_r = a2_r;
 
-		double L2fy1 = cos(theta)*(dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u) - u*w*sin(theta);
-		double L2fy2 = sin(theta)*(dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u) + u*w*cos(theta);
-		double L2fy3 = -dMParameters[4]*dMParameters[1]*u*w - dMParameters[5]*dMParameters[1]*w;
-		double Lfy4 = dMParameters[2]*dMParameters[0]*w*w - dMParameters[3]*dMParameters[0]*u;
-		double Lfy5 = -dMParameters[4]*dMParameters[1]*u*w - dMParameters[5]*dMParameters[1]*w;
+		double L2fy1 = cos(theta)*(_dMParameters[2]/_dMParameters[0]*w*w - _dMParameters[3]/_dMParameters[0]*u) - u*w*sin(theta);
+		double L2fy2 = sin(theta)*(_dMParameters[2]/_dMParameters[0]*w*w - _dMParameters[3]/_dMParameters[0]*u) + u*w*cos(theta);
+		double L2fy3 = -_dMParameters[4]/_dMParameters[1]*u*w - _dMParameters[5]/_dMParameters[1]*w;
+		double Lfy4 = _dMParameters[2]/_dMParameters[0]*w*w - _dMParameters[3]/_dMParameters[0]*u;
+		double Lfy5 = -_dMParameters[4]/_dMParameters[1]*u*w - _dMParameters[5]/_dMParameters[1]*w;
 
 		Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1> E =
 			(Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1>() <<
@@ -373,8 +382,8 @@ namespace aiv {
 
 		Eigen::Matrix < double, outputDim, observDim> DtDm1Dt =
 			(Eigen::Matrix < double, outputDim, observDim>() <<
-			cos(theta)/dMParameters[0]/2., sin(theta)/dMParameters[0]/2., 				   0, 1./dMParameters[0]/2., 				   0,
-										0,							   0, 1./dMParameters[1]/2., 				   0, 1./dMParameters[1]/2.).finished();
+			cos(theta)*_dMParameters[0]/2., sin(theta)*_dMParameters[0]/2., 				   0, _dMParameters[0]/2., 				   0,
+										0,							   0, _dMParameters[1]/2., 				   0, _dMParameters[1]/2.).finished();
 
 		Eigen::Vector2d cntrlOut;
 		cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*_K.block<3, 3*3>(0,0)*E.block<3*3, 1>(0,0);
@@ -385,15 +394,89 @@ namespace aiv {
 
 	void ControllerMonocycle::_gainOpt()
 	{
-		boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+
+
+
 		_shouldUpdateGain = true;
 		_gainOptMutex.unlock();
 	}
 
-	ControllerMonocycle::~ControllerMonocycle()
+	double ControllerMonocycle::optCost(unsigned n, const double *x, double *grad, void *my_func_data)
 	{
-		//delete pid;
+		// get this path planner pointer
+		ControllerMonocycle *thisCtrl = static_cast< ControllerMonocycle *>(my_func_data);
+
+		// Feed spline gain with x
+		thisCtrl->_auxGain.update(n, x);
+
+		// Compute x,y,theta estimation
+		for (auto i=0; i<thisCtrl->_timeSampling; ++i)
+		{
+			thisCtrl->_auxGain(i);
+			thisCtrl->_auxGain.k(0);
+			thisCtrl->_auxGain.k(1);
+			thisCtrl->_auxGain.k(2);
+		}
+
+		// // Create a Matrix consisting of the flat output and its needed derivatives for the instant Tp (1.0)
+		// NDerivativesMatrix derivFlat =
+		// 	optSpline.derivatives(thisCtrl->finalPlanHorizon, aiv::FlatoutputMonocycle::flatDerivDeg);
+
+		// // Get pose at Tp from flatoutput
+		// PoseVector poseAtTp = aiv::FlatoutputMonocycle::flatToPose(derivFlat);
+
+		// Compute euclidian distance to square from position at Tp and goal position which will be the cost
+
+		// If grad not NULL the Jacobian matrix must be given
+		// if (grad)
+		// {
+		// 	for (unsigned i = n - 1, j = 0; i > n - thisCtrl->splDim - 1; --i, ++j)
+		// 	{
+		// 		grad[i] = 2 * (x[i] -
+		// 			(thisCtrl->targetedPose(i % thisCtrl->splDim + aiv::FlatoutputMonocycle::posIdx, 0) -
+		// 				thisCtrl->latestPose(i % thisCtrl->splDim + aiv::FlatoutputMonocycle::posIdx, 0)));
+		// 	}
+		// 	for (unsigned i = 0; i < n - thisCtrl->splDim; ++i)
+		// 	{
+		// 		grad[i] = 0.0;
+		// 	}
+		// }
+		return 0.0;
 	}
+
+	// void ControllerMonocycle::_getRef(
+	// 	double k1, double k2, double k3,
+	// 	double u1_r, double u2_r, double x_r, double y_r, double theta_r, double x, double y, double theta)
+	// {
+	// 	//------------------ Generating input w1 w2 --------------------
+
+	// 	Eigen::Vector3d err = (Eigen::Vector3d() << x-x_r, y-y_r, theta-theta_r).finished(); // errors
+
+	// 	Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
+
+	// 	Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
+
+	// 	double xi1 = -1*std::abs(u1_r)*(err_r(0)+err_r(1)*tan(err(2)));
+	// 	double xi2 = -1*u1_r*err_r(1);
+	// 	double xi3 = -1*std::abs(u1_r)*tan(err(2));
+
+	// 	// Only proportional gain
+	// 	// _gain(evalTime*_ctrlHorizon); //FIXME
+	// 	_gain(0.0);
+	// 	double w1 = _gain.k(0)*xi1;
+	// 	double w2 = _gain.k(1)*xi2 + _gain.k(2)*xi3;
+
+	// 	//----------------- Back to u1, u2 from w1, w2 ---------------------
+
+	// 	_u1 = (w1 + u1_r)/cos(err(2));
+	// 	_u2 = w2*std::pow(cos(err(2)), 2)+u2_r;
+
+	// 	// limiting output
+	// 	_u1 = std::max(std::min(_u1, _maxU1), -1*_maxU1);
+	// 	_u2 = std::max(std::min(_u2, _maxU2), -1*_maxU2);
+	// }
+
 }
 
 

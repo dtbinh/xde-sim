@@ -277,6 +277,25 @@ namespace aiv {
 		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCCM" )
 		{
 			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
+			ctrller->setOption("dynModelParam",
+				(Eigen::Matrix<double, 6, 1>() <<
+				v.second.get<double>("dynmodelparam.p1"),
+				v.second.get<double>("dynmodelparam.p2"),
+				v.second.get<double>("dynmodelparam.p3"),
+				v.second.get<double>("dynmodelparam.p4"),
+				v.second.get<double>("dynmodelparam.p5"),
+				v.second.get<double>("dynmodelparam.p6")).finished());
+		}
+		else if (pt.get<std::string>("root.controller.<xmlattr>.type") == "RHOPTPC" )
+		{
+			ctrller->setOption("dynModelParam",
+				(Eigen::Matrix<double, 6, 1>() <<
+				v.second.get<double>("dynmodelparam.p1"),
+				v.second.get<double>("dynmodelparam.p2"),
+				v.second.get<double>("dynmodelparam.p3"),
+				v.second.get<double>("dynmodelparam.p4"),
+				v.second.get<double>("dynmodelparam.p5"),
+				v.second.get<double>("dynmodelparam.p6")).finished());
 		}
 		else
 		{

@@ -84,7 +84,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </initpose>
       <initvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </initvelo>
       <goalpose>
@@ -114,7 +114,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </goalpose>
       <goalvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </goalvelo>
       <maxvelo>
@@ -125,6 +125,14 @@
         <linear unit="mps2">0.8</linear>
         <angular unit="radps2">3.0</angular>
       </maxacc>
+      <dynmodelparam>
+        <p1> 0.04200441</p1>
+        <p2> 0.27468742</p2>
+        <p3>-0.01248822</p3>
+        <p4> 1.00119437</p4>
+        <p5> 0.00545974</p5>
+        <p6> 1.03107639</p6>
+      </dynmodelparam>
     </aiv>
     <aiv>
       <frame>
@@ -206,7 +214,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </initpose>
       <initvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </initvelo>
       <goalpose>
@@ -236,7 +244,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </goalpose>
       <goalvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </goalvelo>
       <maxvelo>
@@ -247,6 +255,14 @@
         <linear unit="mps2">0.8</linear>
         <angular unit="radps2">3.0</angular>
       </maxacc>
+      <dynmodelparam>
+        <p1> 0.04200441</p1>
+        <p2> 0.27468742</p2>
+        <p3>-0.01248822</p3>
+        <p4> 1.00119437</p4>
+        <p5> 0.00545974</p5>
+        <p6> 1.03107639</p6>
+      </dynmodelparam>
     </aiv>
     <aiv>
       <frame>
@@ -328,7 +344,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </initpose>
       <initvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </initvelo>
       <goalpose>
@@ -358,7 +374,7 @@
         <!--theta unit="rad">1.5708</theta-->
       </goalpose>
       <goalvelo>
-        <linear unit="mps">.0000001</linear>
+        <linear unit="mps">.000</linear>
         <angular unit="radps">.0</angular>
       </goalvelo>
       <maxvelo>
@@ -369,6 +385,14 @@
         <linear unit="mps2">0.8</linear>
         <angular unit="radps2">3.0</angular>
       </maxacc>
+      <dynmodelparam>
+        <p1> 0.04200441</p1>
+        <p2> 0.27468742</p2>
+        <p3>-0.01248822</p3>
+        <p4> 1.00119437</p4>
+        <p5> 0.00545974</p5>
+        <p6> 1.03107639</p6>
+      </dynmodelparam>
     </aiv>
   </aivs>
   <obstacles>
@@ -495,7 +519,7 @@
       <ineqtolerance>1e-5</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
     </optimizer>
   </mpmethod>
-  <controller type="TRP"> <!--NCGPCCM,TRP,NCGPCKM-->
+  <controller type="RHOPTPC"> <!--NCGPCCM,TRP,NCGPCKM,RHOPTPC-->
     <k1>1.0</k1>
     <k2>1.0</k2>
     <k3>2.0</k3>

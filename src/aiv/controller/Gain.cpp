@@ -14,6 +14,18 @@ namespace aiv {
 		new (&_gainSpline) GainSpline(_knots, ctrlPts);
 		_isSplUpToDate = true;
 	}
+	void Gain::update(unsigned n, const double *x)
+	{
+		GainSpline::ControlPointVectorType ctrlPts(_gainDim, n);
+		// Feed ctrlPts rows with values from the primal variables x
+		for (int i = 0; i < n; ++i)
+		{
+			ctrlPts(i % _gainDim, i / _gainDim) = x[i];
+		}
+		_gainSpline.~GainSpline();
+		new (&_gainSpline) GainSpline(_knots, ctrlPts);
+		_isSplUpToDate = true;
+	}
 
 	void Gain::operator()(const double time)
 	{

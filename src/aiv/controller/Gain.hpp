@@ -23,7 +23,8 @@ namespace aiv {
 
 	public:
 		
-		void update(Eigen::Spline< double, _gainDim, _derivDeg >::ControlPointVectorType ctrlPts);
+		void update(GainSpline::ControlPointVectorType ctrlPts);
+		void update(unsigned n, const double *x);
 		void operator()(double);
 		const double k(const unsigned idx);
 		void setGainValue(const double *gainValues);

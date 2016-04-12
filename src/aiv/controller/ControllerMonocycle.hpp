@@ -13,7 +13,7 @@ namespace aiv {
 	class ControllerMonocycle : public Controller
 	{
 	private:
-		// NCGPCCompleteModel constants
+		// 
 		double _predictionTime;
 		static const unsigned stateDim = 5;
 		static const unsigned observDim = 5;
@@ -30,6 +30,7 @@ namespace aiv {
 		Eigen::Matrix<double, 1, 3> _K2;
 		Eigen::Matrix<double, 1, 2> _K1;
 		Eigen::Matrix< double, observDim, relativeDegOfNonLinMIMOSum > _K;
+		DyModParamVector _dMParameters;
 		//
 
 		std::string _ctrllerType;
@@ -43,6 +44,9 @@ namespace aiv {
 		double _firstPlanTimespan;
 
 		unsigned long long _updateCallCntr;
+
+		unsigned _timeSampling;
+
 		//PID *pid;
 
 		enum PlanStage { INIT, INTER, FINAL, DONE } _planStage;
@@ -69,11 +73,14 @@ namespace aiv {
 
 		void setOption(std::string optionName, double optionValue);
 		void setOption(std::string optionName, std::string optionValue);
+		void setOption(std::string optionName, Eigen::Matrix<double, 6, 1> optionValue);
 		
 		void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double, double, double);
 
 		double getLinVelocity()	const	{return _u1;}	// m/s
 		double getAngVelocity()	const	{return _u2;}	// rad/s
+
+		double optCost(unsigned n, const double *x, double *grad, void *my_func_data);
 
 	};
 
