@@ -7,7 +7,7 @@
 * \author J. M. Mendes Filho
 *
 * @par Licence
-* Copyright Â© 2015 CEA
+* Copyright © 2015 CEA
 */
 //==============================================================================
 // MOBILE ROBOT PATH FOLLOWING APPLICATION
@@ -92,9 +92,6 @@ int main()
 	std::ofstream * ctrl_ts = new std::ofstream[vehicles.size()];
 	std::ofstream * real_ts = new std::ofstream[vehicles.size()];
 	std::ofstream * obst_ts = new std::ofstream[obstacles.size()];
-
-	
-
 
 	// REMOVE PREEXISTING LOG FILES
 	/*std::string str;
@@ -301,7 +298,7 @@ int main()
 	return 0;
 }
 
-//Affichage des trajectoires de consigne et rÃ©elle du vÃ©hicule : DÃ©jÃ  fait il y a un an mais sous python :
+//Affichage des trajectoires de consigne et réelle du véhicule : Déjà fait il y a un an mais sous python :
 //
 //# Visual lines of the vehicle trajectory
 //line_blue = lgsm.vector(0.0, 0.0, 1.0, 1.0) ## R G B transparence (alpha)
@@ -316,7 +313,7 @@ int main()
 //
 //this->line = std::vector<double>(6);
 //memset(&this->line[0], 0, 6*sizeof(double));
-//â€¦
-//this->line[i] =â€¦
-//â€¦
+//…
+//this->line[i] =…
+//…
 //out_line.write(this->line);

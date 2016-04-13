@@ -236,7 +236,7 @@ namespace aiv {
 					y,
 					theta);
 			}
-			else if (_ctrllerType == "NCGPCDM")
+			else if (_ctrllerType == "NCGPCCM")
 			{
 				_NCGPCCompleteModel(
 					plannedLinAccel,
@@ -252,7 +252,7 @@ namespace aiv {
 					y,
 					theta);
 			}
-			else if (_ctrllerType == "NCGPCCM")
+			else if (_ctrllerType == "NCGPCKM")
 			{
 				_NCGPCKineModel(
 					u1_r,
@@ -275,10 +275,10 @@ namespace aiv {
 
 		Eigen::Vector3d err = (Eigen::Vector3d() << x-x_r, y-y_r, theta-theta_r).finished(); // errors
 
-		//Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
+		Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
 
-		//Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
-		Eigen::Vector2d err_r = err.block<2,1>(0,0);
+		Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
+		//Eigen::Vector2d err_r = err.block<2,1>(0,0);
 
 
 		double xi1 = -1*std::abs(u1_r)*(err_r(0)+err_r(1)*tan(err(2)));
@@ -343,7 +343,7 @@ namespace aiv {
 		double theta)
 	{
 		//std::cout << "Inside NCGPCCM" << std::endl;
-		std::cout << _dMParameters << std::endl;
+		//std::cout << _dMParameters << std::endl;
 		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
 		// Just need to be computed once thruout the whole simulation (does using 'static const" accomplish that?):
@@ -394,10 +394,7 @@ namespace aiv {
 
 	void ControllerMonocycle::_gainOpt()
 	{
-		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
-
-
-
+		boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 		_shouldUpdateGain = true;
 		_gainOptMutex.unlock();
 	}

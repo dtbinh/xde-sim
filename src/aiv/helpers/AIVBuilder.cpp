@@ -269,14 +269,6 @@ namespace aiv {
 			ctrller->setOption("k1", pt.get<double>("root.controller.k1"));
 			ctrller->setOption("k2", pt.get<double>("root.controller.k2"));
 			ctrller->setOption("k3", pt.get<double>("root.controller.k3"));
-		}
-		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCKM" )
-		{
-			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
-		}
-		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCCM" )
-		{
-			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
 			ctrller->setOption("dynModelParam",
 				(Eigen::Matrix<double, 6, 1>() <<
 				v.second.get<double>("dynmodelparam.p1"),
@@ -286,8 +278,13 @@ namespace aiv {
 				v.second.get<double>("dynmodelparam.p5"),
 				v.second.get<double>("dynmodelparam.p6")).finished());
 		}
-		else if (pt.get<std::string>("root.controller.<xmlattr>.type") == "RHOPTPC" )
+		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCKM" )
 		{
+			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
+		}
+		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCCM" )
+		{
+			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
 			ctrller->setOption("dynModelParam",
 				(Eigen::Matrix<double, 6, 1>() <<
 				v.second.get<double>("dynmodelparam.p1"),

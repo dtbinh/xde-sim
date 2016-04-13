@@ -60,7 +60,7 @@ class Robots:
             for i in range(rows):
                 self.realTabl[i] = np.array([float(t) for t in tlist[i][0:-1]])
         
-        self.rows = max(max(self.plTabl.shape[0], self.realTabl.shape[0]), self.ctrlTabl.shape[0])
+        self.rows = min(min(self.plTabl.shape[0], self.realTabl.shape[0]), self.ctrlTabl.shape[0])
 
         self.resize()
 
@@ -246,7 +246,7 @@ class Obstacles:
         #self.outerCirc.center = self.realXTS()[time], self.realYTS()[time]
 
 
-direc = "C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/"
+direc = "C:/Users/jmagn/dev/xde/xde/xde/xde/"
 
 try:
     os.mkdir(direc+'build/out/Release/bin/images/')
@@ -321,6 +321,11 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
     axArrayVel[1].plot(simTime, sRSInfo.planAngVelTS(), 'b', label=r'planner output')
     axArrayVel[1].plot(simTime, sRSInfo.ctrlAngVelTS(), 'g', label=r'ctrller output')
     axArrayVel[1].plot(simTime, sRSInfo.realAngVelTS(), 'r', label=r'actual vel')
+    maxAngVel = max(max(max(sRSInfo.planAngVelTS()), max(sRSInfo.ctrlAngVelTS())), max(sRSInfo.realAngVelTS()))
+    maxAngVel = maxAngVel if maxAngVel < 8.0 else 8.0
+    minAngVel = min(min(min(sRSInfo.planAngVelTS()), min(sRSInfo.ctrlAngVelTS())), min(sRSInfo.realAngVelTS()))
+    minAngVel = minAngVel if maxAngVel > -8.0 else -8.0
+    axArrayVel[1].set_ylim([maxAngVel, minAngVel])
 
     hand, lab = axArrayVel[1].get_legend_handles_labels()
     axArrayVel[1].legend(hand, lab, ncol=1, prop={'size':10}, loc=1)
