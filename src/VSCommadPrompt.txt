@@ -1,0 +1,3 @@
+# cd xde\build
+
+MSBuild AIV-Simulator.sln /m /t:AIV-simpleapp /p:configuration=release
