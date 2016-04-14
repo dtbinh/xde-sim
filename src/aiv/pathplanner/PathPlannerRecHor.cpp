@@ -2,8 +2,8 @@
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
 #include "aiv/obstacle/Obstacle.hpp"
 #include "aiv/robot/AIV.hpp"
-#include "aiv/pathplanner/constrJac.hpp"
-#include "aiv/pathplanner/eq_cons_jac.hpp"
+//#include "aiv/pathplanner/constrJac.hpp"
+//#include "aiv/pathplanner/eq_cons_jac.hpp"
 #include <nlopt.h>
 #include <omp.h>
 #include <boost/foreach.hpp>
@@ -1879,43 +1879,7 @@ namespace aiv
 		}
 	}
 
-	Eigen::Array< double, 1, Eigen::Dynamic >  PathPlannerRecHor::genKnots(const double initT, const double finalT, bool nonUniform)
-	{
-		// TODO throw error
-		if (this->noIntervNonNull < 2)
-		{
-			//std::cout << "ERROR\n";
-		}
 
-		double d = (finalT - initT) / (4 + (this->noIntervNonNull - 2));
-		// d is the nonuniform interval base value (spacing produce intervals like this: 2*d, d,... , d, 2*d)
-
-		Eigen::Array< double, 1, Eigen::Dynamic > knots(this->splDegree * 2 + this->noIntervNonNull + 1);
-
-		// first and last knots
-		knots.head(this->splDegree) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(this->splDegree, initT);
-		knots.tail(this->splDegree) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(this->splDegree, finalT);
-
-		// intermediaries knots
-		if (nonUniform)
-		{
-			knots(this->splDegree) = initT;
-			knots(this->splDegree + 1) = initT + 2 * d;
-
-			unsigned i = 0;
-			for (i = 0; i < this->noIntervNonNull - 2; ++i)
-			{
-				knots(this->splDegree + i + 2) = knots(this->splDegree + i + 1) + d;
-			}
-
-			knots(this->splDegree + 2 + i) = finalT; // = knots(this->splDegree+2+i-1) + 2*d
-		}
-		else // uniform
-		{
-			knots.segment(this->splDegree, this->noIntervNonNull + 1) = Eigen::Array< double, 1, Eigen::Dynamic >::LinSpaced(this->noIntervNonNull + 1, initT, finalT);
-		}
-		return knots;
-	}
 
 	int PathPlannerRecHor::findspan(const double t)
 	{

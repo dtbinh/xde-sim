@@ -1,4 +1,6 @@
-#include "aiv\helpers\AIVBuilder.hpp"
+#include <sstream>
+
+#include "aiv/helpers/AIVBuilder.hpp"
 
 #include "sys/timer.h"
 
@@ -13,6 +15,7 @@
 #include "xde/physics/builder/PhysicsBuilder.h"
 #include "xde/graphics/builder/GraphicsBuilder.h"
 
+#include "aiv/helpers/MyException.h"
 
 namespace aiv {
 
@@ -247,42 +250,24 @@ namespace aiv {
 		}
 		else
 		{
-			std::cout << "======  Unknown path planning method [ " << pt.get<std::string>("root.mpmethod.<xmlattr>.type") << " ] ================" << std::endl;
+			std::cout << "======  Unknown path planning type [ " << pt.get<std::string>("root.mpmethod.<xmlattr>.type") << " ] ================" << std::endl;
+			std::stringstream ss;
+			ss << "AIVBuilder::addAdeptLynxToApplication: Unknown path planning type [ " << pt.get<std::string>("root.mpmethod.<xmlattr>.type") << " ]. Check configuration file.";
+			throw(MyException(ss.str()));
 		}
 
 		//-------------- Controller --------------
 		std::cout << "======  Create Controller [ " << name +
 			std::string("_ControllerMonocycle") << " ] ================" << std::endl;
 
-		ControllerMonocycle * ctrller = new ControllerMonocycle(name + std::string("_ControllerMonocycle"),
-			app->getTimeStep(),
-			pt.get<double>("root.controller.threshold.u1"),
-			pt.get<double>("root.controller.threshold.u2"));
+		ControllerMonocycle * ctrller = new ControllerMonocycle(name + std::string("_ControllerMonocycle"));
 
 		lynx->ctrler = ctrller;
 
-		ctrller->setOption("offsetTime", pt.get<double>("root.timeoffset"));
-		ctrller->setOption("ctrllerType", pt.get<std::string>("root.controller.<xmlattr>.type"));
+		ctrller->setOption("maxu1", pt.get<double>("root.controller.threshold.u1"));
+		ctrller->setOption("maxu2", pt.get<double>("root.controller.threshold.u2"));
 
-		if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "TRP" )
-		{
-			ctrller->setOption("k1", pt.get<double>("root.controller.k1"));
-			ctrller->setOption("k2", pt.get<double>("root.controller.k2"));
-			ctrller->setOption("k3", pt.get<double>("root.controller.k3"));
-			ctrller->setOption("dynModelParam",
-				(Eigen::Matrix<double, 6, 1>() <<
-				v.second.get<double>("dynmodelparam.p1"),
-				v.second.get<double>("dynmodelparam.p2"),
-				v.second.get<double>("dynmodelparam.p3"),
-				v.second.get<double>("dynmodelparam.p4"),
-				v.second.get<double>("dynmodelparam.p5"),
-				v.second.get<double>("dynmodelparam.p6")).finished());
-		}
-		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCKM" )
-		{
-			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
-		}
-		else if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPCCM" )
+		if ( pt.get<std::string>("root.controller.<xmlattr>.type") == "NCGPC" )
 		{
 			ctrller->setOption("predictionHorizon", pt.get<double>("root.controller.predictionhorizon"));
 			ctrller->setOption("dynModelParam",
@@ -297,6 +282,9 @@ namespace aiv {
 		else
 		{
 			std::cout << "======  Unknown controller type [ " << pt.get<std::string>("root.controller.<xmlattr>.type") << " ] ================" << std::endl;
+			std::stringstream ss;
+			ss << "AIVBuilder::addAdeptLynxToApplication: Unknown controller type [ " << pt.get<std::string>("root.controller.<xmlattr>.type") << " ]. Check configuration file.";
+			throw(MyException(ss.str()));
 		}
 
 		app->addVehicle(lynx);

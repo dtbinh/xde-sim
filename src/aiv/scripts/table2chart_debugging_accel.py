@@ -346,16 +346,31 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
             [(post - ant)/(tp - ta) for post, ant, tp, ta in zip(angVel[2:], angVel[0:-2], simTime[2:], simTime[0:-2])] +\
             [(angVel[-1] - angVel[-2])/(simTime[-1] - simTime[-2])]
 
+    # compute approx. acceleration from planned velecity
+    linVel = sRSInfo.planLinVelTS()
+    approxPlLinAccelTS = [(linVel[1] - linVel[0])/(simTime[1] - simTime[0])] +\
+            [(post - ant)/(tp - ta) for post, ant, tp, ta in zip(linVel[2:], linVel[0:-2], simTime[2:], simTime[0:-2])] +\
+            [(linVel[-1] - linVel[-2])/(simTime[-1] - simTime[-2])]
+    angVel = sRSInfo.planAngVelTS()
+    approxPlAngAccelTS = [(angVel[1] - angVel[0])/(simTime[1] - simTime[0])] +\
+            [(post - ant)/(tp - ta) for post, ant, tp, ta in zip(angVel[2:], angVel[0:-2], simTime[2:], simTime[0:-2])] +\
+            [(angVel[-1] - angVel[-2])/(simTime[-1] - simTime[-2])]
+
     figAccel, axArrayAccel = plt.subplots(2, sharex=True)
 
     axArrayAccel[0].grid()
     axArrayAccel[1].grid()
 
     axArrayAccel[0].plot(simTime, sRSInfo.planLinAccelTS(), 'b', label=r'$u_{ref}[0]$ (planner linaccel)')
+    axArrayAccel[0].plot(simTime, approxPlLinAccelTS, 'y--', label=r'approx planner linaccel')
     axArrayAccel[0].plot(simTime, approxLinAccelTS, 'r', label=r'actual linaccel')
 
     axArrayAccel[1].plot(simTime, sRSInfo.planAngAccelTS(), 'b', label=r'planner angaccel')
+    axArrayAccel[1].plot(simTime, approxPlAngAccelTS, 'y--', label=r'approx planner angaccel')
     axArrayAccel[1].plot(simTime, approxAngAccelTS, 'r', label=r'actual angaccel')
+
+    axArrayAccel[0].set_ylim([1.5, -1.5])
+    axArrayAccel[1].set_ylim([2.5, -2.5])
 
     hand, lab = axArrayAccel[1].get_legend_handles_labels()
     axArrayAccel[1].legend(hand, lab, ncol=1, prop={'size':10}, loc=1)

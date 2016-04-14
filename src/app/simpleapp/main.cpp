@@ -17,6 +17,7 @@
 #include <iostream>
 #include <math.h>
 #include <cstdio>
+#include <exception>
 //#include <boost/property_tree/ptree.hpp>
 //#include <boost/property_tree/xml_parser.hpp>
 //#include <boost/foreach.hpp>
@@ -43,7 +44,16 @@ int main()
 
 	//aiv::ApplicationBuilder builder;
 	//aiv::Application * app = builder.buildSimpleCollisionApp();
-	aiv::Application * app = aiv::ApplicationBuilder::buildSimpleAdeptApp();
+	aiv::Application * app;
+	try
+	{
+		app = aiv::ApplicationBuilder::buildSimpleAdeptApp();
+	}
+	catch(std::exception& e)
+	{
+		std::cout << "main: Attempt to build simple App failed. " << e.what() << std::endl;
+		return 0;
+	}
 
 	std::map<std::string, aiv::AIV*> vehicles = app->getVehicles();
 	aiv::AIVMonocycle * vehicle;
@@ -131,7 +141,14 @@ int main()
 
 		simTic = appTimeStep / 1000. * i;
 
-		app->update();
+		try
+		{
+			app->update();
+		}
+		catch(std::exception& e)
+		{
+			std::cout << "main: Updating failed." << e.what();
+		}
 
 		// APPLY CONTROLLER OUTPUT FOR EACH VEHICLE AND SAVE LOG
 		for (std::map<std::string, aiv::AIV*>::iterator it = vehicles.begin(); it != vehicles.end(); ++it)
@@ -154,6 +171,7 @@ int main()
 			// GET CONTROLLER OUTPUT
 			ctrlLinVel = dynamic_cast<aiv::ControllerMonocycle*>(vehicle->getController())->getLinVelocity();
 			ctrlAngVel = dynamic_cast<aiv::ControllerMonocycle*>(vehicle->getController())->getAngVelocity();
+
 			//ctrlLinVel = 0.0;
 			//ctrlAngVel = 0.0;
 
