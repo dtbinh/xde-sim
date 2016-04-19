@@ -250,7 +250,7 @@ namespace aiv
 		double currentPlanningTime = _updateTimeStep*_updateCallCntr;
 		++_updateCallCntr;
 
-		double evalTime = (currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon)) / _planHorizon;
+		double evalTime = currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
 
 		// --- REAL COMPUTATION
 
@@ -304,6 +304,7 @@ namespace aiv
 				for (auto i=0; i<20; ++i)
 					param[i] = -111;
 				_optTrajectory.getParameters(param);
+				std::cout << "____ " << _trajectory.nParam()*splDim << std::endl;
 				for (auto i=0; i < _trajectory.nParam()*splDim; ++i)
 					std::cout << param[i] << std::endl;
 				// Now we are sure that there is no ongoing planning!
@@ -339,11 +340,11 @@ namespace aiv
 			}
 
 			// If the robot started to execute the motion
-			else if (_executingPlanIdx >= 0 && evalTime >= _compHorizon / _planHorizon)
+			else if (_executingPlanIdx >= 0 && evalTime >= _compHorizon)
 			{
 				++_executingPlanIdx;
 
-				evalTime -= _compHorizon / _planHorizon; // "Fix" evalTime
+				evalTime -= _compHorizon; // "Fix" evalTime
 
 				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
 				{
@@ -394,7 +395,7 @@ namespace aiv
 				}
 			}
 		}
-		else if (_planStage == FINAL && evalTime > 1.0)
+		else if (_planStage == FINAL && evalTime > _planHorizon)
 		{
 			////std::cout << "gone to DONE" << std::endl;
 			_planStage = DONE;
@@ -427,11 +428,11 @@ namespace aiv
 		else //INTER or FINAL
 		{
 			// just use solSpline to get the nextReferences values
-			std::cout << "evalTime: " << evalTime << std::endl;
+			//std::cout << "evalTime: " << evalTime << std::endl;
 
-			NDerivativesMatrix derivFlat = _trajectory(evalTime*_planHorizon, FlatoutputMonocycle::flatDerivDeg);
+			NDerivativesMatrix derivFlat = _trajectory(evalTime, FlatoutputMonocycle::flatDerivDeg);
 
-			Np1DerivativesMatrix derivFlat2 = _trajectory(evalTime*_planHorizon, FlatoutputMonocycle::flatDerivDeg+1);
+			Np1DerivativesMatrix derivFlat2 = _trajectory(evalTime, FlatoutputMonocycle::flatDerivDeg+1);
 
 			_poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
 
@@ -706,12 +707,18 @@ namespace aiv
 		// Update trajectory with optimized parameters
 		if (_planLastPlan == false)
 		{
-			_optTrajectory.update(optParam);
+			if (_optimizerType == "NONE")
+				_optTrajectory.updateFromUniform(optParam);
+			else
+				_optTrajectory.update(optParam);
 		}
 		else
 		{
-			_optTrajectory.update(&(optParam[1]), optParam[0]);
-			_optPlanHorizon = optParam[0];		
+			if (_optimizerType == "NONE")
+				_optTrajectory.updateFromUniform(&(optParam[1]), optParam[0]);
+			else
+				_optTrajectory.update(&(optParam[1]), optParam[0]);
+			_optPlanHorizon = optParam[0];
 		}
 
 		delete[] optParam;

@@ -74,7 +74,7 @@ namespace aiv {
 
 	void Trajectory::updateFromUniform(const double *ctrlpts)
 	{
-		double parVarInterval = _trajecSpl.knots().tail(1);
+		double parVarInterval = _trajecSpl.knots().tail(1)(0,0);
 
 		TrajectorySpline::ControlPointVectorType points(dim, _nCtrlPts);
 		// Feed ctrlPts rows with values from the primal variables x
@@ -97,15 +97,36 @@ namespace aiv {
 
 	void Trajectory::updateFromUniform(const double *ctrlpts, const double parVarInterval)
 	{
-		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
+		TrajectorySpline::ControlPointVectorType points(dim, _nCtrlPts);
 		// Feed ctrlPts rows with values from the primal variables x
 		for (int i = 0; i < _nCtrlPts*dim; ++i)
 		{
-			ctrlPts(i % dim, i / dim) = ctrlpts[i];
+			points(i % dim, i / dim) = ctrlpts[i];
 		}
-		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlPts);
+
+		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), points);
+
+		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+
+		for (auto i=0; i < _nCtrlPts; ++i)
+		{
+			points.col(i) = auxSpline(parVariable(i));
+		}
+
+		fit(points, parVarInterval);
 	}
+
+	// void Trajectory::updateFromUniform(const double *ctrlpts, const double parVarInterval)
+	// {
+	// 	TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
+	// 	// Feed ctrlPts rows with values from the primal variables x
+	// 	for (int i = 0; i < _nCtrlPts*dim; ++i)
+	// 	{
+	// 		ctrlPts(i % dim, i / dim) = ctrlpts[i];
+	// 	}
+	// 	_trajecSpl.~TrajectorySpline();
+	// 	new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlPts);
+	// }
 
 	Eigen::Matrix<double, Trajectory::dim, 1> Trajectory::operator()(const double evalTime) const
 	{	

@@ -34,10 +34,10 @@ int main()
 
 	std::cout << "traj(0.0)\n--\n" << traj(0.0) << "\n--" << std::endl;
 	std::cout << "traj(1.0)\n--\n" << traj(1.0) << "\n--" << std::endl;
-	std::cout << "traj(0.0, 1)\n--\n" << traj(0.0, 1) << "\n--" << std::endl;
-	std::cout << "traj(parVarInterv, 1)\n--\n" << traj(parVarInterv, 1) << "\n--" << std::endl;
-	std::cout << "traj(parVarInterv*1./7., 1)\n--\n" << traj(parVarInterv*1./7., 1) << "\n--" << std::endl;
-	std::cout << "traj(parVarInterv*5./7., 1)\n--\n" << traj(parVarInterv*5./7., 1) << "\n--" << std::endl;
+	std::cout << "traj(0.0, 1)\n--\n" << traj(0.0, 3) << "\n--" << std::endl;
+	std::cout << "traj(parVarInterv, 1)\n--\n" << traj(parVarInterv, 3) << "\n--" << std::endl;
+	std::cout << "traj(parVarInterv*1./7., 1)\n--\n" << traj(parVarInterv*1./7., 3) << "\n--" << std::endl;
+	std::cout << "traj(parVarInterv*5./7., 1)\n--\n" << traj(parVarInterv*5./7., 3) << "\n--" << std::endl;
 
 
 	//double nPar[] = {1, 1, 2.33333, 2.33333, 4.33333, 4.33333, 7, 7, 9, 9, 11.6667, 11.6667, 13.6667, 13.6667, 15, 15};

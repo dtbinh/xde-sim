@@ -19,6 +19,7 @@ namespace aiv {
 		void update(const TrajectorySpline::ControlPointVectorType& ctrlPts, const double parVarInterval);
 		void update(const double *ctrlpts, const double parVarInterval);
 		void updateFromUniform(const double *ctrlpts);
+		void updateFromUniform(const double *ctrlpts, const double parVarInterval);
 
 		Eigen::Matrix<double, dim, 1> operator()(const double evalTime) const;
 		Eigen::Matrix<double, dim, Eigen::Dynamic> operator()(const double evalTime, const unsigned deriv) const;

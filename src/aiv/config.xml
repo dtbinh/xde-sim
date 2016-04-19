@@ -502,7 +502,7 @@
     <planninghorizon unit="s">1.6</planninghorizon>
     <waitforthread>true</waitforthread>
     <sampling>14</sampling>
-    <interknots>6</interknots>
+    <interknots>5</interknots>
     <terminationdist unit="m">0.6</terminationdist>
     <interrobotsafetydist unit="m">0.1</interrobotsafetydist>
     <robotobstaclesafetydist unit="m">0.1</robotobstaclesafetydist>
