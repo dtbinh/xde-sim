@@ -1,23 +1,37 @@
 #include "aiv/pathplanner/Trajectory.hpp"
+#include "aiv/helpers/MyException.hpp"
 
 namespace aiv {
 
-	Trajectory::Trajectory():
+	Trajectory::Trajectory()
 	{
 
 	}
 
-	void Trajectory::update(TrajectorySpline::ControlPointVectorType ctrlPts)
+	void Trajectory::setOption(std::string optionName, unsigned optionValue)
+	{
+		if (optionName == "nCtrlPts")
+		{
+			_nCtrlPts = optionValue;
+		}
+		else if (optionName == "nIntervNonNull")
+		{
+			_nIntervNonNull = optionValue;
+		}
+	}
+
+	void Trajectory::update(const TrajectorySpline::ControlPointVectorType& ctrlPts)
 	{
 		_knots = _trajecSpl.knots();
 		_trajecSpl.~TrajectorySpline();
 		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
 	}
-	void Trajectory::update(unsigned ncpts, const double *ctrlpts)
+
+	void Trajectory::update(const double *ctrlpts)
 	{
-		TrajectorySpline::ControlPointVectorType ctrlPts(dim, ncpts);
+		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
 		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < ncpts; ++i)
+		for (int i = 0; i < _nCtrlPts*dim; ++i)
 		{
 			ctrlPts(i % dim, i / dim) = ctrlpts[i];
 		}
@@ -25,94 +39,90 @@ namespace aiv {
 		_trajecSpl.~TrajectorySpline();
 		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
 	}
-	void Trajectory::update(TrajectorySpline::ControlPointVectorType ctrlPts, TrajectorySpline::KnotVectorType knots)
+
+	void Trajectory::update(const double *ctrlpts, const double parVarInterval)
 	{
-		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(knots, ctrlPts);
-	}
-	void Trajectory::update(unsigned ncpts, const double *ctrlpts, TrajectorySpline::KnotVectorType knots)
-	{
-		TrajectorySpline::ControlPointVectorType ctrlPts(dim, ncpts);
+		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
 		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < ncpts; ++i)
+		for (int i = 0; i < _nCtrlPts*dim; ++i)
 		{
 			ctrlPts(i % dim, i / dim) = ctrlpts[i];
 		}
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(knots, ctrlPts);
+		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), ctrlPts);
 	}
 
-	void Trajectory::operator()(const double time)
-	{
-		if (_isSplUpToDate == true)
-		{
-			_evaluatedTrajectoryValues = _trajecSpl(time);
-			//CHECK IF TIME IS OK IF NOT LIMITE IT TO MAXTIME
-		}
+	Eigen::Matrix<double, Trajectory::dim, 1> Trajectory::operator()(const double evalTime) const
+	{	
+		//TODO CHECK IF TIME IS within limits
+		return _trajecSpl(evalTime);
 	}
 
-	const double Trajectory::k(const unsigned idx)
+	Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> Trajectory::operator()(const double evalTime, const unsigned deriv) const
 	{
-		if (idx >= dim)
-		{
-			// TODO assert error
-			return 0.0;
-		}
-		return _evaluatedTrajectoryValues(idx,0);
+		//TODO CHECK IF TIME IS within limits
+		return _trajecSpl.derivatives(evalTime, deriv);
 	}
 
-	void Trajectory::setTrajectoryValue(const double *trajectoryValues)
+	void Trajectory::fit(const Eigen::MatrixXd& points, const double parVarInterval)
 	{
-		_isSplUpToDate = false;
-
-		for (auto i = 0; i < dim; ++i)
-		{
-			_evaluatedTrajectoryValues(i,0) = trajectoryValues[i];
-		}
-
-	}
-	void Trajectory::setTrajectoryValue(const double trajectoryValue, const unsigned idx)
-	{
-		_isSplUpToDate = false;
-		_evaluatedTrajectoryValues(idx,0) = trajectoryValue;
+		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+		TrajectorySpline::KnotVectorType chordLengths;
+		Eigen::ChordLengths(parVariable, chordLengths);
+		_trajecSpl = Eigen::SplineFitting<TrajectorySpline>::Interpolate(points, derivDeg, chordLengths);
 	}
 
-	Eigen::Array< double, 1, Eigen::Dynamic >  Trajectory::genKnots(const double initT, const double finalT, bool nonUniform)
+	void Trajectory::getParameters(double* params) const
 	{
-		// TODO throw error
-		if (this->noIntervNonNull < 2)
+		if (params == NULL)
 		{
 			std::stringstream ss;
-			ss << "Trajectory::genKnots: number of non null intervals is too low [ " << noIntervNonNull << " ]. Check configuration file.";
+			ss << "Trajectory::getParameters: invalid C-like array (points to NULL). Was memory allocated?";
+			throw(MyException(ss.str()));
+		}
+		//unsigned nParam = _trajecSpl.ctrls().size(); // size() = total of coefficients (= rows() + cols())
+		for (auto i = 0; i < _nCtrlPts*dim; ++i)
+		{
+			params[i] = _trajecSpl.ctrls()(i % dim, i / dim);
+		}
+	}
+
+	Eigen::Array< double, 1, Eigen::Dynamic > Trajectory::_genKnots(const double initT, const double finalT, const bool nonUniform, const unsigned nIntervNonNull) const
+	{
+		// TODO throw error
+		if (nIntervNonNull < 2)
+		{
+			std::stringstream ss;
+			ss << "Trajectory::_genKnots: number of non null intervals is too low [ " << nIntervNonNull << " ].";
 			throw(MyException(ss.str()));
 		}
 
-		double d = (finalT - initT) / (4 + (this->noIntervNonNull - 2));
+		double d = (finalT - initT) / (4 + (nIntervNonNull - 2));
 		// d is the nonuniform interval base value (spacing produce intervals like this: 2*d, d,... , d, 2*d)
 
-		Eigen::Array< double, 1, Eigen::Dynamic > knots(this->splDegree * 2 + this->noIntervNonNull + 1);
+		Eigen::Array< double, 1, Eigen::Dynamic > knots(derivDeg * 2 + nIntervNonNull + 1);
 
 		// first and last knots
-		knots.head(this->splDegree) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(this->splDegree, initT);
-		knots.tail(this->splDegree) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(this->splDegree, finalT);
+		knots.head(derivDeg) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(derivDeg, initT);
+		knots.tail(derivDeg) = Eigen::Array< double, 1, Eigen::Dynamic >::Constant(derivDeg, finalT);
 
 		// intermediaries knots
 		if (nonUniform)
 		{
-			knots(this->splDegree) = initT;
-			knots(this->splDegree + 1) = initT + 2 * d;
+			knots(derivDeg) = initT;
+			knots(derivDeg + 1) = initT + 2 * d;
 
 			unsigned i = 0;
-			for (i = 0; i < this->noIntervNonNull - 2; ++i)
+			for (i = 0; i < nIntervNonNull - 2; ++i)
 			{
-				knots(this->splDegree + i + 2) = knots(this->splDegree + i + 1) + d;
+				knots(derivDeg + i + 2) = knots(derivDeg + i + 1) + d;
 			}
 
-			knots(this->splDegree + 2 + i) = finalT; // = knots(this->splDegree+2+i-1) + 2*d
+			knots(derivDeg + 2 + i) = finalT; // = knots(derivDeg+2+i-1) + 2*d
 		}
 		else // uniform
 		{
-			knots.segment(this->splDegree, this->noIntervNonNull + 1) = Eigen::Array< double, 1, Eigen::Dynamic >::LinSpaced(this->noIntervNonNull + 1, initT, finalT);
+			knots.segment(derivDeg, nIntervNonNull + 1) = Eigen::Array< double, 1, Eigen::Dynamic >::LinSpaced(nIntervNonNull + 1, initT, finalT);
 		}
 		return knots;
 	}

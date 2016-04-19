@@ -15,7 +15,7 @@
 #include "xde/physics/builder/PhysicsBuilder.h"
 #include "xde/graphics/builder/GraphicsBuilder.h"
 
-#include "aiv/helpers/MyException.h"
+#include "aiv/helpers/MyException.hpp"
 
 namespace aiv {
 
@@ -236,8 +236,8 @@ namespace aiv {
 			pplanner->setOption("lastStepMinDist", pt.get<double>("root.mpmethod.terminationdist"));
 			pplanner->setOption("conflictFreePathDeviation", pt.get<double>("root.mpmethod.conflictfreepathdeviation"));
 			pplanner->setOption("interRobotSafetyDist", pt.get<double>("root.mpmethod.interrobotsafetydist"));
-			pplanner->setOption("waitPlanning", pt.get<bool>("root.mpmethod.waitplanning"));
-			pplanner->setOption("numderivativedelta", pt.get<double>("root.mpmethod.numderivativedelta"));
+			pplanner->setOption("wwaitForThread", pt.get<bool>("root.mpmethod.waitforthread"));
+			//pplanner->setOption("numderivativedelta", pt.get<double>("root.mpmethod.numderivativedelta"));
 
 			pplanner->setOption("optimizerType", pt.get<std::string>("root.mpmethod.optimizer.<xmlattr>.type"));
 			pplanner->setOption("xTol", pt.get<double>("root.mpmethod.optimizer.xtolerance"));

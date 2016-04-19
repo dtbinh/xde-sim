@@ -12,8 +12,8 @@ namespace aiv {
 	public:
 		static const unsigned flatDim = 2;
 		static const unsigned poseDim = 3;
-		static const unsigned velocityDim = 2;
-		static const unsigned accelerationDim = 2;
+		static const unsigned veloDim = 2;
+		static const unsigned accelDim = 2;
 		static const unsigned flatDerivDeg = 2;
 		static const unsigned linSpeedIdx = 0;
 		static const unsigned angSpeedIdx = 1;
@@ -64,12 +64,12 @@ namespace aiv {
 		}
 
 		template<class T>
-		static Eigen::Matrix< T, velocityDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
+		static Eigen::Matrix< T, veloDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
 			T den = dFlat(0, 1)*dFlat(0, 1) + dFlat(1, 1)*dFlat(1, 1); //+eps so no /0 + static_cast<T>(std::numeric_limits< float >::epsilon())
 			den = den == 0.0 ? static_cast<T>(std::numeric_limits< double >::epsilon()) : den;
 
-			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::velocityDim, 1>() <<
+			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1>() <<
 				dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1>(0, 1).norm(),
 				(dFlat(0, 1)*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) / den
 				).finished();
@@ -82,7 +82,7 @@ namespace aiv {
 //             # den = dz_norm if dz_norm >= min_den_norm else min_den_norm
 //             den = dz_norm if abs(dz_norm) > pquartereps else pquartereps
 		template<class T>
-		static Eigen::Matrix< T, velocityDim, 1 > flatToAcceleration(const Eigen::Matrix< T, flatDim, flatDerivDeg + 2 > &dFlat)
+		static Eigen::Matrix< T, veloDim, 1 > flatToAcceleration(const Eigen::Matrix< T, flatDim, flatDerivDeg + 2 > &dFlat)
 		{
 
 			T dflat_norm = dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1 >(0, 1).norm();
@@ -94,7 +94,7 @@ namespace aiv {
 				(dFlat(1, 2)*dFlat(0, 2) + dFlat(0, 3)*dFlat(1, 1)))*(pow(dflat_norm, 2)) -
 				(dFlat(0, 1)*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) * 2 * dflat_norm*dv) / pow(dflat_norm_den2, 4);
 
-			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::velocityDim, 1 >() <<
+			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1 >() <<
 				dv,
 				dw
 				).finished();
@@ -102,9 +102,9 @@ namespace aiv {
 
 	};
 
-	typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > PoseVector;
-	typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > VelVector;
-	typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::accelerationDim, 1 > AccVector;
+	// typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > PoseVector;
+	// typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::veloDim, 1 > VelVector;
+	// typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::accelDim, 1 > AccVector;
 
 }
 #endif // __AIV_FLATOUTPUTMONOCYCLE_HPP__

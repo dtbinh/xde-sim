@@ -124,6 +124,7 @@ namespace aiv {
 				it->second->getSensor()->getObstacles(),
 				it->second->getSensor()->getVehicles(),
 				it->second->getCurrentPosition());
+			//std::cout << "after planner update [" << it->first << "]" << std::endl;
 			//it->second->getCurrentPosition(), it->second->getCurrentVelocity()); // pplanner update call with state feedback ! THIS MAKES NO SENSE
 			it->second->getController()->update(
 				it->second->getCurrentPosition(),
@@ -135,7 +136,11 @@ namespace aiv {
 				it->second->getPathPlanner()->getAngVelocity(),
 				it->second->getPathPlanner()->getLinAccel(),
 				it->second->getPathPlanner()->getAngAccel());
+
+			//std::cout << "after controller update [" << it->first << "]" << std::endl;
+
 		}
+		//std::cout << "after controllers sensors planners updates" << std::endl;
 
 		// update simu
 		gvmScene.detectCollisions();
@@ -151,6 +156,7 @@ namespace aiv {
 
 		// update graphics
 		xdeViewer->update();
+		//std::cout << "end of Application update" << std::endl;
 	}
 
 	void Application::printPerformanceReport(std::ostream & os)

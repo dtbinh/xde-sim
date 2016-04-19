@@ -4,10 +4,9 @@
 
 #include "aiv/pathplanner/PathPlanner.hpp"
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
-#include <unsupported/Eigen/Splines>
+#include "aiv/pathplanner/Trajectory.hpp"
 #include <boost/thread.hpp>
 #include <fstream>
-//#include "sys/timer.h"
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
@@ -16,14 +15,14 @@
 
 //Spline< dim, degree >
 
-typedef Eigen::Spline< double, aiv::FlatoutputMonocycle::flatDim, aiv::FlatoutputMonocycle::flatDerivDeg + 1 > MySpline;
-typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::flatDim, aiv::FlatoutputMonocycle::flatDerivDeg + 1 > NDerivativesMatrix;
-typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::flatDim, aiv::FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
-typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > PoseVector;
-typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > VelVector;
-typedef Eigen::Matrix< double, aiv::FlatoutputMonocycle::accelerationDim, 1 > AccVector;
-
 namespace aiv {
+
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1 > NDerivativesMatrix;
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::poseDim, 1 > PoseVector;
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, 1 > FlatVector;
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::veloDim, 1 > VeloVector;
+	typedef Eigen::Matrix< double, FlatoutputMonocycle::accelDim, 1 > AccelVector;
 
 	class Obstacle;
 	class AIV;
@@ -33,108 +32,108 @@ namespace aiv {
 
 		/*____________________________________________ Members ____________________________________________*/
 	public:
-		static const unsigned splDegree = aiv::FlatoutputMonocycle::flatDerivDeg + 1; // spline degree defined by Defoort is = splDegree + 1    
-		static const unsigned splDim = aiv::FlatoutputMonocycle::flatDim; // spline dimension
+		static const unsigned splDegree = FlatoutputMonocycle::flatDerivDeg + 1; // spline degree defined by Defoort is = splDegree + 1    
+		static const unsigned splDim = FlatoutputMonocycle::flatDim; // spline dimension
 	private:
 
-		// Solution "flat output" b-spline representation
-		//typedef Eigen::Spline< double, splDim, splDegree > MySpline;
+		// Trajectory representation ======================================================
+		Trajectory _trajectory;
+		Trajectory _optTrajectory; // For using by the optimization process
+		//unsigned _nIntervNonNull;   // number of non null knots intervals
+		//unsigned _nCtrlPts;         // number of control points
 
-		// Planning parameters
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > initPose;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::flatDim, 1 > initFlat;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > initVelocity;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > targetedPose;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::flatDim, 1 > targetedFlat;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > targetedVelocity;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > maxVelocity;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > maxAcceleration;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::flatDim, 1 > latestFlat;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > latestPose;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > finalPoseForFuturePlan;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > initPoseForCurrPlan;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > latestVelocity;
-		bool mindAcceleration;
+		// Initial and target conditions ==================================================
+		PoseVector _initPose;
+		FlatVector _initFlat;
+		VeloVector _initVelocity;
+		PoseVector _targetedPose;
+		FlatVector _targetedFlat;
+		VeloVector _targetedVelocity;
+		VeloVector _maxVelocity;
+		AccelVector _maxAcceleration;
+		FlatVector _latestFlat;
+		PoseVector _latestPose;
+		VeloVector _latestVelocity;
+		PoseVector _initPoseForFuturePlan; // buffer for base position
+		PoseVector _initPoseForCurrPlan; // buffer for base position
 
-		double compHorizon;         // computation horizon
-		double refPlanHorizon;      // planning horizon
-		double finalPlanHorizon;    // planning horizon
-		double planHorizon;         // planning horizon
-		bool lastPlanComputed;
-		unsigned noTimeSamples;     // number of  time samples taken within a planning horizon
-		unsigned noIntervNonNull;   // number of non null knots intervals
-		unsigned noCtrlPts;         // number of control points
+		// Planning outputs ===============================================================
+		VeloVector _velocityOutput;
+		AccelVector _accelOutput;
+		PoseVector _poseOutput;
 
-		double lastStepMinDist;
-		double xTol;
-		double fTol;
-		double eqTol;
-		double ineqTol;
-		unsigned lastMaxIteration;
-		unsigned firstMaxIteration;
-		unsigned interMaxIteration;
-		double conflictFreePathDeviation;
-		double interRobotSafetyDist;
-		double maxStraightDist;
+		// Planning parameters ============================================================
+		double _compHorizon;         // computation horizon
+		double _planHorizon;      // planning horizon
+		double _optPlanHorizon;    // planning horizon for using by the optimization process
 
-		//xde::sys::Timer plTimer;
-		double updateTimeStep;
-		double firstPlanTimespan;
-		unsigned long long updateCallCntr;
+		bool _planLastPlan; // last planning flag
+		double _lastStepMinDist; // parameter for stop condition
 
-		boost::mutex planOngoingMutex;
-		enum ConflictEnum { NONE, COLL, COM, BOTH } isThereConfl;
+		double _conflictFreePathDeviation;
+		double _interRobotSafetyDist;
+		double _robotObstacleSafetyDist;
+		double _maxStraightDist;
 
-		enum PlanStage { INIT, INTER, FINAL, DONE } planStage;
-		bool waitPlanning;
+		enum PlanStage { INIT, INTER, FINAL, DONE } _planStage;
+		bool _waitForThread;
 
-		MySpline solSpline;
-		MySpline auxSpline;
-		double estTime;
+		//double _estTime;
+		
+		std::map< std::string, Obstacle* > _detectedObstacles;
+		//std::map<std::string, std::vector<int> > conflictInfo;
+		// std::map< std::string, AIV* > _collisionAIVs;
+		// std::map< std::string, AIV* > _comOutAIVs;
+		// std::set< std::string > _comAIVsSet;
 
-		boost::thread planThread;
+		double _comRange;
+		//double secRho; // secure distance from other robots and obstacles
 
-		int ongoingPlanIdx;
-		int executingPlanIdx;
+		unsigned _nTimeSamples;     // number of  time samples taken within a planning horizon
+		int _executingPlanIdx;
+		int _ongoingPlanIdx;
 
-		// Planning outputs
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > nextVelocityRef;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::accelerationDim, 1 > nextAccRef;
-		Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > nextPoseRef;
+		//enum ConflictEnum { NONE, COLL, COM, BOTH } _isThereConfl;
 
-		std::ofstream opt_log;
-		std::ofstream eq_log;
+		// Optimization parameters ========================================================
+		std::string _optimizerType;
+		double _xTol;
+		double _fTol;
+		double _eqTol;
+		double _ineqTol;
+		unsigned _lastMaxIteration;
+		unsigned _firstMaxIteration;
+		unsigned _interMaxIteration;
+		// double _h; // for numeric derivation
 
-		std::string optimizerType;
+		// xde simulation related =========================================================
+		double _updateTimeStep;
+		double _firstPlanTimespan;
+		unsigned long long _updateCallCntr;
 
-		double h;
+		// multithreading management ======================================================
+		boost::mutex _planOngoingMutex;
+		boost::thread _planThread;
 
-		boost::property_tree::ptree property_tree;
 
-		std::map< std::string, Obstacle* > detectedObstacles;
-		std::map< std::string, AIV* > collisionAIVs;
-		std::map< std::string, AIV* > comOutAIVs;
-		std::set< std::string > comAIVsSet;
+		// In out streamming ==============================================================
+		// std::ofstream _opt_log;
+		// std::ofstream _eq_log;
+		boost::property_tree::ptree _property_tree;
 
-		double comRange;
-		double secRho;
+		//double nbPointsCloseInTime;
 
-		double nbPointsCloseInTime;
+		//double initTimeOfCurrPlan;
 
-		double initTimeOfCurrPlan;
-
-		std::map<std::string, std::vector<int> > conflictInfo;
 
 		/*____________________________________________ Methods ____________________________________________*/
 
 	private:
-		void plan();
-		Eigen::Array< double, 1, Eigen::Dynamic > genKnots(const double initT, const double finalT, const bool nonUniform);
-		int findspan(const double t);
-		void solveOptPbl();
-		void conflictEval(std::map<std::string, AIV *> otherVehicles,
-				const Eigen::Displacementd & myRealPose);
-		int nbPointsCloseInTimeEval();
+		void _plan();
+		//int findspan(const double t);
+		void _solveOptPbl();
+		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
+		// int nbPointsCloseInTimeEval();
 
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);
@@ -142,46 +141,49 @@ namespace aiv {
 		~PathPlannerRecHor();
 
 		void init(
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > &initPose, // x, y, theta
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &initVelocity, // v, w
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > &targetedPose, // x, y, theta
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &targetedVelocity, // v, w
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &maxVelocity, // v, w
+			const PoseVector &initPose, // x, y, theta
+			const VeloVector &initVelocity, // v, w
+			const PoseVector &targetedPose, // x, y, theta
+			const VeloVector &targetedVelocity, // v, w
+			const VeloVector &maxVelocity, // v, w
 			double compHorizon,
 			double refPlanHorizon,
 			unsigned noTimeSamples,
 			unsigned noIntervNonNull);
 
 		void init(
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > &initPose, // x, y, theta
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &initVelocity, // v, w
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::poseDim, 1 > &targetedPose, // x, y, theta
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &targetedVelocity, // v, w
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &maxVelocity, // v, w
-			const Eigen::Matrix< double, aiv::FlatoutputMonocycle::velocityDim, 1 > &maxAcceleration, // dv, dw
+			const PoseVector &initPose, // x, y, theta
+			const VeloVector &initVelocity, // v, w
+			const PoseVector &targetedPose, // x, y, theta
+			const VeloVector &targetedVelocity, // v, w
+			const VeloVector &maxVelocity, // v, w
+			const VeloVector &maxAcceleration, // dv, dw
 			double compHorizon,
 			double refPlanHorizon,
 			unsigned noTimeSamples,
 			unsigned noIntervNonNull);
 
-		void setOption(std::string optionName, double optionValue);
-		void setOption(std::string optionName, std::string optionValue);
+		void setOption(const std::string& optionName, const double optionValue);
+		void setOption(const std::string& optionName, const bool optionValue);
+		void setOption(const std::string& optionName, const unsigned optionValue);
+		void setOption(const std::string& optionName, const std::string& optionValue);
 
 		void update(std::map<std::string, Obstacle *> detectedObst,
 				std::map<std::string, AIV *> otherVehicles,
 				const Eigen::Displacementd & myRealPose); //const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity);
 
-		inline double getLinVelocity() { return this->nextVelocityRef(aiv::FlatoutputMonocycle::linSpeedIdx); }
-		inline double getMaxLinVelocity() { return this->maxVelocity(aiv::FlatoutputMonocycle::linSpeedIdx); }
-		inline double getAngVelocity() { return this->nextVelocityRef(aiv::FlatoutputMonocycle::angSpeedIdx); }
-		inline double getLinAccel() { return this->nextAccRef(aiv::FlatoutputMonocycle::linSpeedIdx); }
-		inline double getAngAccel() { return this->nextAccRef(aiv::FlatoutputMonocycle::angSpeedIdx); }
-		inline double getSecRho() { return this->secRho; }
-		inline double getComRange() { return this->comRange; }
+		// getters
+		inline double getLinVelocity() const { return _velocityOutput(FlatoutputMonocycle::linSpeedIdx); }
+		inline double getMaxLinVelocity() const { return _maxVelocity(FlatoutputMonocycle::linSpeedIdx); }
+		inline double getAngVelocity() const { return _velocityOutput(FlatoutputMonocycle::angSpeedIdx); }
+		inline double getLinAccel() const { return _accelOutput(FlatoutputMonocycle::linSpeedIdx); }
+		inline double getAngAccel() const { return _accelOutput(FlatoutputMonocycle::angSpeedIdx); }
+		inline double getRobotObstacleSafetyDist() const { return _robotObstacleSafetyDist; }
+		inline double getComRange() const { return _comRange; }
 
-		inline double getXPosition() { return this->nextPoseRef(aiv::FlatoutputMonocycle::posIdx); }
-		inline double getYPosition() { return this->nextPoseRef(aiv::FlatoutputMonocycle::posIdx + 1); }
-		inline double getOrientation() { return this->nextPoseRef(aiv::FlatoutputMonocycle::posIdx + 2); }
+		inline double getXPosition() const { return _poseOutput(FlatoutputMonocycle::posIdx); }
+		inline double getYPosition() const { return _poseOutput(FlatoutputMonocycle::posIdx + 1); }
+		inline double getOrientation() const { return _poseOutput(FlatoutputMonocycle::posIdx + 2); }
 
 		static double objectFunc(unsigned n, const double *x, double *grad, void *my_func_data);
 		static double objectFuncLS(unsigned n, const double *x, double *grad, void *my_func_data);
@@ -198,17 +200,16 @@ namespace aiv {
 		static void eval_ineqLS(double *result, unsigned n, const double* x, void* data);
 		static void ineqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data);
 
-		inline bool isDone () {if (planStage == DONE) return true; else return false;}
+		//inline bool isDone () {if (planStage == DONE) return true; else return false;}
 
-		inline double getInitTimeOfCurrPlan() { return initTimeOfCurrPlan; }
+		//inline double getInitTimeOfCurrPlan() const { return initTimeOfCurrPlan; }
 
-		inline MySpline getSpline() { return auxSpline; }
+		//inline MySpline getSpline() const { return auxSpline; }
 		
 		/*static double old_objectFunc(unsigned n, const double *x, double *grad, void *my_func_data);
 		static void old_eqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data);
 		static void old_ineqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data);*/
 	};
-
 
 }
 

@@ -85,35 +85,6 @@ namespace aiv
 		double y,
 		double theta)
 	{
-
-		// Eigen::Vector3d err = (Eigen::Vector3d() << x-x_r, y-y_r, theta-theta_r).finished(); // errors
-
-		// Eigen::Matrix2d rotRef = (Eigen::Matrix2d() << cos(theta_r), sin(theta_r), -1*sin(theta_r), cos(theta_r)).finished();
-
-		// Eigen::Vector2d err_r = rotRef*err.block<2,1>(0,0);
-		// //Eigen::Vector2d err_r = err.block<2,1>(0,0);
-
-
-		// double xi1 = -1*std::abs(u1_r)*(err_r(0)+err_r(1)*tan(err(2)));
-		// double xi2 = -1*u1_r*err_r(1);
-		// double xi3 = -1*std::abs(u1_r)*tan(err(2));
-
-		// // Only proportional gain
-		// // _gain(evalTime*_ctrlHorizon); //FIXME
-		// double w1 = 1.*xi1;
-		// double w2 = 1.*xi2 + 2.*xi3;
-
-		// //----------------- Back to u1, u2 from w1, w2 ---------------------
-
-		// _u1 = (w1 + u1_r)/cos(err(2));
-		// _u2 = w2*std::pow(cos(err(2)), 2)+u2_r;
-
-		// // limiting output
-		// _u1 = std::max(std::min(_u1, _maxU1), -1*_maxU1);
-		// _u2 = std::max(std::min(_u2, _maxU2), -1*_maxU2);
-
-
-
 		// A new explicit dynamic path tracking controller using Generalized Predictive Control (Mohamed Krid, Faiz Benamar, and Roland Lenain)
 
 		// Just need to be computed once thruout the whole simulation (does using 'static const" accomplish that?):

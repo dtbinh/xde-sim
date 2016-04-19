@@ -148,6 +148,11 @@ int main()
 		catch(std::exception& e)
 		{
 			std::cout << "main: Updating failed." << e.what();
+			delete[] pl_ts;
+			delete[] real_ts;
+			delete[] ctrl_ts;
+			delete[] obst_ts;
+			return 0;
 		}
 
 		// APPLY CONTROLLER OUTPUT FOR EACH VEHICLE AND SAVE LOG
