@@ -20,6 +20,7 @@
 // #endif
 
 using boost::property_tree::ptree;
+using namespace Eigen;
 
 namespace aiv
 {
@@ -49,7 +50,7 @@ namespace aiv
 		, _maxAcceleration(AccelVector::Constant(std::numeric_limits<double>::infinity()))
 
 		, _planStage(INIT)
-		, _ongoingPlanIdx(-1)
+		//, _ongoingPlanIdx(-1)
 		, _executingPlanIdx(-1)
 		//, _isThereConfl(NONE)
 		, _planLastPlan(false)
@@ -97,6 +98,7 @@ namespace aiv
 		_compHorizon = compHorizon; // computation horizon
 		_optPlanHorizon = planHorizon; // planning horizon
 		_planHorizon = planHorizon; // planning horizon
+		_refPlanHorizon = planHorizon;
 		_nTimeSamples = nTimeSamples; // number of  time samples taken within a planning horizon
 		
 		unsigned nCtrlPts = nIntervNonNull + splDegree;
@@ -122,11 +124,11 @@ namespace aiv
 		const VeloVector &maxVelocity, // v, w
 		const VeloVector &maxAcceleration, // dv, dw
 		double compHorizon,
-		double refPlanHorizon,
+		double planHorizon,
 		unsigned nTimeSamples,
 		unsigned _nIntervNonNull)
 	{
-		init(initPose, initVelocity, targetedPose, targetedVelocity, maxVelocity, compHorizon, refPlanHorizon, nTimeSamples, _nIntervNonNull);
+		init(initPose, initVelocity, targetedPose, targetedVelocity, maxVelocity, compHorizon, planHorizon, nTimeSamples, _nIntervNonNull);
 		_maxAcceleration = maxAcceleration;
 	}
 
@@ -200,16 +202,16 @@ namespace aiv
 	}
 
 	// void PathPlannerRecHor::conflictEval(std::map<std::string, AIV *>
-	// 		otherVehicles, const Eigen::Displacementd & myRealPose)
+	// 		otherVehicles, const Displacementd & myRealPose)
 	// {
 	// 	// Clear conflicts robots maps
 	// 	this->collisionAIVs.clear();
 	// 	this->comOutAIVs.clear();
 
-	// 	Eigen::Vector2d curr2dPosition;
+	// 	Vector2d curr2dPosition;
 	// 	curr2dPosition << myRealPose.x(), myRealPose.y();
 
-	// 	Eigen::Vector2d otherRobPosition;
+	// 	Vector2d otherRobPosition;
 
 	// 	for (std::map<std::string, AIV *>::iterator it = otherVehicles.begin();
 	// 			it != otherVehicles.end(); ++it)
@@ -244,7 +246,7 @@ namespace aiv
 
 	void PathPlannerRecHor::update(std::map<std::string, Obstacle *> detectedObst,
 		std::map<std::string, AIV *> otherVehicles,
-		const Eigen::Displacementd & myRealPose) //const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity)
+		const Displacementd & myRealPose) //const Displacementd & realPose, const Twistd &realVelocity)
 	{
 		// std::cout << "update" << std::endl;
 		double currentPlanningTime = _updateTimeStep*_updateCallCntr;
@@ -266,9 +268,8 @@ namespace aiv
 				// std::cout << "conflictEval 2" << std::endl;
 				//this->initTimeOfCurrPlan = currentPlanningTime;
 				_planOngoingMutex.lock();
-				//std::cout << "update: _______ (C1) Spawn the first plan thread!!! ________ " << _ongoingPlanIdx << std::endl;
 				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
-				std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
 			}
 
 			// If no plan is been executed yet but the fistPlanTimespan is over
@@ -299,14 +300,6 @@ namespace aiv
 					}
 					_planOngoingMutex.lock();
 				}
-				std::cout << "- " << std::string(name).substr(0,10) << " -" << std::endl;
-				double param[20];
-				for (auto i=0; i<20; ++i)
-					param[i] = -111;
-				_optTrajectory.getParameters(param);
-				std::cout << "____ " << _trajectory.nParam()*splDim << std::endl;
-				for (auto i=0; i < _trajectory.nParam()*splDim; ++i)
-					std::cout << param[i] << std::endl;
 				// Now we are sure that there is no ongoing planning!
 
 				// update solution spline with the auxliar spline find in planning 0;
@@ -334,7 +327,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
 					//opt_log << "update: _______ (C2) Spawn the second plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
 				}
 			}
@@ -390,8 +383,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
-					//opt_log << "update: _______ (C3) Spawn new plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
+					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
 				}
 			}
 		}
@@ -450,7 +442,6 @@ namespace aiv
 
 	void PathPlannerRecHor::_plan()
 	{
-		++_ongoingPlanIdx;
 		// GET ESTIMATE POSITION OF LAST POINT
 		FlatVector remainingDistVectorUni = _targetedFlat - _latestFlat;
 		double remainingDist = remainingDistVectorUni.norm();
@@ -463,23 +454,68 @@ namespace aiv
 			//std::cout << "CONDITION FOR TERMINATION PLAN REACHED!" << std::endl;
 			_planLastPlan = true;
 			//estimate last planning horizon
-			_optPlanHorizon = remainingDist / _maxVelocity[FlatoutputMonocycle::linSpeedIdx];
+			_optPlanHorizon = remainingDist / (_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) +  _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0))*2.;
 			// TODO recompute n_ctrlpts n_knots
 			// using _optTrajectory
 		}
+		else
+			_optPlanHorizon = _refPlanHorizon;
 
-		Eigen::Matrix<double, splDim, Eigen::Dynamic> points (splDim, _optTrajectory.nParam());
+		// GET WAYPOINT AND NEW DIRECTION
 
-		// FIXME replace by findwaypoint and direction algo
-		// Populate points with linear spaced points from zero to estimate last ctrl point
-		for (auto i = 0; i < splDim; ++i)
+		FlatVector currDirec = (FlatVector() << cos(_latestPose(FlatoutputMonocycle::oriIdx, 0)), sin(_latestPose(FlatoutputMonocycle::oriIdx, 0))).finished();
+
+		FlatVector newDirec;
+		FlatVector wayPoint;
+		//_findDirection(newDirec, wayPoint);
+
+		_rotMat2WRef = (Matrix2d() << currDirec(0,0), -1.*currDirec(0,1), currDirec(0,1), currDirec(0,0)).finished();
+		_rotMat2RRef = (Matrix2d() << currDirec(0,0), currDirec(0,1), -1.*currDirec(0,1), currDirec(0,0)).finished();
+		// self._latest_rot2ref_mat = np.hstack((init_direc, np.multiply(np.flipud(init_direc), np.vstack((-1,1)))))
+		// self._latest_rot2rob_mat = np.hstack((np.multiply(init_direc, np.vstack((1,-1))), np.flipud(init_direc)))
+		
+		FlatVector rotatedNewDirec = _rotMat2RRef*newDirec;
+
+		double accel = _planLastPlan ? -1.*min(
+			(_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0))/_optPlanHorizon,
+			_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0)) : _maxAcceleration(FlatoutputMonocycle::linAccelIdx,0);
+
+		double maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
+		double prevDispl = 0.0;
+
+		// Create a sampled trajectory for a "bounded uniformed accelerated motion" in x axis
+		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curveCurrDirec(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		curveCurrDirec = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		
+		// Create a sampled trajectory for a "bounded uniformed accelerated motion" in (direc-init_direc) direction in the xy plane
+		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curveNewDirec(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		curveNewDirec = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+
+		for (auto i=1; i<_optTrajectory.nParam(); ++i)
 		{
-			points.row(i) = Eigen::RowVectorXd::LinSpaced(_optTrajectory.nParam(), 0.0, lastPt(i, 0));
-			//points.row(i) = Eigen::RowVectorXd::Random();
+			double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
+			double displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
+			displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
+			prevDispl = displ;
+			curveCurrDirec(0,i) = displ;
+			curveNewDirec.col(i) = displ*rotatedNewDirec;
+		}
+
+		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		//curveNewDirec = Matrix<FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+
+		double magicNumber = 1.5; //FIXME no magic numbers, at least no hard coded
+		double p;
+
+		for (auto i=0; i < _optTrajectory.nParam(); ++i)
+		//for (auto i=0; i < FlatoutputMonocycle::flatDim; ++i)
+		{
+			p = pow(double(i)/_optTrajectory.nParam(), magicNumber);
+			curve.col(i) = curveCurrDirec.col(i)*(1.0-p) + curveNewDirec.col(i)*p;
 		}
 
 		// Feed aux trajectory with desired points and time horizon
-		_optTrajectory.fit(points, _optPlanHorizon);
+		_optTrajectory.interpolate(curve, _optPlanHorizon);
 
 		// CALL OPT SOLVER
 		try
@@ -584,7 +620,7 @@ namespace aiv
 			std::string base_name = "AdeptLynx";
 
 			std::stringstream ss;
-			ss << "root." << base_name << name[base_name.size()] << ".plan" << std::to_string(_ULONGLONG(_ongoingPlanIdx));
+			ss << "root." << base_name << name[base_name.size()] << ".plan" << std::to_string(_ULONGLONG(_executingPlanIdx+1));
 
 			std::string optParamString;
 
@@ -709,22 +745,24 @@ namespace aiv
 		{
 			if (_optimizerType == "NONE")
 				_optTrajectory.updateFromUniform(optParam);
+				//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(optParam));
 			else
-				_optTrajectory.update(optParam);
+					_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(optParam));
 		}
 		else
 		{
 			if (_optimizerType == "NONE")
 				_optTrajectory.updateFromUniform(&(optParam[1]), optParam[0]);
+				//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(&(optParam[1])), optParam[0]);
 			else
-				_optTrajectory.update(&(optParam[1]), optParam[0]);
+				_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(&(optParam[1])), optParam[0]);
 			_optPlanHorizon = optParam[0];
 		}
 
 		delete[] optParam;
 		delete[] tolEq;
 		delete[] tolIneq;
-		boost::this_thread::sleep(boost::posix_time::milliseconds(200));
+		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 	}
 
 
@@ -864,10 +902,10 @@ namespace aiv
 	// 		qJacMatrix qJ = qJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
 	// 		dqJacMatrix dqJ = dqJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
 
-	// 		Eigen::MatrixXd J(qJ.rows()+dqJ.rows(), qJ.cols());
+	// 		MatrixXd J(qJ.rows()+dqJ.rows(), qJ.cols());
 	// 		J << qJ, dqJ;
 
-	// 		Eigen::Map<Eigen::MatrixXd>(grad, J.cols(), J.rows()) =
+	// 		Map<MatrixXd>(grad, J.cols(), J.rows()) =
 	// 				J.transpose();
 	// 	}
 	// }
@@ -1161,7 +1199,7 @@ namespace aiv
 	// 		span -= _nIntervNonNull - 1;
 
 	// 		////std::cout << "ineq grad\n";
-	// 		Eigen::MatrixXd J(m, n);
+	// 		MatrixXd J(m, n);
 
 	// 		J.block(0, 0, accDim, n) = absddqJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
 
@@ -1186,7 +1224,7 @@ namespace aiv
 	// 			}
 	// 		}
 
-	// 		Eigen::Map<Eigen::MatrixXd>(grad, J.cols(), J.rows()) = J.transpose();
+	// 		Map<MatrixXd>(grad, J.cols(), J.rows()) = J.transpose();
 
 	// 		const double eps = sqrt(std::numeric_limits< double >::epsilon());
 
@@ -1233,7 +1271,7 @@ namespace aiv
 	// 		delete[] constrPos;
 	// 		delete[] x1;
 
-	// 		//Eigen::MatrixXd e = Eigen::Map<Eigen::MatrixXd>(grad, m, n);
+	// 		//MatrixXd e = Map<MatrixXd>(grad, m, n);
 
 	// 		/*//std::cout << n << ", " << m << std::endl;
 
@@ -1265,11 +1303,11 @@ namespace aiv
 	// 			}
 	// 		}*/
 
-	// 		////std::cout << "\nGrad\n" << Eigen::Map<Eigen::MatrixXd>(grad, 1, m*n) << std::endl;
-	// 		//Eigen::IOFormat CleanFmt(3, 0, " ", "\n", "", "");
+	// 		////std::cout << "\nGrad\n" << Map<MatrixXd>(grad, 1, m*n) << std::endl;
+	// 		//IOFormat CleanFmt(3, 0, " ", "\n", "", "");
 	// 		////std::cout << "\nJ\n" << J.block<70, 8>(2, 0).format(CleanFmt) << std::endl;
 
-	// 		/*Eigen::MatrixXd e(m, n);
+	// 		/*MatrixXd e(m, n);
 
 	// 		for (int i = 0; i < m; ++i)
 	// 		{
@@ -1278,7 +1316,7 @@ namespace aiv
 	// 				e(i, j) = grad[(i)*n + j];
 	// 			}
 	// 		}*/
-	// 		//Eigen::MatrixXd e = Eigen::Map<Eigen::MatrixXd>(grad, n, m);
+	// 		//MatrixXd e = Map<MatrixXd>(grad, n, m);
 	// 		////std::cout << "\nJnum\n" << (J.block<86, 14>(0, 0) - e.block<86,14>(0, 0)).format(CleanFmt) << std::endl
 
 	// 		//boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
@@ -1489,7 +1527,7 @@ namespace aiv
 	// 	// INEQUATIONS
 
 
-	// 	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
+	// 	typedef Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
 
 	// 	Np1DerivativesMatrix derivFlat;
 	// 	NDerivativesMatrix derivFlatSmall;

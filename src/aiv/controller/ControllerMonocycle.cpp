@@ -2,6 +2,7 @@
 #include "aiv/controller/ControllerMonocycle.hpp"
 #include <limits>
 //#include <boost/timer.hpp>
+#include "aiv/helpers/common.h"
 
 namespace aiv
 {
@@ -130,8 +131,8 @@ namespace aiv
 		_u2 = cntrlOut(1,0);
 
 		// limiting output
-		_u1 = std::max(std::min(_u1, _maxU1), -1*_maxU1);
-		_u2 = std::max(std::min(_u2, _maxU2), -1*_maxU2);
+		_u1 = max( min( _u1, _maxU1 ), -1*_maxU1 );
+		_u2 = max( min( _u2, _maxU2 ), -1*_maxU2 );
 	}
 
 	void ControllerMonocycle::update(
@@ -145,7 +146,7 @@ namespace aiv
 		double plannedLinAccel,
 		double plannedAngAccel)
 	{
-		//boost::timer::auto_cpu_timer ticToc;
+		//double tic = Common::getRealTime();
 		// Getting robot's orientation projected in the ground plane (unless the vehicle is flying this is the right orientation)
 		//  1. get the quaternion part of the displacement
 		_auxQuaternion = Eigen::Quaternion<double>(aivCurrPos.qw(), aivCurrPos.qx(), aivCurrPos.qy(), aivCurrPos.qz());
@@ -165,6 +166,7 @@ namespace aiv
 			aivCurrPos.x(),
 			aivCurrPos.y(),
 			atan2(_coordXB.y(), _coordXB.x()));
+		//std::cout << "controller elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
 	}
 }
 	

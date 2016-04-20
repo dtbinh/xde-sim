@@ -9,7 +9,7 @@ namespace aiv {
 
 	}
 
-	void Trajectory::fit(const Eigen::MatrixXd& points, const double parVarInterval)
+	void Trajectory::interpolate(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& points, const double parVarInterval)
 	{
 		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
 		TrajectorySpline::KnotVectorType chordLengths;
@@ -40,80 +40,111 @@ namespace aiv {
 		}
 	}
 
-	void Trajectory::update(const TrajectorySpline::ControlPointVectorType& ctrlPts)
+	//Trajectory::TrajectorySpline::ControlPointVectorType Trajectory::cArray2CtrlPtsMat(const double* ctrlpts)
+	Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> Trajectory::cArray2CtrlPtsMat(const double* ctrlpts)
 	{
-		_knots = _trajecSpl.knots();
-		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
+		Eigen::Matrix<double, dim, Eigen::Dynamic> ctrlPts(dim, _nCtrlPts);
+
+		// Feed ctrlPts rows with values from the primal variables x
+		for (int i = 0; i < _nCtrlPts*dim; ++i)
+		{
+			ctrlPts(i % dim, i / dim) = ctrlpts[i];
+		}
+		return ctrlPts;
 	}
 
 	void Trajectory::update(const double *ctrlpts)
 	{
-		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
-		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
-		{
-			ctrlPts(i % dim, i / dim) = ctrlpts[i];
-		}
 		_knots = _trajecSpl.knots();
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
+		new (&_trajecSpl) TrajectorySpline(_knots, cArray2CtrlPtsMat(ctrlpts));
+	}
+
+	void Trajectory::update(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts)
+	{
+		_knots = _trajecSpl.knots();
+		_trajecSpl.~TrajectorySpline();
+		new (&_trajecSpl) TrajectorySpline(_knots, ctrlpts);
 	}
 
 	void Trajectory::update(const double *ctrlpts, const double parVarInterval)
 	{
-		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
-		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
-		{
-			ctrlPts(i % dim, i / dim) = ctrlpts[i];
-		}
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlPts);
+		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
+	}
+
+	void Trajectory::update(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval)
+	{
+		_trajecSpl.~TrajectorySpline();
+		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlpts);
 	}
 
 	void Trajectory::updateFromUniform(const double *ctrlpts)
 	{
 		double parVarInterval = _trajecSpl.knots().tail(1)(0,0);
 
-		TrajectorySpline::ControlPointVectorType points(dim, _nCtrlPts);
-		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
-		{
-			points(i % dim, i / dim) = ctrlpts[i];
-		}
-
-		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), points);
+		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
 
 		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+
+		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
 		for (auto i=0; i < _nCtrlPts; ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
 
-		fit(points, parVarInterval);
+		interpolate(points, parVarInterval);
 	}
 
 	void Trajectory::updateFromUniform(const double *ctrlpts, const double parVarInterval)
 	{
-		TrajectorySpline::ControlPointVectorType points(dim, _nCtrlPts);
-		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
-		{
-			points(i % dim, i / dim) = ctrlpts[i];
-		}
-
-		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), points);
+		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
 
 		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+
+		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
 		for (auto i=0; i < _nCtrlPts; ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
 
-		fit(points, parVarInterval);
+		interpolate(points, parVarInterval);
+	}
+
+	void Trajectory::updateFromUniform(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts)
+	{
+		double parVarInterval = _trajecSpl.knots().tail(1)(0,0);
+
+		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), ctrlpts);
+
+		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+
+		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
+
+		for (auto i=0; i < _nCtrlPts; ++i)
+		{
+			points.col(i) = auxSpline(parVariable(i));
+		}
+
+		interpolate(points, parVarInterval);
+	}
+
+	void Trajectory::updateFromUniform( const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval)
+	{
+		TrajectorySpline auxSpline(_genKnots(0.0, parVarInterval, false, _nIntervNonNull), ctrlpts);
+
+		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
+
+		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
+
+		for (auto i=0; i < _nCtrlPts; ++i)
+		{
+			points.col(i) = auxSpline(parVariable(i));
+		}
+
+		interpolate(points, parVarInterval);
 	}
 
 	// void Trajectory::updateFromUniform(const double *ctrlpts, const double parVarInterval)

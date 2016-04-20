@@ -240,13 +240,12 @@
   <mpmethod type="receding horizon with termination">
     <comphorizon unit="s">0.5</comphorizon>
     <planninghorizon unit="s">1.6</planninghorizon>
-    <waitplanning>true</waitplanning>
+    <waitforthread>true</waitforthread>
     <sampling>14</sampling>
     <interknots>5</interknots>
     <terminationdist unit="m">0.6</terminationdist>
     <interrobotsafetydist unit="m">0.1</interrobotsafetydist>
     <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
-    <numderivativedelta>1</numderivativedelta>
     <optimizer type="SLSQP">
       <maxiteraction>
         <first>100</first>

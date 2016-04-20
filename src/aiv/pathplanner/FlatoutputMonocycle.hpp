@@ -17,7 +17,10 @@ namespace aiv {
 		static const unsigned flatDerivDeg = 2;
 		static const unsigned linSpeedIdx = 0;
 		static const unsigned angSpeedIdx = 1;
+		static const unsigned linAccelIdx = 0;
+		static const unsigned angAccelIdx = 1;
 		static const unsigned posIdx = 0;
+		static const unsigned oriIdx = 2;
 		static const unsigned posDim = 2;
 		/*!
 			\brief

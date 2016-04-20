@@ -65,6 +65,7 @@ namespace aiv {
 		// Planning parameters ============================================================
 		double _compHorizon;         // computation horizon
 		double _planHorizon;      // planning horizon
+		double _refPlanHorizon;      // planning horizon
 		double _optPlanHorizon;    // planning horizon for using by the optimization process
 
 		bool _planLastPlan; // last planning flag
@@ -91,7 +92,10 @@ namespace aiv {
 
 		unsigned _nTimeSamples;     // number of  time samples taken within a planning horizon
 		int _executingPlanIdx;
-		int _ongoingPlanIdx;
+
+		Eigen::Matrix2d _rotMat2WRef;
+		Eigen::Matrix2d _rotMat2RRef;
+		//int _ongoingPlanIdx;
 
 		//enum ConflictEnum { NONE, COLL, COM, BOTH } _isThereConfl;
 

@@ -246,7 +246,7 @@ class Obstacles:
         #self.outerCirc.center = self.realXTS()[time], self.realYTS()[time]
 
 
-direc = "C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/"
+direc = "C:/Users/jmagn/dev/xde/xde/xde/xde/"
 
 try:
     os.mkdir(direc+'build/out/Release/bin/images/')

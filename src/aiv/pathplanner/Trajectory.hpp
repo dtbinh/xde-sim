@@ -14,27 +14,31 @@ namespace aiv {
 		static const unsigned derivDeg = aiv::FlatoutputMonocycle::flatDerivDeg + 1; // Support q dotq dotdotq
 		typedef Eigen::Spline< double, dim, derivDeg > TrajectorySpline;
 
-		void update(const TrajectorySpline::ControlPointVectorType& ctrlPts);
+		void interpolate(const Eigen::Matrix<double, dim, Eigen::Dynamic>& points, const double parVarInterval);
+		void setOption(std::string optionName, unsigned optionValue);
+		Eigen::Matrix<double, dim, Eigen::Dynamic> cArray2CtrlPtsMat(const double* ctrlpts);
+
 		void update(const double *ctrlpts);
-		void update(const TrajectorySpline::ControlPointVectorType& ctrlPts, const double parVarInterval);
+		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
 		void update(const double *ctrlpts, const double parVarInterval);
+		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
+
 		void updateFromUniform(const double *ctrlpts);
 		void updateFromUniform(const double *ctrlpts, const double parVarInterval);
+		void updateFromUniform(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
+		void updateFromUniform( const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
 
 		Eigen::Matrix<double, dim, 1> operator()(const double evalTime) const;
 		Eigen::Matrix<double, dim, Eigen::Dynamic> operator()(const double evalTime, const unsigned deriv) const;
 
-		void fit(const Eigen::MatrixXd& points, const double parVarInterval);
+		//void interpolate(const Eigen::MatrixXd& points, const double parVarInterval);
 
 		void getParameters(double* params) const;
+
 		int nParam() const { return _nCtrlPts; };
 
-		void setOption(std::string optionName, unsigned optionValue);
-		
-		//void setTrajectoryValue(const double *trajectoryValues);
-		//void setTrajectoryValue(const double trajectoryValue,  const unsigned idx);
-		Trajectory::Trajectory();
-		Trajectory::~Trajectory();
+		Trajectory();
+		~Trajectory();
 
 	private:
 
