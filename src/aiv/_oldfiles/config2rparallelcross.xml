@@ -1,0 +1,362 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <simspeed>100.0</simspeed> <!-- simulation time / wallclock time (if simspeed=1, 1 simulated second takes 1 real second). The speed will be limited by the PC specs.  -->
+  <timestep unit="s">0.01</timestep> <!-- XDE parameter specifying the period of physics evaluation (descrete step) -->
+  <timeoffset unit="s">0.6</timeoffset> <!-- Delay in simulated seconds before starting to apply the control input -->
+  <aivs>
+<!--
+    <aiv>
+      <frame>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/frame.dae</cadmodel>
+        <mass>30.0</mass>
+        <color>xde/OrangeOpaque</color>
+      </frame>
+      <leftdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/RedOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </leftdrivewheel>
+      <rightdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/BlueOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </rightdrivewheel>
+      <leftfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftfrontfreewheel>
+      <leftbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftbackfreewheel>
+      <rightfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightfrontfreewheel>
+      <rightbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightbackfreewheel>
+      
+      <track>0.19664</track>
+      
+      <detectionradius>6.0</detectionradius>
+
+      <initpose>
+        <x unit="m">-1.0</x>
+        <y unit="m">1.5</y>
+        <theta unit="rad">0.0</theta>
+      </initpose>
+      <initvelo>
+        <linear unit="mps">.0</linear>
+        <angular unit="radps">.0</angular>
+      </initvelo>
+      <goalpose>
+        <x unit="m">8.0</x>
+        <y unit="m">0.23</y>
+        <theta unit="rad">0.0</theta>
+      </goalpose>
+      <goalvelo>
+        <linear unit="mps">.0</linear>
+        <angular unit="radps">.0</angular>
+      </goalvelo>
+      <maxvelo>
+        <linear unit="mps">0.5</linear>
+        <angular unit="radps">2.0</angular>
+      </maxvelo>
+      <maxacc>
+        <linear unit="mps2">2.0r>
+        <angular unit="radps2">20.0</angular>
+      </maxacc>
+      
+    </aiv>
+-->
+    <aiv>
+
+      <frame>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/frame.dae</cadmodel>
+        <mass>40.0</mass>
+        <color>xde/GreenOpaque</color>
+      </frame>
+      <leftdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/RedOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </leftdrivewheel>
+      <rightdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/BlueOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </rightdrivewheel>
+      <leftfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftfrontfreewheel>
+      <leftbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftbackfreewheel>
+      <rightfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightfrontfreewheel>
+      <rightbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightbackfreewheel>
+
+      <track>0.19664</track>
+
+      <detectionradius>16.0</detectionradius>
+
+      <initpose>
+        <x unit="m">0.0</x>
+        <y unit="m">0.0</y>
+        <theta unit="rad">0.0</theta>
+      </initpose>
+      <initvelo>
+        <linear unit="mps">.000001</linear>
+        <angular unit="radps">.0</angular>
+      </initvelo>
+      <goalpose>
+        <x unit="m">10.0</x>
+        <y unit="m">5.0</y>
+        <theta unit="rad">0.0</theta>
+      </goalpose>
+      <goalvelo>
+        <linear unit="mps">.0</linear>
+        <angular unit="radps">.0</angular>
+      </goalvelo>
+      <maxvelo>
+        <linear unit="mps">1.0</linear>
+        <angular unit="radps">10.0</angular>
+      </maxvelo>
+      <maxacc>
+        <linear unit="mps2">2.0</linear>
+        <angular unit="radps2">20.0</angular>
+      </maxacc>
+
+    </aiv>
+    <!---->
+    <aiv>
+
+      <frame>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/frame.dae</cadmodel>
+        <mass>30.0</mass>
+        <color>xde/BlackOpaque</color>
+      </frame>
+      <leftdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/RedOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </leftdrivewheel>
+      <rightdrivewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+        <mass>1.5</mass>
+        <color>xde/BlueOpaque</color>
+        <radius>0.096845</radius>
+        <material>rubber</material>
+      </rightdrivewheel>
+      <leftfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftfrontfreewheel>
+      <leftbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </leftbackfreewheel>
+      <rightfrontfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightfrontfreewheel>
+      <rightbackfreewheel>
+        <cadmodel>../../../../share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+        <mass>0.5</mass>
+        <color>xde/YellowOpaque</color>
+        <radius>0.0375</radius>
+        <material>rubber</material>
+      </rightbackfreewheel>
+
+      <track>0.19664</track>
+
+      <detectionradius>16.0</detectionradius>
+
+      <initpose>
+        <x unit="m">0.0</x>
+        <y unit="m">3.0</y>
+        <theta unit="rad">0.0</theta>
+      </initpose>
+      <initvelo>
+        <linear unit="mps">.000001</linear>
+        <angular unit="radps">.0</angular>
+      </initvelo>
+      <goalpose>
+        <x unit="m">10.0</x>
+        <y unit="m">-2.0</y>
+        <theta unit="rad">0.0</theta>
+      </goalpose>
+      <goalvelo>
+        <linear unit="mps">.0</linear>
+        <angular unit="radps">.0</angular>
+      </goalvelo>
+      <maxvelo>
+        <linear unit="mps">1.0</linear>
+        <angular unit="radps">10.0</angular>
+      </maxvelo>
+      <maxacc>
+        <linear unit="mps2">2.0</linear>
+        <angular unit="radps2">20.0</angular>
+      </maxacc>
+
+    </aiv>
+  </aivs>
+
+  <obstacles>
+    <!--
+    <circular>
+      <cadmodel>../../../../share/resources/scenes/cilinder_r3dm.dae</cadmodel>
+      <cmposition>
+        <x unit="m">4.2</x>
+        <y unit="m">0.9</y>
+        <z unit="m">0.5</z>
+      </cmposition>
+      <radius unit="m">.3</radius>
+      <mass>1.5</mass>
+      <material>rubber</material>
+      <color>xde/WhiteOpaque</color>
+    </circular>
+    -->
+    <!--
+    <circular>
+      <cadmodel>../../../../share/resources/scenes/cilinder_r3dm.dae</cadmodel>
+      <cmposition>
+        <x unit="m">3.0</x>
+        <y unit="m">3.0</y>
+        <z unit="m">0.5</z>
+      </cmposition>
+      <radius unit="m">.3</radius>
+      <mass>1.5</mass>
+      <material>rubber</material>
+      <color>xde/WhiteOpaque</color>
+    </circular>
+
+    <circular>
+      <cadmodel>../../../../share/resources/scenes/cilinder_r3dm.dae</cadmodel>
+      <cmposition>
+        <x unit="m">6.0</x>
+        <y unit="m">6.0</y>
+        <z unit="m">0.5</z>
+      </cmposition>
+      <radius unit="m">.3</radius>
+      <mass>1.5</mass>
+      <material>rubber</material>
+      <color>xde/WhiteOpaque</color>
+    </circular>
+    
+    <polygon>
+      <cadmodel>../../../../share/resources/scenes/cube.dae</cadmodel>
+      <cmposition>
+        <x unit="m">4.5</x>
+        <y unit="m">0.0</y>
+        <z unit="m">0.15</z>
+      </cmposition>
+      <orientation unit="rad">0.0</orientation>
+      <vertices>
+        <vertex>
+          <x unit="m">0.15</x>
+          <y unit="m">0.15</y>
+        </vertex>
+        <vertex>
+          <x unit="m">-0.15</x>
+          <y unit="m">0.15</y>
+        </vertex>
+        <vertex>
+          <x unit="m">-0.15</x>
+          <y unit="m">-0.15</y>
+        </vertex>
+        <vertex>
+          <x unit="m">0.15</x>
+          <y unit="m">-0.15</y>
+        </vertex>
+      </vertices>
+      <mass>1.5</mass>
+      <material>rubber</material>
+      <color>xde/WhiteOpaque</color>
+    </polygon>
+  -->
+  </obstacles>
+  <mpmethod type="receding horizon with termination">
+    <comphorizon unit="s">0.5</comphorizon>
+    <planninghorizon unit="s">1.6</planninghorizon>
+    <waitplanning>true</waitplanning>
+    <sampling>14</sampling>
+    <interknots>4</interknots>
+    <terminationdist unit="m">0.72</terminationdist>
+    <interrobotsafetydist unit="m">0.1</interrobotsafetydist>
+    <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
+    <numderivativedelta>1</numderivativedelta>
+  </mpmethod>
+  <optimizer type="NONE">
+    <maxiteraction>
+      <first>100</first>
+      <inter>100</inter>
+      <last>100</last>
+    </maxiteraction>
+    <xtolerance>1e-2</xtolerance>
+    <ftolerance>1e-2</ftolerance> <!-- not used -->
+    <eqtolerance>1e-4</eqtolerance>
+    <ineqtolerance>1e-5</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
+  </optimizer>
+  <controller type="tracking reference path">
+    <k1>1.0</k1>
+    <k2>1.0</k2>
+    <k3>2.0</k3>
+    <threshold>
+      <u1>3.0</u1>
+      <u2>2.0</u2>
+    </threshold>
+  </controller>
+</root>
