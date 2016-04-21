@@ -2,6 +2,9 @@
 #define __AIV_PATHPLANNERRECHOR_HPP__
 #pragma once
 
+#define _USE_MATH_DEFINES
+
+#include <cmath>
 #include "aiv/pathplanner/PathPlanner.hpp"
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
 #include "aiv/pathplanner/Trajectory.hpp"
@@ -12,6 +15,7 @@
 #include <boost/property_tree/xml_parser.hpp>
 
 #include <set>
+
 
 //Spline< dim, degree >
 
@@ -141,6 +145,9 @@ namespace aiv {
 		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
 		// int nbPointsCloseInTimeEval();
 
+		static double _unsigned_angle(double angle);
+		static double _signed_angle(double angle);
+
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);
 
@@ -204,8 +211,15 @@ namespace aiv {
 		static void evalEq(double *result, unsigned n, T x, PathPlannerRecHor *context);
 		template<class T>
 		static void evalIneq(double *result, unsigned n, T x, PathPlannerRecHor *context);
+		template<class T>
+		static void evalObjLS(double *result, unsigned n, T x, PathPlannerRecHor *context);
+		template<class T>
+		static void evalEqLS(double *result, unsigned n, T x, PathPlannerRecHor *context);
+		template<class T>
+		static void evalIneqLS(double *result, unsigned n, T x, PathPlannerRecHor *context);
 
 		void computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double *, unsigned, volatile double*, PathPlannerRecHor*));
+
 		//static void eval_eqHalf(double t, double *result, unsigned n, const double* x, void* data);
 		//static void eval_ineq_coll(double *result, unsigned n, const double* x, void* data);
 		// void eval_dobst_ineq(double *result, unsigned n, const double* x, void* data);
@@ -255,24 +269,17 @@ namespace aiv {
 		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg);
 
 		// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
-		//PoseVector poseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
 		PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
-		//diffPoseAtT0.tail(1) -= context->_latestPose.tail(1);
-		/*diffPoseAtT0.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
-			poseAtT0.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);*/
-
 		VeloVector diffVelocityAtT0 = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_latestVelocity;
 
-		int i = 0;
-		for (; i < FlatoutputMonocycle::poseDim; ++i)
+		int i;
+		for (i = 0; i < FlatoutputMonocycle::poseDim; ++i)
 		{
 			result[i] = diffPoseAtT0[i];
-			//std::cout << "G[" << i << "] " << g[i] << std::endl;
 		}
 		for (int j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
 		{
 			result[j] = diffVelocityAtT0[j - i];
-			//std::cout << "G[" << j << "] " << g[j] << std::endl;
 		}
 	}
 
@@ -281,76 +288,55 @@ namespace aiv {
 	{
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
-		
-		// INEQUATIONS
 
+		// Matrix for storing flat output derivatives		
 		Np1DerivativesMatrix derivFlat;
 		NDerivativesMatrix derivFlatSmall;
 
 		// Create Matrices for storing velocity and acceleration
+		PoseVector pose;
 		VeloVector velocity;
 		AccelVector acceleration;
 
-		PoseVector pose;
-
+		// Get first "flatDerivDeg + 1" derivatives
 		derivFlat = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
-
 
 		// ACCELERATION AT 0.0
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-		int j = 0;
-		for (; j < FlatoutputMonocycle::accelDim; ++j)
+		int i, j, k;
+		for (i = 0; i < FlatoutputMonocycle::accelDim; ++i)
 		{
-			//const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-			result[j] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
-			////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
+			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
 		}
 
-		int nAcc = j;
+		int nAcc = i;
 		int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
 
-		//#pragma omp parallel for
-		for (int i = 1; i <= int(context->_nTimeSamples); ++i)
+		//#pragma omp parallel for <== DO NOT USE IT, BREAKS THE EVALUATION OF CONSTRAINTS SOMEHOW
+		for (i = 1; i <= int(context->_nTimeSamples); ++i)
 		{
-			////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
 			derivFlat = context->_optTrajectory(double(i) / context->_nTimeSamples * context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
 
-			////std::cout << "got derive meatrix" << std::endl;
-			// reusing derivFlatEq variable, ugly but let's move on
 			derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
 
-			////std::cout << "got vel" << std::endl;
-			velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
-
 			pose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-
-			////std::cout << "got acc" << std::endl;
+			velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
 			acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-			//int ieqPerSample = (FlatoutputMonocycle::veloDim);
-
-			int j;
 			for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
 			{
-				//const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
 				result[nAcc + j + (i - 1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
-				////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
 			}
-
-			int k;
 			for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
 			{
-				//const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
 				result[nAcc + k + (i - 1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
-				////std::cout << "G[" << nEq+k+(i-1)*ieqPerSample << "] " << g[nEq+k+(i-1)*ieqPerSample] << std::endl;
 			}
 
-			// Obstacles
 			std::map<std::string, Obstacle *>::iterator it;
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
-				result[nAcc + (i - 1)*ieqPerSample + j] =
+				result[nAcc + j + (i - 1)*ieqPerSample] =
 					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head(2) + context->_latestPose.head(2), context->_robotObstacleSafetyDist);
 			}
 		}
@@ -371,47 +357,48 @@ namespace aiv {
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
 		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg);
 
-		PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
+		PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
 
-		VeloVector diffVelocityAtT0 = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_latestVelocity;
+		VeloVector diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_latestVelocity;
 
-		int i = 0;
-		for (; i < FlatoutputMonocycle::poseDim; ++i)
+		int i, j;
+		for (i = 0; i < FlatoutputMonocycle::poseDim; ++i)
 		{
-			result[i] = diffPoseAtT0[i];
-			//std::cout << "G[" << i << "] " << g[i] << std::endl;
+			result[i] = diffPose[i];
 		}
-		int j;
 		for (j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
 		{
-			result[j] = diffVelocityAtT0[j - i];
-			//std::cout << "G[" << j << "] " << g[j] << std::endl;
+			result[j] = diffVelocity[j - i];
 		}
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		NDerivativesMatrix derivFlatEq = context->_optTrajectory(x[0], FlatoutputMonocycle::flatDerivDeg);
+		derivFlatEq = context->_optTrajectory(x[0], FlatoutputMonocycle::flatDerivDeg);
 
 		PoseVector poseAtTfWRTMySelf = FlatoutputMonocycle::flatToPose(derivFlatEq);
-		//FIXME
-		PoseVector diffPoseAtTf = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.top(2) + context->_latestFlat, poseAtTfWRTMySelf.tail(1)+context->_latestPose.tail(1)).finished() - context->_targetedPose;
+		
+		// 2 equivalent things:
+		// diff = [Rw*p + latest_p, theta + latest_theta]T - targetpose
+		// diff = [p, theta]T - [Rr*(target_p - latest_p), target_theta - latest_theta]T
+		diffPose = poseAtTfWRTMySelf - (PoseVector() << context->_rotMat2RRef*(context->_targetedPose.head(2) - context->_latestFlat), _signed_angle(context->_targetedPose.tail(1)(0,0) - context->_latestPose.tail(1)(0,0))).finished();
+		//diffPose = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.head(2) + context->_latestFlat, _signed_angle(poseAtTfWRTMySelf.tail(1)(0,0)+context->_latestPose.tail(1)(0,0))).finished() - context->_targetedPose;
+		//std::cout << context->_rotMat2RRef * context->_rotMat2WRef << std::endl;
 
-		VeloVector diffVelocityAtTf = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_targetedVelocity;
+		diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_targetedVelocity;
 
 		for (i = j; i - j < FlatoutputMonocycle::poseDim; ++i)
 		{
-			result[i] = diffPoseAtTf[i - j];
-			//std::cout << "G[" << i << "] " << g[i] << std::endl;
+			result[i] = diffPose[i - j];
 		}
 		for (j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
 		{
-			result[j] = diffVelocityAtTf[j - i];
-			//std::cout << "G[" << j << "] " << g[j] << std::endl;
+			result[j] = diffVelocity[j - i];
 		}
 	}
 
 	template<class T>
 	void PathPlannerRecHor::evalIneqLS(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		//std::cout << "::evalIneqLS call" << std::endl;
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(&(x[1]), x[0]);
 		
@@ -429,12 +416,11 @@ namespace aiv {
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-		int j = 0;
-		for (; j < FlatoutputMonocycle::accelDim; ++j)
+		int i, j, k;
+		for (i = 0; i < FlatoutputMonocycle::accelDim; ++i)
 		{
-			//const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-			result[j] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
-			////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
+			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
+			// std::cout << "r[" << i << "]=" << result[i] << std::endl;
 		}
 
 		// ACCELERATION AT Tf
@@ -442,65 +428,47 @@ namespace aiv {
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-		int i;
-		for (i = j; i - j < FlatoutputMonocycle::accelDim; ++i)
+		for (j = i; j - i < FlatoutputMonocycle::accelDim; ++j)
 		{
-			//const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i,0);
-			////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
+			result[j] = abs(acceleration(j,0)) - context->_maxAcceleration(j,0);
+			// std::cout << "r[" << j << "]=" << result[j] << std::endl;
 		}
 
-		int nAcc = i;
-		// CONTINUE
+		int nAcc = j;
+
 		int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
 
-		//#pragma omp parallel for
-		for (int i = 1; i <= int(context->_nTimeSamples); ++i)
+		for (int i = 1; i < int(context->_nTimeSamples); ++i)
 		{
-			////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
 			derivFlat = context->_optTrajectory(double(i) / context->_nTimeSamples * context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
 
-			////std::cout << "got derive meatrix" << std::endl;
-			// reusing derivFlatEq variable, ugly but let's move on
 			derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
 
-			////std::cout << "got vel" << std::endl;
-			velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
-
 			pose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-
-			////std::cout << "got acc" << std::endl;
+			velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
 			acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-			//int ieqPerSample = (FlatoutputMonocycle::veloDim);
-
-			int j;
 			for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
 			{
-				//const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
 				result[nAcc + j + (i - 1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
-				////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
+				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 			}
 
-			int k;
 			for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
 			{
-				//const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
 				result[nAcc + k + (i - 1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
-				////std::cout << "G[" << nEq+k+(i-1)*ieqPerSample << "] " << g[nEq+k+(i-1)*ieqPerSample] << std::endl;
+				// std::cout << "r[" << nAcc + k + (i - 1)*ieqPerSample << "]=" << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
 			}
 
-			// Obstacles
 			std::map<std::string, Obstacle *>::iterator it;
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
-				result[nAcc + (i - 1)*ieqPerSample + j] =
+				result[nAcc + j + (i - 1)*ieqPerSample] =
 					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head(2) + context->_latestPose.head(2), context->_robotObstacleSafetyDist);
+				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 			}
 		}
 	}
-
-
 }
 
 #endif // __AIV_PATHPLANNERRECHOR_HPP__

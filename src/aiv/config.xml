@@ -62,24 +62,24 @@
         <!--y unit="m">-5.656854</y-->
         <!--x unit="m">-5.656854</x-->
         <!--y unit="m">5.656854</y-->
-        <!--x unit="m">-5.656854</x-->
-        <!--y unit="m">-5.656854</y-->
+        <x unit="m">-5.656854</x>
+        <y unit="m">-5.656854</y>
         <!--x unit="m">5.656854</x-->
         <!--y unit="m">5.656854</y-->
         <!--x unit="m">8.0</x-->
         <!--y unit="m">0.0</y-->
-        <x unit="m">-8.0</x>
-        <y unit="m">1.9</y>
+        <!--x unit="m">-8.0</x-->
+        <!--y unit="m">0.0</y-->
         <!--x unit="m">0.0</x-->
         <!--y unit="m">8.0</y-->
         <!--x unit="m">0.0</x-->
         <!--y unit="m">-8.0</y-->
         <!--theta unit="rad">2.35619449</theta-->
         <!--theta unit="rad">-0.785398</theta-->
-        <!--theta unit="rad">0.785398</theta-->
-        <!--theta unit="rad">-2.35619449</theta-->
-        <!--theta unit="rad">3.1415</theta-->
         <theta unit="rad">0.0</theta>
+        <!--theta unit="rad">-2.35619449</theta-->
+        <!--theta unit="rad">3.141592653589793238462643383279502884197169</theta-->
+        <!--theta unit="rad">0.0</theta-->
         <!--theta unit="rad">-1.5708</theta-->
         <!--theta unit="rad">1.5708</theta-->
       </initpose>
@@ -92,24 +92,24 @@
         <!--y unit="m">5.656854</y-->
         <!--x unit="m">5.656854</x-->
         <!--y unit="m">-5.656854</y-->
-        <!--x unit="m">5.656854</x-->
-        <!--y unit="m">5.656854</y-->
+        <x unit="m">5.656854</x>
+        <y unit="m">5.656854</y>
         <!--x unit="m">-5.656854</x-->
         <!--y unit="m">-5.656854</y-->
         <!--x unit="m">-8.0</x-->
         <!--y unit="m">0.0</y-->
-        <x unit="m">8.0</x>
-        <y unit="m">1.9</y>
+        <!--x unit="m">8.0</x-->
+        <!--y unit="m">0.0</y-->
         <!--x unit="m">0.0</x-->
         <!--y unit="m">-8.0</y-->
         <!--x unit="m">0.0</x-->
         <!--y unit="m">8.0</y-->
         <!--theta unit="rad">2.35619449</theta-->
         <!--theta unit="rad">-0.785398</theta-->
-        <!--theta unit="rad">0.785398</theta-->
-        <!--theta unit="rad">-2.35619449</theta-->
-        <!--theta unit="rad">3.1415</theta-->
         <theta unit="rad">0.0</theta>
+        <!--theta unit="rad">-2.35619449</theta-->
+        <!--theta unit="rad">3.141592653589793238462643383279502884197169</theta-->
+        <!--theta unit="rad">0.0</theta-->
         <!--theta unit="rad">-1.5708</theta-->
         <!--theta unit="rad">1.5708</theta-->
       </goalpose>
@@ -181,10 +181,10 @@
         <inter>100</inter>
         <last>100</last>
       </maxiteraction>
-      <xtolerance>1e-2</xtolerance>
+      <xtolerance>1e-3</xtolerance>
       <ftolerance>1e-2</ftolerance> <!-- not used -->
-      <eqtolerance>1e-4</eqtolerance>
-      <ineqtolerance>1e-5</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
+      <eqtolerance>1e-3</eqtolerance>
+      <ineqtolerance>1e-3</ineqtolerance> <!-- 1e-6 seems too low, 1e-5 didn't work for obstacle exactly in the middle of the straight path -->
     </optimizer>
   </mpmethod>
   <controller type="NCGPC">

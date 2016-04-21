@@ -60,7 +60,8 @@ namespace aiv {
 		template<class T>
 		static Eigen::Matrix< T, poseDim, 1 > flatToPose(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
-			double vx = abs(dFlat(0, 1));
+			//double vx = abs(dFlat(0, 1)); // THIS IS CRUTIAL FOR THE OPTIMIZATION TO WORK
+			double vx = dFlat(0,1);
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::poseDim, 1 >() <<
 				dFlat.leftCols(1),
 				atan2(dFlat(1, 1), vx)

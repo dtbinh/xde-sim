@@ -315,17 +315,17 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
     axArrayVel[1].grid()
 
     axArrayVel[0].plot(simTime, sRSInfo.planLinVelTS(), 'b', label=r'$u_{ref}[0]$ (planner output 1)')
-    axArrayVel[0].plot(simTime, sRSInfo.ctrlLinVelTS(), 'g', label=r'$u[0]$ (ctrller output 1)')
+    # axArrayVel[0].plot(simTime, sRSInfo.ctrlLinVelTS(), 'g', label=r'$u[0]$ (ctrller output 1)')
     axArrayVel[0].plot(simTime, sRSInfo.realLinVelTS(), 'r', label=r'actual lin vel')
 
     axArrayVel[1].plot(simTime, sRSInfo.planAngVelTS(), 'b', label=r'planner output')
-    axArrayVel[1].plot(simTime, sRSInfo.ctrlAngVelTS(), 'g', label=r'ctrller output')
+    # axArrayVel[1].plot(simTime, sRSInfo.ctrlAngVelTS(), 'g', label=r'ctrller output')
     axArrayVel[1].plot(simTime, sRSInfo.realAngVelTS(), 'r', label=r'actual vel')
     maxAngVel = max(max(max(sRSInfo.planAngVelTS()), max(sRSInfo.ctrlAngVelTS())), max(sRSInfo.realAngVelTS()))
     maxAngVel = maxAngVel if maxAngVel < 8.0 else 8.0
     minAngVel = min(min(min(sRSInfo.planAngVelTS()), min(sRSInfo.ctrlAngVelTS())), min(sRSInfo.realAngVelTS()))
     minAngVel = minAngVel if maxAngVel > -8.0 else -8.0
-    axArrayVel[1].set_ylim([maxAngVel, minAngVel])
+    # axArrayVel[1].set_ylim([maxAngVel, minAngVel])
 
     hand, lab = axArrayVel[1].get_legend_handles_labels()
     axArrayVel[1].legend(hand, lab, ncol=1, prop={'size':10}, loc=1)
@@ -363,11 +363,11 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
 
     axArrayAccel[0].plot(simTime, sRSInfo.planLinAccelTS(), 'b', label=r'$u_{ref}[0]$ (planner linaccel)')
     axArrayAccel[0].plot(simTime, approxPlLinAccelTS, 'y--', label=r'approx planner linaccel')
-    axArrayAccel[0].plot(simTime, approxLinAccelTS, 'r', label=r'actual linaccel')
+    # axArrayAccel[0].plot(simTime, approxLinAccelTS, 'r', label=r'actual linaccel')
 
     axArrayAccel[1].plot(simTime, sRSInfo.planAngAccelTS(), 'b', label=r'planner angaccel')
     axArrayAccel[1].plot(simTime, approxPlAngAccelTS, 'y--', label=r'approx planner angaccel')
-    axArrayAccel[1].plot(simTime, approxAngAccelTS, 'r', label=r'actual angaccel')
+    # axArrayAccel[1].plot(simTime, approxAngAccelTS, 'r', label=r'actual angaccel')
 
     # axArrayAccel[0].set_ylim([1.5, -1.5])
     # axArrayAccel[1].set_ylim([2.5, -2.5])

@@ -2,6 +2,7 @@
 #include "aiv/obstacle/Obstacle.hpp"
 #include "aiv/robot/AIV.hpp"
 
+#include "aiv/helpers/common.h"
 #include "aiv/helpers/MyException.hpp"
 //#include "aiv/pathplanner/constrJac.hpp"
 //#include "aiv/pathplanner/eq_cons_jac.hpp"
@@ -24,6 +25,32 @@ using namespace Eigen;
 
 namespace aiv
 {
+
+	/* Map angles (:math:`\\theta \in R`) to unsigned angles
+	 * (:math:`\\theta \in [0, 2\pi)`).
+	 */
+	// template<class T>
+	double PathPlannerRecHor::_unsigned_angle(double angle)
+	{
+		while (angle < 0.0)
+			angle += 2*M_PI;
+		while (angle >= 2*M_PI)
+			angle -= 2*M_PI;
+		return angle;
+	}
+
+	/* Map angles (:math:`\\theta \in R`) to signed angles
+	 * (:math:`\\theta \in [-pi, +pi)`).
+	 */
+	// template<class T>
+	double PathPlannerRecHor::_signed_angle(double angle)
+	{
+		while (angle < -M_PI)
+			angle += 2*M_PI;
+		while (angle >= M_PI)
+			angle -= 2*M_PI;
+		return angle;
+	}
 
 	PathPlannerRecHor::PathPlannerRecHor(std::string name, double updateTimeStep)
 		: PathPlanner(name)
@@ -248,6 +275,7 @@ namespace aiv
 		std::map<std::string, AIV *> otherVehicles,
 		const Displacementd & myRealPose) //const Displacementd & realPose, const Twistd &realVelocity)
 	{
+		// double tic = Common::getRealTime();
 		// std::cout << "update" << std::endl;
 		//double currentPlanningTime = _updateTimeStep*_updateCallCntr;
 		
@@ -270,7 +298,7 @@ namespace aiv
 				//this->initTimeOfCurrPlan = currentPlanningTime;
 				_planOngoingMutex.lock();
 				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
-				std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
 			}
 
 			// If no plan is been executed yet but the fistPlanTimespan is over
@@ -343,7 +371,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
 					//opt_log << "update: _______ (C2) Spawn the second plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
 				}
 			}
@@ -408,7 +436,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
 				}
 			}
 		}
@@ -440,7 +468,7 @@ namespace aiv
 		{
 			std::cout << "Planning is over!" << std::endl;
 			std::cout << "Last step planning horizon: " << _planHorizon << std::endl;
-			boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+			boost::this_thread::sleep(boost::posix_time::milliseconds(20));
 		}
 		else //INTER or FINAL
 		{
@@ -463,24 +491,33 @@ namespace aiv
 		}
 
 		_currentPlanningTime += _updateTimeStep;
+		// std::cout << "planner elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
 		return;
 	}
 
 	void PathPlannerRecHor::_plan()
 	{
+		// double tic = Common::getRealTime();
 		// GET ESTIMATE POSITION OF LAST POINT
+
+
 		FlatVector remainingDistVectorUni = _targetedFlat - _latestFlat;
 		double remainingDist = remainingDistVectorUni.norm();
 		remainingDistVectorUni /= remainingDist;
 		FlatVector lastPt = _maxStraightDist*remainingDistVectorUni;
 
+
 		// RECIDING HORIZON STOP CONDITION 
+
+
+		//std::cout << "---- Estimate Remaining Dist " << remainingDist << " -----" << std::endl;
 		if (remainingDist < _lastStepMinDist + _compHorizon*_maxVelocity[FlatoutputMonocycle::linSpeedIdx])
 		{
 			std::cout << "CONDITION FOR TERMINATION PLAN REACHED!" << std::endl;
 			_planLastPlan = true;
 			//estimate last planning horizon
 			_optPlanHorizon = remainingDist / (_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) +  _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0))*2.;
+			std::cout << "_optPlanHorizon before opt " << _optPlanHorizon << std::endl;
 			// TODO recompute n_ctrlpts n_knots
 			// call setoptions for optTrajectory and update maybe, think about it although there will be updates in the optimization process
 			// using _optTrajectory
@@ -490,25 +527,40 @@ namespace aiv
 			_optPlanHorizon = _refPlanHorizon;
 		}
 
+
 		// GET WAYPOINT AND NEW DIRECTION
 
+
+		// std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
 		FlatVector currDirec = (FlatVector() << cos(_latestPose(FlatoutputMonocycle::oriIdx, 0)), sin(_latestPose(FlatoutputMonocycle::oriIdx, 0))).finished();
+		// std::cout <<  "current direction: " << currDirec << std::endl;
 
 		FlatVector newDirec;
 		//FlatVector wayPoint;
 
 		//_findDirection(newDirec, this->_wayPt);
 		//
-		newDirec = currDirec;
 		_wayPt = _targetedFlat;
+		newDirec = _wayPt - _latestFlat;
+		newDirec /= newDirec.norm();
+		//std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
+		// std::cout <<  "waypt orientation: " << atan2(_wayPt(1,0), _wayPt(0,0)) << std::endl;
+		// std::cout <<  "waypt direction: " << newDirec << std::endl;
 		//
 
-		_rotMat2WRef = (Matrix2d() << currDirec(0,0), -1.*currDirec(0,1), currDirec(0,1), currDirec(0,0)).finished();
-		_rotMat2RRef = (Matrix2d() << currDirec(0,0), currDirec(0,1), -1.*currDirec(0,1), currDirec(0,0)).finished();
+		_rotMat2WRef << currDirec(0,0), -1.*currDirec(1,0), currDirec(1,0), currDirec(0,0);
+		_rotMat2RRef << currDirec(0,0), currDirec(1,0), -1.*currDirec(1,0), currDirec(0,0);
+		// std::cout << _rotMat2WRef << std::endl;
+		// std::cout << _rotMat2RRef << std::endl;
 		// self._latest_rot2ref_mat = np.hstack((init_direc, np.multiply(np.flipud(init_direc), np.vstack((-1,1)))))
 		// self._latest_rot2rob_mat = np.hstack((np.multiply(init_direc, np.vstack((1,-1))), np.flipud(init_direc)))
 		
 		FlatVector rotatedNewDirec = _rotMat2RRef*newDirec;
+		//std::cout <<  "rotated waypt direction: " << rotatedNewDirec << std::endl;
+
+
+		// COMBINING CURVES FOR INTERPOLATION
+
 
 		double accel = _planLastPlan ? -1.*min(
 			(_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0))/_optPlanHorizon,
@@ -548,10 +600,43 @@ namespace aiv
 			curve.col(i) = curveCurrDirec.col(i)*(1.0-p) + curveNewDirec.col(i)*p;
 		}
 
+
+		// IF LAST STEP LET US COMBINE CURVE WITH ANOTHER ONE THAT SMOOTHS THE ARRIVAL
+		// if (_planLastPlan)
+		// {
+		// 	double accel = min((_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0))/_optPlanHorizon,
+		// 		_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0));
+
+		// 	double maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
+		// 	double prevDispl = 0.0;
+
+		// 	// Create a sampled trajectory for a "bounded uniformed accelerated motion" in x axis
+		// 	Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> backwardsCurve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		// 	backwardsCurve = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+
+		// 	for (auto i=1; i<_optTrajectory.nParam(); ++i)
+		// 	{
+		// 		double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
+		// 		double displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
+		// 		displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
+		// 		prevDispl = displ;
+		// 		curveCurrDirec(0,i) = displ;
+		// 		curveNewDirec.col(i) = displ*rotatedNewDirec;
+		// 	}
+		// }
+		
+		// INTERPOLATION OF INITIAL GUESS
+
+
 		// Feed aux trajectory with desired points and time horizon
 		_optTrajectory.interpolate(curve, _optPlanHorizon);
+		std::cout << "BEFORE:\n";
+		std::cout << _optTrajectory.getCtrlPts() << std::endl;
+
 
 		// CALL OPT SOLVER
+
+
 		try
 		{
 			_solveOptPbl(); // after this call auxTrajectory has the optimized solution
@@ -563,6 +648,11 @@ namespace aiv
 			throw(MyException(ss.str()));
 		}
 		
+		std::cout << "AFTER:\n";
+		std::cout << _optTrajectory.getCtrlPts() << std::endl;
+		std::cout << "AFTER ROTATED:\n";
+		std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
+
 		// UPDATES
 
 		NDerivativesMatrix derivFlat = _optTrajectory(_compHorizon, FlatoutputMonocycle::flatDerivDeg);
@@ -577,6 +667,7 @@ namespace aiv
 		_latestVelocity = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
 		//boost::this_thread::sleep(boost::posix_time::milliseconds(500));
+		//std::cout << "planning thread elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
 		_planOngoingMutex.unlock();
 	}
 
@@ -603,7 +694,7 @@ namespace aiv
 			nEq = FlatoutputMonocycle::poseDim + FlatoutputMonocycle::veloDim;
 			nIneq = FlatoutputMonocycle::veloDim * _nTimeSamples +
 				FlatoutputMonocycle::accelDim * (_nTimeSamples + 1) +
-				_nTimeSamples * _detectedObstacles.size();
+				_detectedObstacles.size() * _nTimeSamples;
 
 			//std::cout <<  "======  Number of detected obstacles: " << _detectedObstacles.size() << std::endl;
 
@@ -624,14 +715,14 @@ namespace aiv
 		}
 		else
 		{
-		// 	objF = PathPlannerRecHor::objectFuncLS;
-		// 	eqF = PathPlannerRecHor::eqFuncLS;
-		// 	ieqF = PathPlannerRecHor::ineqFuncLS;
+			objF = PathPlannerRecHor::objectFuncLS;
+			eqF = PathPlannerRecHor::eqFuncLS;
+			ieqF = PathPlannerRecHor::ineqFuncLS;
 			nParam = _optTrajectory.nParam()*FlatoutputMonocycle::flatDim + 1;
 			nEq = (FlatoutputMonocycle::poseDim + FlatoutputMonocycle::veloDim) * 2;
 			nIneq = FlatoutputMonocycle::veloDim * (_nTimeSamples - 1) +
-				FlatoutputMonocycle::accelDim * _nTimeSamples +
-				(_nTimeSamples - 1) * _detectedObstacles.size();
+				FlatoutputMonocycle::accelDim * (_nTimeSamples + 1) +
+				_detectedObstacles.size() * (_nTimeSamples - 1);
 
 			optParam = new double[nParam];
 			optParam[0] = _optPlanHorizon;
@@ -713,36 +804,52 @@ namespace aiv
 			nlopt_add_inequality_mconstraint(opt, nIneq, ieqF, this, tolIneq);
 
 			double minf;
+			
+
 			std::cout << "Optimizing..." << std::endl;
-			int status = nlopt_optimize(opt, optParam, &minf);
-			std::cout << "Done" << std::endl;
+			//int status = nlopt_optimize(opt, optParam, &minf);
+			int status = -1;
 
-			// STATUS NUMBER MEANING
-			//NLOPT_SUCCESS = 1
-			//Generic success return value.
-			//NLOPT_STOPVAL_REACHED = 2
-			//Optimization stopped because stopval (above) was reached.
-			//NLOPT_FTOL_REACHED = 3
-			//Optimization stopped because ftol_rel or ftol_abs (above) was reached.
-			//NLOPT_XTOL_REACHED = 4
-			//Optimization stopped because xtol_rel or xtol_abs (above) was reached.
-			//NLOPT_MAXEVAL_REACHED = 5
-			//Optimization stopped because maxeval (above) was reached.
-			//NLOPT_MAXTIME_REACHED = 6
-			//Optimization stopped because maxtime (above) was reached.
-			//[edit]
-			//Error codes (negative return values)
-			//NLOPT_FAILURE = -1
-			//Generic failure code.
-			//NLOPT_INVALID_ARGS = -2
-			//Invalid arguments (e.g. lower bounds are bigger than upper bounds, an unknown algorithm was specified, etcetera).
-			//NLOPT_OUT_OF_MEMORY = -3
-			//Ran out of memory.
-			//NLOPT_ROUNDOFF_LIMITED = -4
-			//Halted because roundoff errors limited progress. (In this case, the optimization still typically returns a useful result.)
-			//NLOPT_FORCED_STOP = -5
-			//Halted because of a forced termination: the user called nlopt_force_stop(opt) on the optimization’s nlopt_opt object opt from the user’s objective function or constraints.
+			//int msg = status;
+			std::string msg;
 
+			switch(status)
+			{
+				case 1:
+					msg = "Generic success return value";
+					break;
+				case 2:
+					msg = "Optimization stopped because stopval was reached";
+					break;
+				case 3:
+					msg = "Optimization stopped because ftol_rel or ftol_abs was reached";
+					break;
+				case 4:
+					msg = "Optimization stopped because xtol_rel or xtol_abs was reached";
+					break;
+				case 5:
+					msg = "Optimization stopped because maxeval was reached";
+					break;
+				case 6:
+					msg = "Optimization stopped because maxtime was reached";
+					break;
+				case -1:
+					msg = "Generic failure code";
+					break;
+				case -2:
+					msg = "Invalid arguments (e.g. lower bounds are bigger than upper bounds, an unknown algorithm was specified, etcetera)";
+					break;
+				case -3:
+					msg = "Ran out of memory";
+					break;
+				case -4:
+					msg = "Halted because roundoff errors limited progress (in this case, the optimization still typically returns a useful result)";
+					break;
+				case -5:
+					msg = "Halted because of a forced termination: the user called nlopt_force_stop(opt) on the optimization’s nlopt_opt object opt from the user’s objective function or constraints";
+					break;
+			}
+			std::cout << "Optimization ended with status: \"" << msg << "\"" << std::endl;
 		}
 		else
 		{
@@ -754,8 +861,8 @@ namespace aiv
 			throw(MyException(ss.str()));
 		}
 
-		if (_planLastPlan == false)
-		{
+		// if (_planLastPlan == false)
+		// {
 			// double *gradObjF = new double[nParam];
 			// double cost = objF(nParam, optParam, gradObjF, this);
 			
@@ -801,9 +908,9 @@ namespace aiv
 			// delete[] constrEq;
 			// delete[] constrIneq;
 			// delete[] gradObjF;
-		}
-		else
-		{
+		// }
+		// else
+		// {
 			// double cost = objF(nParam-1, &(optParam[1]), NULL, this);
 			// double *constrEq = new double[nEq];
 			// eqFunc(nEq, constrEq, nParam-1,  &(optParam[1]), NULL, this);
@@ -825,7 +932,7 @@ namespace aiv
 			// std::cout << std::endl;
 			// delete[] constrEq;
 			// delete[] constrIneq;
-		}
+		// }
 
 		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
@@ -851,7 +958,7 @@ namespace aiv
 				_optTrajectory.updateFromUniform(optParam);
 				//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(optParam));
 			else
-					_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(optParam));
+				_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(optParam));
 		}
 		else
 		{
@@ -878,7 +985,7 @@ namespace aiv
 
 	void PathPlannerRecHor::computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double*, unsigned, volatile double*, PathPlannerRecHor*))
 	{
-		const double eps = sqrt(std::numeric_limits< double >::epsilon())*1e2;
+		const double eps = sqrt(std::numeric_limits< double >::epsilon()*1e2);
 
 		double *constrPre = new double[m];
 		double *constrPos = new double[m];
@@ -929,6 +1036,13 @@ namespace aiv
 		{
 			context->computeNumGrad(1, n, x, grad, &evalObj);
 		}
+		// std::cout << "ObjFResults: " << result << std::endl;
+		// std::cout << "ObjFGrad: " << std::endl;
+		// for (auto i=0; i<n; ++i)
+		// {
+		// 	std::cout << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
 		return result;
 	}
 
@@ -943,6 +1057,18 @@ namespace aiv
 		{
 			context->computeNumGrad(m, n, x, grad, &evalEq);
 		}
+		// std::cout << "EqResults: " << std::endl;
+		// for (auto i=0; i < m; ++i)
+		// {
+		// 	std::cout << result[i] << ", ";
+		// }
+		// std::cout << std::endl << std::endl;
+		// std::cout << "EqGrad: " << std::endl;
+		// for (auto i=0; i<n*m; ++i)
+		// {
+		// 	std::cout << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
 	}
 
 	void PathPlannerRecHor::ineqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
@@ -962,7 +1088,7 @@ namespace aiv
 		// 	std::cout << result[i] << ", ";
 		// }
 		// std::cout << std::endl << std::endl;
-		// std::cout << "gradIneq: " << std::endl;
+		// std::cout << "IneqGrad: " << std::endl;
 		// for (auto i=0; i<n*m; ++i)
 		// {
 		// 	std::cout << grad[i] << ", ";
@@ -986,6 +1112,13 @@ namespace aiv
 		{
 			context->computeNumGrad(1, n, x, grad, &evalObjLS);
 		}
+		// std::cout << "ObjFResults: " << result << std::endl;
+		// std::cout << "ObjFGrad (" << n << "): " << std::endl;
+		// for (auto i=0; i<n; ++i)
+		// {
+		// 	std::cout << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
 		return result;
 	}
 
@@ -996,10 +1129,24 @@ namespace aiv
 		
 		evalEqLS(result, n, x, context);
 
+		// std::cout << "EqResults (" << m << "): " << std::endl;
+		// for (auto i=0; i < m; ++i)
+		// {
+		// 	std::cout << "R[" << i << "]=" << result[i] << ", ";
+		// }
+		// std::cout << std::endl << std::endl;
+
+		
 		if (grad)
 		{
 			context->computeNumGrad(m, n, x, grad, &evalEqLS);
 		}
+		// std::cout << "EqGrad (" << n << ", " << m << "): " << std::endl;
+		// for (auto i=0; i<n*m; ++i)
+		// {
+		// 	std::cout << "G[" << i << "]=" << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
 	}
 
 	void PathPlannerRecHor::ineqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
@@ -1013,6 +1160,18 @@ namespace aiv
 		{
 			context->computeNumGrad(m, n, x, grad, &evalIneqLS);
 		}
+		// std::cout << "IneqResults: " << std::endl;
+		// for (auto i=0; i < m; ++i)
+		// {
+		// 	std::cout << result[i] << ", ";
+		// }
+		// std::cout << std::endl << std::endl;
+		// std::cout << "IneqGrad (" << n << ", " << m << "): " << std::endl;
+		// for (auto i=0; i<n; ++i)
+		// {
+		// 	std::cout << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
 	}
 
 	

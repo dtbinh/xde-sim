@@ -67,6 +67,12 @@ namespace aiv {
 		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
 	}
 
+	void Trajectory::update(volatile double *ctrlpts, volatile double parVarInterval)
+	{
+		_trajecSpl.~TrajectorySpline();
+		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
+	}
+
 	void Trajectory::update(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval)
 	{
 		_trajecSpl.~TrajectorySpline();

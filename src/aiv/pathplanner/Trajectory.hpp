@@ -23,6 +23,7 @@ namespace aiv {
 		void update(volatile double *ctrlpts);
 		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
 		void update(const double *ctrlpts, const double parVarInterval);
+		void update(volatile double *ctrlpts, volatile double parVarInterval);
 		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
 
 		void updateFromUniform(const double *ctrlpts);
@@ -36,6 +37,8 @@ namespace aiv {
 		//void interpolate(const Eigen::MatrixXd& points, const double parVarInterval);
 
 		void getParameters(double* params) const;
+		//double getParVarInterv() const { return _trajecSpl.knots().tail(1)(0,0); };
+		Eigen::Matrix<double, dim, Eigen::Dynamic> getCtrlPts() const { return _trajecSpl.ctrls(); };
 
 		int nParam() const { return _nCtrlPts; };
 
