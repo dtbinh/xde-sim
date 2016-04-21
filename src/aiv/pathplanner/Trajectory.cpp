@@ -40,20 +40,14 @@ namespace aiv {
 		}
 	}
 
-	//Trajectory::TrajectorySpline::ControlPointVectorType Trajectory::cArray2CtrlPtsMat(const double* ctrlpts)
-	Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> Trajectory::cArray2CtrlPtsMat(const double* ctrlpts)
+	void Trajectory::update(const double *ctrlpts)
 	{
-		Eigen::Matrix<double, dim, Eigen::Dynamic> ctrlPts(dim, _nCtrlPts);
-
-		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
-		{
-			ctrlPts(i % dim, i / dim) = ctrlpts[i];
-		}
-		return ctrlPts;
+		_knots = _trajecSpl.knots();
+		_trajecSpl.~TrajectorySpline();
+		new (&_trajecSpl) TrajectorySpline(_knots, cArray2CtrlPtsMat(ctrlpts));
 	}
 
-	void Trajectory::update(const double *ctrlpts)
+	void Trajectory::update(volatile double *ctrlpts)
 	{
 		_knots = _trajecSpl.knots();
 		_trajecSpl.~TrajectorySpline();

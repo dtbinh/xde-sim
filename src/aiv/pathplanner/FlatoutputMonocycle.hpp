@@ -56,21 +56,22 @@ namespace aiv {
 		{
 			return pose.block< aiv::FlatoutputMonocycle::flatDim, 1 >(0, 0);
 		}
-
+		//FIXME
 		template<class T>
 		static Eigen::Matrix< T, poseDim, 1 > flatToPose(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
+			double vx = abs(dFlat(0, 1));
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::poseDim, 1 >() <<
 				dFlat.leftCols(1),
-				atan2(dFlat(1, 1), dFlat(0, 1))
+				atan2(dFlat(1, 1), vx)
 				).finished();
 		}
-
+		// FIXME
 		template<class T>
 		static Eigen::Matrix< T, veloDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
 			T den = dFlat(0, 1)*dFlat(0, 1) + dFlat(1, 1)*dFlat(1, 1); //+eps so no /0 + static_cast<T>(std::numeric_limits< float >::epsilon())
-			den = den == 0.0 ? static_cast<T>(std::numeric_limits< double >::epsilon()) : den;
+			den = den < static_cast<T>(std::numeric_limits< double >::epsilon()) ? static_cast<T>(std::numeric_limits< double >::epsilon()) : den;
 
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1>() <<
 				dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1>(0, 1).norm(),
@@ -89,9 +90,13 @@ namespace aiv {
 		{
 
 			T dflat_norm = dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1 >(0, 1).norm();
-			T min_den_norm = pow(static_cast<T>(std::numeric_limits< double >::epsilon()), 0.25);
-			T dflat_norm_den1 = dflat_norm >= static_cast<T>(std::numeric_limits< double >::epsilon()) ? dflat_norm : static_cast<T>(std::numeric_limits< double >::epsilon());
-			T dflat_norm_den2 = dflat_norm >= min_den_norm ? dflat_norm : min_den_norm;
+
+			T min_den_norm_dw = pow(static_cast<T>(std::numeric_limits< double >::epsilon()), 0.25);
+			T min_den_norm_dv = static_cast<T>(std::numeric_limits< double >::epsilon());
+
+			T dflat_norm_den1 = dflat_norm < min_den_norm_dv ? min_den_norm_dv : dflat_norm;
+			T dflat_norm_den2 = dflat_norm < min_den_norm_dw ? min_den_norm_dw : dflat_norm;
+			
 			T dv = (dFlat(0, 1)*dFlat(0, 2) + dFlat(1, 1)*dFlat(1, 2)) / dflat_norm_den1;
 			T dw = ((dFlat(0, 2)*dFlat(1, 2) + dFlat(1, 3)*dFlat(0, 1) -
 				(dFlat(1, 2)*dFlat(0, 2) + dFlat(0, 3)*dFlat(1, 1)))*(pow(dflat_norm, 2)) -

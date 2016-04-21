@@ -16,9 +16,11 @@ namespace aiv {
 
 		void interpolate(const Eigen::Matrix<double, dim, Eigen::Dynamic>& points, const double parVarInterval);
 		void setOption(std::string optionName, unsigned optionValue);
-		Eigen::Matrix<double, dim, Eigen::Dynamic> cArray2CtrlPtsMat(const double* ctrlpts);
+		template<class T>
+		Eigen::Matrix<double, dim, Eigen::Dynamic> cArray2CtrlPtsMat(T ctrlpts);
 
 		void update(const double *ctrlpts);
+		void update(volatile double *ctrlpts);
 		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
 		void update(const double *ctrlpts, const double parVarInterval);
 		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
@@ -55,6 +57,19 @@ namespace aiv {
 
 		Eigen::Array< double, 1, Eigen::Dynamic > _genKnots(const double initT, const double finalT, const bool nonUniform, const unsigned nIntervNonNull) const;
 	};
+
+	template<class T>
+	Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> Trajectory::cArray2CtrlPtsMat(T ctrlpts)
+	{
+		Eigen::Matrix<double, dim, Eigen::Dynamic> ctrlPts(dim, _nCtrlPts);
+
+		// Feed ctrlPts rows with values from the primal variables x
+		for (int i = 0; i < _nCtrlPts*dim; ++i)
+		{
+			ctrlPts(i % dim, i / dim) = ctrlpts[i];
+		}
+		return ctrlPts;
+	}
 
 }
 

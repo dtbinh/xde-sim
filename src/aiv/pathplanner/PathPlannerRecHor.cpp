@@ -28,7 +28,7 @@ namespace aiv
 	PathPlannerRecHor::PathPlannerRecHor(std::string name, double updateTimeStep)
 		: PathPlanner(name)
 		, _updateTimeStep(updateTimeStep)
-		, _updateCallCntr(0)
+		, _currentPlanningTime(0.0)
 		, _lastStepMinDist(0.5)
 		, _xTol(0.001)
 		, _fTol(0.001)
@@ -249,10 +249,11 @@ namespace aiv
 		const Displacementd & myRealPose) //const Displacementd & realPose, const Twistd &realVelocity)
 	{
 		// std::cout << "update" << std::endl;
-		double currentPlanningTime = _updateTimeStep*_updateCallCntr;
-		++_updateCallCntr;
+		//double currentPlanningTime = _updateTimeStep*_updateCallCntr;
+		
+		//++_updateCallCntr;
 
-		double evalTime = currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
+		double evalTime = _currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
 
 		// --- REAL COMPUTATION
 
@@ -260,7 +261,7 @@ namespace aiv
 		{
 
 			// First update call
-			if (_updateCallCntr == 1)
+			if (_currentPlanningTime == 0.0)
 			{
 				_detectedObstacles = detectedObst;
 				// std::cout << "conflictEval 1" << std::endl;
@@ -269,37 +270,52 @@ namespace aiv
 				//this->initTimeOfCurrPlan = currentPlanningTime;
 				_planOngoingMutex.lock();
 				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
-				//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
 			}
 
 			// If no plan is been executed yet but the fistPlanTimespan is over
-			else if (_executingPlanIdx == -1 && currentPlanningTime >= _firstPlanTimespan) // Time so robot touch the floor
+			// Using  _currentPlanningTime - _firstPlanTimespan > 1e-14 instead of _currentPlanningTime > _firstPlanTimespan beacause error 3.33067e-016
+			else if (_executingPlanIdx == -1 && _currentPlanningTime - _firstPlanTimespan > 1e-14) // Time so robot touch the floor
 			{
 
 				// P0 will begin to be executed next
 				++_executingPlanIdx;
 
 				// Reset update call counter so evaluation time be corret
-				_updateCallCntr = 1; // the update for evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
-				evalTime = 0.0;
+				//_updateCallCntr = 1; // the update for evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
+				evalTime = _currentPlanningTime - _firstPlanTimespan;
+				// std::cout << "evalTime: " << evalTime << std::endl;
+				// std::cout << "updatetimestep: " << _updateTimeStep << std::endl;
+				// std::cout << "_currentPlanningTime: " << _currentPlanningTime << std::endl;
+				// std::cout << "_firstPlanTimespan: " << _firstPlanTimespan << std::endl;
+				_currentPlanningTime = evalTime;
 
 				////std::cout << "firstPlanTimespan " <<  firstPlanTimespan << std::endl;
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if fist thread finished ________ " << _executingPlanIdx << std::endl;
 				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
 				{
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" Couldn't get mutex ________ " << _executingPlanIdx << _waitForThread << std::endl;
 					// "kill" planning thread putting something reasonable in the aux spline
 					// OR pause the simulation for a while, waiting for the plan thread to finish (completly unreal) => planThread.join()
 					//opt_log << "update: ####### HECK! Plan didn't finish before computing time expired #######" << std::endl;
 					//std::cout << "update: ####### HECK! Plan didn't finish before computing time expired #######" << std::endl;
 					if (_waitForThread == true)
 					{
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Wait... ________ " << _executingPlanIdx << std::endl;
 						_planThread.join();
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Thread done ________ " << _executingPlanIdx << std::endl;
 					}
 					else
 					{
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Kill... ________ " << _executingPlanIdx << std::endl;
 						_planThread.interrupt();
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" It is dead ________ " << _executingPlanIdx << std::endl;
+						_planOngoingMutex.unlock();
 					}
 					_planOngoingMutex.lock();
 				}
+				else
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
 				// Now we are sure that there is no ongoing planning!
 
 				// update solution spline with the auxliar spline find in planning 0;
@@ -327,7 +343,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
 					//opt_log << "update: _______ (C2) Spawn the second plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
 				}
 			}
@@ -339,8 +355,10 @@ namespace aiv
 
 				evalTime -= _compHorizon; // "Fix" evalTime
 
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if thread finished ________ " << _executingPlanIdx << std::endl;
 				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
 				{
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" Couldn't get mutex ________ " << _executingPlanIdx << _waitForThread << std::endl;
 					//opt_log << "update: ####### HECK! Plan didn't finish before computing time expired #######" << std::endl;
 					//std::cout << "update: ####### HECK! Plan didn't finish before computing time expired #######" << std::endl;
 					// "kill" planning thread putting something reasonable in the aux spline
@@ -348,14 +366,21 @@ namespace aiv
 					//xde::sys::Timer::Sleep( 0.02 );
 					if (_waitForThread == true)
 					{
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Wait... ________ " << _executingPlanIdx << std::endl;
 						_planThread.join();
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Thread done ________ " << _executingPlanIdx << std::endl;
 					}
 					else
 					{
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" Kill... ________ " << _executingPlanIdx << std::endl;
 						_planThread.interrupt();
+						std::cout << "_______ " << std::string(name).substr(0,10) <<" It is dead ________ " << _executingPlanIdx << std::endl;
+						_planOngoingMutex.unlock();
 					}
 					_planOngoingMutex.lock();
 				}
+				else
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
 				// Now we are sure that there is no ongoing planning!
 
 				// update solution spline with the auxliar spline;
@@ -383,7 +408,7 @@ namespace aiv
 					//this->conflictEval(otherVehicles, myRealPose);
 					// std::cout << "conflictEval 2" << std::endl;
 					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
 				}
 			}
 		}
@@ -415,7 +440,7 @@ namespace aiv
 		{
 			std::cout << "Planning is over!" << std::endl;
 			std::cout << "Last step planning horizon: " << _planHorizon << std::endl;
-			//boost::this_thread::sleep(boost::posix_time::milliseconds(300));
+			boost::this_thread::sleep(boost::posix_time::milliseconds(500));
 		}
 		else //INTER or FINAL
 		{
@@ -437,6 +462,7 @@ namespace aiv
 			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat2);
 		}
 
+		_currentPlanningTime += _updateTimeStep;
 		return;
 	}
 
@@ -451,23 +477,31 @@ namespace aiv
 		// RECIDING HORIZON STOP CONDITION 
 		if (remainingDist < _lastStepMinDist + _compHorizon*_maxVelocity[FlatoutputMonocycle::linSpeedIdx])
 		{
-			//std::cout << "CONDITION FOR TERMINATION PLAN REACHED!" << std::endl;
+			std::cout << "CONDITION FOR TERMINATION PLAN REACHED!" << std::endl;
 			_planLastPlan = true;
 			//estimate last planning horizon
 			_optPlanHorizon = remainingDist / (_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) +  _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0))*2.;
 			// TODO recompute n_ctrlpts n_knots
+			// call setoptions for optTrajectory and update maybe, think about it although there will be updates in the optimization process
 			// using _optTrajectory
 		}
 		else
+		{
 			_optPlanHorizon = _refPlanHorizon;
+		}
 
 		// GET WAYPOINT AND NEW DIRECTION
 
 		FlatVector currDirec = (FlatVector() << cos(_latestPose(FlatoutputMonocycle::oriIdx, 0)), sin(_latestPose(FlatoutputMonocycle::oriIdx, 0))).finished();
 
 		FlatVector newDirec;
-		FlatVector wayPoint;
-		//_findDirection(newDirec, wayPoint);
+		//FlatVector wayPoint;
+
+		//_findDirection(newDirec, this->_wayPt);
+		//
+		newDirec = currDirec;
+		_wayPt = _targetedFlat;
+		//
 
 		_rotMat2WRef = (Matrix2d() << currDirec(0,0), -1.*currDirec(0,1), currDirec(0,1), currDirec(0,0)).finished();
 		_rotMat2RRef = (Matrix2d() << currDirec(0,0), currDirec(0,1), -1.*currDirec(0,1), currDirec(0,0)).finished();
@@ -542,12 +576,12 @@ namespace aiv
 
 		_latestVelocity = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
+		//boost::this_thread::sleep(boost::posix_time::milliseconds(500));
 		_planOngoingMutex.unlock();
 	}
 
 	void PathPlannerRecHor::_solveOptPbl()
 	{
-
 		unsigned nParam;
 		unsigned nEq;
 		unsigned nIneq;
@@ -562,14 +596,16 @@ namespace aiv
 		if (_planLastPlan == false)
 		{
 
-		// 	objF = PathPlannerRecHor::objectFunc;
-		// 	eqF = PathPlannerRecHor::eqFunc;
-		// 	ieqF = PathPlannerRecHor::ineqFunc;
+			objF = PathPlannerRecHor::objectFunc;
+			eqF = PathPlannerRecHor::eqFunc;
+			ieqF = PathPlannerRecHor::ineqFunc;
 			nParam = _optTrajectory.nParam()*FlatoutputMonocycle::flatDim;
 			nEq = FlatoutputMonocycle::poseDim + FlatoutputMonocycle::veloDim;
 			nIneq = FlatoutputMonocycle::veloDim * _nTimeSamples +
 				FlatoutputMonocycle::accelDim * (_nTimeSamples + 1) +
 				_nTimeSamples * _detectedObstacles.size();
+
+			//std::cout <<  "======  Number of detected obstacles: " << _detectedObstacles.size() << std::endl;
 
 			optParam = new double[nParam];
 			_optTrajectory.getParameters(optParam);
@@ -647,15 +683,6 @@ namespace aiv
 				optParam[i++] = std::strtod(token.c_str(), NULL);
 			}
 
-			// objF(nParam, optParam, NULL, this);
-			// double *constrEq = new double[nEq];
-			// eqFunc(nEq, constrEq, nParam, optParam, NULL, this);
-			// double *constrIneq = new double[nIneq];
-			// ineqFunc(nIneq, constrIneq, nParam, optParam, NULL, this);
-
-			// delete[] constrEq;
-			// delete[] constrIneq;
-
 		}
 		else if (_optimizerType == "SLSQP" || _optimizerType == "COBYLA")
 		{
@@ -686,7 +713,9 @@ namespace aiv
 			nlopt_add_inequality_mconstraint(opt, nIneq, ieqF, this, tolIneq);
 
 			double minf;
+			std::cout << "Optimizing..." << std::endl;
 			int status = nlopt_optimize(opt, optParam, &minf);
+			std::cout << "Done" << std::endl;
 
 			// STATUS NUMBER MEANING
 			//NLOPT_SUCCESS = 1
@@ -712,7 +741,7 @@ namespace aiv
 			//NLOPT_ROUNDOFF_LIMITED = -4
 			//Halted because roundoff errors limited progress. (In this case, the optimization still typically returns a useful result.)
 			//NLOPT_FORCED_STOP = -5
-			//Halted because of a forced termination: the user called nlopt_force_stop(opt) on the optimization’s nlopt_opt object opt from the user’s objective function or constraints.
+			//Halted because of a forced termination: the user called nlopt_force_stop(opt) on the optimizationâ€™s nlopt_opt object opt from the userâ€™s objective function or constraints.
 
 		}
 		else
@@ -724,6 +753,81 @@ namespace aiv
 			delete[] tolIneq;
 			throw(MyException(ss.str()));
 		}
+
+		if (_planLastPlan == false)
+		{
+			// double *gradObjF = new double[nParam];
+			// double cost = objF(nParam, optParam, gradObjF, this);
+			
+			// double *constrEq = new double[nEq];
+			// double *gradEq = new double[nParam*nEq];
+			// eqFunc(nEq, constrEq, nParam, optParam, gradEq, this);
+			
+			// double *constrIneq = new double[nIneq];
+			// double *gradIneq = new double[nParam*nIneq];
+			// ineqFunc(nIneq, constrIneq, nParam, optParam, gradIneq, this);
+
+			// std::cout << "cost: " << cost << std::endl;
+			// std::cout << "gradObjF: " << std::endl;
+			// for (auto i=0; i<nParam; ++i)
+			// {
+			// 	std::cout << gradObjF[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << "eq: " << std::endl;
+			// for (auto i=0; i<nEq; ++i)
+			// {
+			// 	std::cout << constrEq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << "gradEq: " << std::endl;
+			// for (auto i=0; i<nParam*nEq; ++i)
+			// {
+			// 	std::cout << gradEq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << "ineq: " << std::endl;
+			// for (auto i=0; i<nIneq; ++i)
+			// {
+			// 	std::cout << constrIneq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << "gradIneq: " << std::endl;
+			// for (auto i=0; i<nParam*nIneq; ++i)
+			// {
+			// 	std::cout << gradIneq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// delete[] constrEq;
+			// delete[] constrIneq;
+			// delete[] gradObjF;
+		}
+		else
+		{
+			// double cost = objF(nParam-1, &(optParam[1]), NULL, this);
+			// double *constrEq = new double[nEq];
+			// eqFunc(nEq, constrEq, nParam-1,  &(optParam[1]), NULL, this);
+			// double *constrIneq = new double[nIneq];
+			// ineqFunc(nIneq, constrIneq, nParam-1,  &(optParam[1]), NULL, this);
+
+			// std::cout << "cost: " << cost << std::endl;
+			// std::cout << "eq: " << std::endl;
+			// for (auto i=0; i<nEq; ++i)
+			// {
+			// 	std::cout << constrEq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// std::cout << "ineq: " << std::endl;
+			// for (auto i=0; i<nIneq; ++i)
+			// {
+			// 	std::cout << constrIneq[i] << ", ";
+			// }
+			// std::cout << std::endl;
+			// delete[] constrEq;
+			// delete[] constrIneq;
+		}
+
+		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
 		// std::ofstream arquivo;
 		// arquivo.open("optlog/xiter.csv", std::fstream::app);
@@ -762,7 +866,6 @@ namespace aiv
 		delete[] optParam;
 		delete[] tolEq;
 		delete[] tolIneq;
-		//boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 	}
 
 
@@ -773,598 +876,146 @@ namespace aiv
 
 	*/
 
-	// double  PathPlannerRecHor::objectFunc(unsigned n, const double *x, double *grad, void *my_func_data)
-	// {
-
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(my_func_data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
-
-	// 	// Feed ctrlPts rows with values from the primal variables x
-	// 	for (int i = 0; i < n; ++i)
-	// 	{
-	// 		ctrlPts(i % splDim, i / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->auxSpline.knots(), ctrlPts);
-
-	// 	// Create a Matrix consisting of the flat output and its needed derivatives for the instant Tp (1.0)
-	// 	NDerivativesMatrix derivFlat =
-	// 		optSpline.derivatives(thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
-
-	// 	// Get pose at Tp from flatoutput
-	// 	PoseVector poseAtTp = FlatoutputMonocycle::flatToPose(derivFlat);
-
-	// 	// Compute euclidian distance to square from position at Tp and goal position which will be the cost
-	// 	double fx = pow((poseAtTp.block(FlatoutputMonocycle::posIdx, 0, FlatoutputMonocycle::posDim, 1) -
-	// 		(thisPP->targetedPose.block(FlatoutputMonocycle::posIdx, 0, FlatoutputMonocycle::posDim, 1) -
-	// 			thisPP->latestPose.block(FlatoutputMonocycle::posIdx, 0, FlatoutputMonocycle::posDim, 1))).norm(), 2);
-
-	// 	// KEEPING LOG
-	// 	std::ofstream arquivo;
-	// 	arquivo.open("optlog/xiter.csv", std::fstream::app);
-	// 	for (int i = 0; i < int(n); ++i)
-	// 	{
-	// 		//x[i] = startSpline.ctrls()(i%(splDim-1)+1, i/(splDim-1));
-	// 		arquivo << x[i] << ", ";
-
-	// 	}
-	// 	arquivo << std::endl;
-	// 	arquivo.close();
-	// 	arquivo.open("optlog/citer.csv", std::fstream::app);
-	// 	arquivo << fx << std::endl;
-	// 	arquivo.close();
-
-	// 	// If grad not NULL the Jacobian matrix must be given
-	// 	if (grad)
-	// 	{
-	// 		for (unsigned i = n - 1, j = 0; i > n - thisPP->splDim - 1; --i, ++j)
-	// 		{
-	// 			grad[i] = 2 * (x[i] -
-	// 				(thisPP->targetedPose(i % thisPP->splDim + FlatoutputMonocycle::posIdx, 0) -
-	// 					thisPP->latestPose(i % thisPP->splDim + FlatoutputMonocycle::posIdx, 0)));
-	// 		}
-	// 		for (unsigned i = 0; i < n - thisPP->splDim; ++i)
-	// 		{
-	// 			grad[i] = 0.0;
-	// 		}
-	// 	}
-	// 	return fx;
-	// }
-
-	// void PathPlannerRecHor::eval_eq(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 0; i < n; ++i)
-	// 	{
-	// 		ctrlPts(i % splDim, i / splDim) = x[i];
-	// 	}
-
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->auxSpline.knots(), ctrlPts);
-
-
-	// 	// EQUATIONS
-
-
-	// 	// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-	// 	NDerivativesMatrix derivFlatEq =
-	// 		optSpline.derivatives(0.0, FlatoutputMonocycle::flatDerivDeg);
-
-	// 	// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
-	// 	//PoseVector poseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
-	// 	PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
-	// 	diffPoseAtT0.tail(1) -= thisPP->latestPose.tail(1);
-	// 	/*diffPoseAtT0.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
-	// 		poseAtT0.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);*/
-
-	// 	VeloVector diffVelocityAtT0 = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - thisPP->latestVelocity;
-
-	// 	int i = 0;
-	// 	for (; i < FlatoutputMonocycle::poseDim; ++i)
-	// 	{
-	// 		result[i] = diffPoseAtT0[i];
-	// 		//std::cout << "G[" << i << "] " << g[i] << std::endl;
-	// 	}
-	// 	for (int j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
-	// 	{
-	// 		result[j] = diffVelocityAtT0[j - i];
-	// 		//std::cout << "G[" << j << "] " << g[j] << std::endl;
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	thisPP->eval_eq(result, n, x, data);
-
-
-
-	// 	if (grad)
-	// 	{
-	// 		/* ALGEBRIC JACOBIAN */
-
-	// 		int span = thisPP->findspan(0.0);
-	// 		span -= _nIntervNonNull-1;
-
-	// 		qJacMatrix qJ = qJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
-	// 		dqJacMatrix dqJ = dqJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
-
-	// 		MatrixXd J(qJ.rows()+dqJ.rows(), qJ.cols());
-	// 		J << qJ, dqJ;
-
-	// 		Map<MatrixXd>(grad, J.cols(), J.rows()) =
-	// 				J.transpose();
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eval_ineq(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 0; i < n; ++i)
-	// 	{
-	// 		ctrlPts(i % splDim, i / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->auxSpline.knots(), ctrlPts);
-
-
-	// 	// INEQUATIONS
-
-
-	// 	Np1DerivativesMatrix derivFlat;
-	// 	NDerivativesMatrix derivFlatSmall;
-
-	// 	// Create Matrices for storing velocity and acceleration
-	// 	VeloVector velocity;
-	// 	AccelVector acceleration;
-
-	// 	PoseVector pose;
-
-	// 	derivFlat =
-	// 		optSpline.derivatives(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 	////std::cout << "got acc" << std::endl;
-	// 	acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 	int j = 0;
-	// 	for (; j < FlatoutputMonocycle::accelDim; ++j)
-	// 	{
-	// 		const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 		result[j] = absAcc - thisPP->maxAcceleration(j, 0);
-	// 		////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
-	// 	}
-
-	// 	int nAcc = j;
-	// 	int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + thisPP->detectedObstacles.size());
-
-	// 	//#pragma omp parallel for
-	// 	for (int i = 1; i <= int(thisPP->_nTimeSamples); ++i)
-	// 	{
-	// 		////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
-	// 		derivFlat =
-	// 			optSpline.derivatives(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 		////std::cout << "got derive meatrix" << std::endl;
-	// 		// reusing derivFlatEq variable, ugly but let's move on
-	// 		derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
-
-	// 		////std::cout << "got vel" << std::endl;
-	// 		velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
-
-	// 		pose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-
-	// 		////std::cout << "got acc" << std::endl;
-	// 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 		//int ieqPerSample = (FlatoutputMonocycle::veloDim);
-
-	// 		int j;
-	// 		for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
-	// 		{
-	// 			const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 			result[nAcc + j + (i - 1)*ieqPerSample] = absAcc - thisPP->maxAcceleration(j, 0);
-	// 			////std::cout << "G[" << nEq+j+(i-1)*ieqPerSample << "] " << g[nEq+j+(i-1)*ieqPerSample] << std::endl;
-	// 		}
-
-	// 		int k;
-	// 		for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
-	// 		{
-	// 			const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
-	// 			result[nAcc + k + (i - 1)*ieqPerSample] = absVel - thisPP->maxVelocity(k - j, 0);
-	// 			////std::cout << "G[" << nEq+k+(i-1)*ieqPerSample << "] " << g[nEq+k+(i-1)*ieqPerSample] << std::endl;
-	// 		}
-
-	// 		// Obstacles
-	// 		std::map<std::string, Obstacle *>::iterator it;
-	// 		for (it = thisPP->detectedObstacles.begin(), j = k; j - k < thisPP->detectedObstacles.size(); ++j, ++it)
-	// 		{
-	// 			result[nAcc + (i - 1)*ieqPerSample + j] = -1. * it->second->distToAIV(pose.head(2) + thisPP->latestPose.head(2), thisPP->secRho);
-	// 		}
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eval_ineq_coll(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 0; i < n; ++i)
-	// 	{
-	// 		ctrlPts(i % splDim, i / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->auxSpline.knots(), ctrlPts);
-
-
-	// 	// INEQUATIONS
-
-
-	// 	Np1DerivativesMatrix derivFlat;
-	// 	NDerivativesMatrix derivFlatSmall;
-
-	// 	// Create Matrices for storing velocity and acceleration
-	// 	VeloVector velocity;
-	// 	AccelVector acceleration;
-
-	// 	PoseVector pose;
-
-	// 	derivFlat =
-	// 		optSpline.derivatives(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 	////std::cout << "got acc" << std::endl;
-	// 	acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 	int j = 0;
-	// 	for (; j < FlatoutputMonocycle::accelDim; ++j)
-	// 	{
-	// 		const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 		result[j] = absAcc - thisPP->maxAcceleration(j, 0);
-	// 		//std::cout << "G[" << j << "] " << result[j] << std::endl;
-	// 	}
-
-	// 	int nAcc = j;
-	// 	int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + thisPP->detectedObstacles.size());
-
-	// 	//#pragma omp parallel for
-	// 	for (int i = 1; i <= int(thisPP->_nTimeSamples); ++i)
-	// 	{
-	// 		//////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
-	// 		derivFlat =
-	// 			optSpline.derivatives(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 		// reusing derivFlatEq variable, ugly but let's move on
-	// 		derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
-
-	// 		velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
-
-	// 		pose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-
-	// 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 		//int ieqPerSample = (FlatoutputMonocycle::veloDim);
-
-	// 		int j;
-	// 		for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
-	// 		{
-	// 			const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 			result[nAcc + j + (i - 1)*ieqPerSample] = absAcc - thisPP->maxAcceleration(j, 0);
-	// 			//std::cout << "G[" << nAcc + j + (i - 1)*ieqPerSample << "] " << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
-	// 		}
-
-	// 		int k;
-	// 		for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
-	// 		{
-	// 			const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
-	// 			result[nAcc + k + (i - 1)*ieqPerSample] = absVel - thisPP->maxVelocity(k - j, 0);
-	// 			//std::cout << "G[" << nAcc + k + (i - 1)*ieqPerSample << "] " << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
-	// 		}
-
-	// 		// Obstacles
-	// 		std::map<std::string, Obstacle *>::iterator it;
-	// 		for (it = thisPP->detectedObstacles.begin(), j = k; j - k < thisPP->detectedObstacles.size(); ++j, ++it)
-	// 		{
-	// 			result[nAcc + (i - 1)*ieqPerSample + j] = -1. * it->second->distToAIV(pose.head(2) + thisPP->latestPose.head(2), thisPP->secRho);
-	// 			//std::cout << "G[" << nAcc + (i - 1)*ieqPerSample + j << "] " << result[nAcc + (i - 1)*ieqPerSample + j] << std::endl;
-
-	// 		}
-
-	// 	}
-
-	// 	NDerivativesMatrix derivFlatSmallOther;
-	// 	PoseVector myPose;
-	// 	PoseVector otherPose;
-
-
-	// 	for (std::map<std::string, AIV* >::const_iterator
-	// 			it = thisPP->collisionAIVs.begin();
-	// 			it != thisPP->collisionAIVs.end();
-	// 			++it)
-	// 	{
-	// 		int i, j, k;
-	// 		for (i = thisPP->conflictInfo[it->first][0]+1, j = thisPP->conflictInfo[it->first][1]+1, k=0; i <= int(thisPP->_nTimeSamples) && j <= int(thisPP->_nTimeSamples); ++i, ++j, ++k)
-	// 		{
-	// 			derivFlatSmall =
-	// 				optSpline.derivatives(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
-
-	// 			derivFlatSmallOther = 
-	// 				it->second->getPathPlanner()->getSpline().derivatives(double(j) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
-
-	// 			myPose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-	// 			otherPose = FlatoutputMonocycle::flatToPose(derivFlatSmallOther);
-
-	// 			result[nAcc + int(thisPP->_nTimeSamples)*ieqPerSample + k] =
-	// 				thisPP->secRho + it->second->getPathPlanner()->getSecRho() - (myPose.head(2) - otherPose.head(2)).norm();
-	// 			//std::cout << "dist: " << thisPP->secRho + it->second->getPathPlanner()->getSecRho() << "myPos: " << myPose.head(2) << "othPos: " << otherPose.head(2) << std::endl;
-	// 			// result[nAcc + int(thisPP->_nTimeSamples)*ieqPerSample + k] =
-	// 				// -1;
-	// 			// std::cout << "G[" << nAcc + int(thisPP->_nTimeSamples)*ieqPerSample + k << "] " << result[nAcc + int(thisPP->_nTimeSamples)*ieqPerSample + k] << std::endl;
-
-	// 		}
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eval_dobst_ineq(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 0; i < n; ++i)
-	// 	{
-	// 		ctrlPts(i % splDim, i / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->auxSpline.knots(), ctrlPts);
-
-
-	// 	// Dist 2 obst INEQUATIONS
-
-	// 	NDerivativesMatrix derivFlatSmall;
-
-	// 	PoseVector pose;
-
-	// 	//#pragma omp parallel for
-	// 	for (int i = 1; i <= int(thisPP->_nTimeSamples); ++i)
-	// 	{
-	// 		derivFlatSmall = optSpline.derivatives(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
-
-	// 		pose = FlatoutputMonocycle::flatToPose(derivFlatSmall);
-
-	// 		// Obstacles
-	// 		std::map<std::string, Obstacle *>::iterator it;
-	// 		int j;
-	// 		for (it = thisPP->detectedObstacles.begin(), j = 0; j < thisPP->detectedObstacles.size(); ++j, ++it)
-	// 		{
-	// 			result[(i - 1)*thisPP->detectedObstacles.size() + j] = -1. * it->second->distToAIV(pose.head(2) + thisPP->latestPose.head(2), 0.55);
-	// 		}
-	// 	}
-	// }
-
-
-	// void PathPlannerRecHor::ineqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	thisPP->eval_ineq(result, n, x, data);
-
-	// 	std::ofstream arquivo;
-	// 	arquivo.open("optlog/gieqiter.csv", std::fstream::app);
-	// 	for (int i = 0; i < int(m); ++i)
-	// 	{
-	// 		//x[i] = startSpline.ctrls()(i%(splDim-1)+1, i/(splDim-1));
-	// 		arquivo << result[i] << ", ";
-
-	// 	}
-	// 	arquivo << std::endl;
-	// 	arquivo.close();
-
-	// 	const int accDim = FlatoutputMonocycle::accelDim;
-	// 	const int velDim = FlatoutputMonocycle::veloDim;
-	// 	//int Xdim = thisPP->noCtrlPts * FlatoutputMonocycle::flatDim;
-	// 	int nobst = thisPP->detectedObstacles.size();
-
-	// 	if (grad)
-	// 	{
-	// 		int span = thisPP->findspan(0.0);
-	// 		span -= _nIntervNonNull - 1;
-
-	// 		////std::cout << "ineq grad\n";
-	// 		MatrixXd J(m, n);
-
-	// 		J.block(0, 0, accDim, n) = absddqJac(0.0, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
-
-	// 		for (int i = 1; i <= int(thisPP->_nTimeSamples); ++i)
-	// 		{
-
-	// 			span = thisPP->findspan(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon) - (_nIntervNonNull - 1);
-
-	// 			J.block(accDim + (i - 1)*(accDim + velDim + nobst), 0, accDim, n) =
-	// 				absddqJac(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
-
-	// 			J.block(accDim * 2 + (i - 1)*(accDim + velDim + nobst), 0, velDim, n) =
-	// 				absdqJac(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree);
-
-	// 			int j;
-	// 			std::map<std::string, Obstacle *>::iterator it;
-	// 			for (it = thisPP->detectedObstacles.begin(), j = 0; it != thisPP->detectedObstacles.end(); ++it, ++j)
-	// 			{
-
-	// 				/*J.block(j + accDim * 2 + velDim + (i - 1)*(accDim + velDim + nobst), 0, 1, n) =
-	// 					obstDistJac(double(i) / thisPP->_nTimeSamples * thisPP->finalPlanHorizon, thisPP->finalPlanHorizon, span, x, n, thisPP->splDegree, it->second->getPosition().block(0, 0, 2, 1));*/
-	// 			}
-	// 		}
-
-	// 		Map<MatrixXd>(grad, J.cols(), J.rows()) = J.transpose();
-
-	// 		const double eps = sqrt(std::numeric_limits< double >::epsilon());
-
-	// 		double *constrPre = new double[thisPP->_nTimeSamples*thisPP->detectedObstacles.size()];
-	// 		double *constrPos = new double[thisPP->_nTimeSamples*thisPP->detectedObstacles.size()];
-	// 		double *x1 = new double[n];
-	// 		double h, dx;
-
-	// 		const int velaccDim = FlatoutputMonocycle::accelDim + FlatoutputMonocycle::veloDim;
-	// 		const int vel2accDim = 2 * FlatoutputMonocycle::accelDim + FlatoutputMonocycle::veloDim;
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			x1[i] = x[i];
-	// 		}
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			h = x[i] < eps*thisPP->h ? eps*thisPP->h : eps*x[i];
-	// 			//h = x[i] < eps ? eps*eps : eps*x[i];
-	// 			//h = eps;
-	// 			x1[i] = x[i] + h;
-	// 			thisPP->eval_dobst_ineq(constrPos, n, x1, data);
-	// 			dx = x1[i] - x[i];
-	// 			x1[i] = x[i] - h;
-	// 			thisPP->eval_dobst_ineq(constrPre, n, x1, data);
-	// 			dx = dx + x[i] - x1[i];
-	// 			//dx = 2 * h;
-	// 			x1[i] = x[i];
-	// 			////std::cout << "INEQ: " << x[i] << ", " << eps << ", " << h << ", " << dx << std::endl;
-	// 			for (int j = 0; j < thisPP->detectedObstacles.size(); ++j)
-	// 			{
-	// 				for (int k = 0; k < thisPP->_nTimeSamples; ++k)
-	// 				{
-	// 					////std::cout << j * (velaccDim + thisPP->detectedObstacles.size()) + vel2accDim << ", " << i << std::endl;
-	// 					grad[(k * (velaccDim + thisPP->detectedObstacles.size()) + vel2accDim + j) * n + i] = 
-	// 							(constrPos[k*thisPP->detectedObstacles.size()+j] - constrPre[k*thisPP->detectedObstacles.size()+j]) / dx;
-	// 					////std::cout << grad[j*n + i] << std::endl;
-	// 				}
-	// 			}
-				
-	// 		}
-	// 		delete[] constrPre;
-	// 		delete[] constrPos;
-	// 		delete[] x1;
-
-	// 		//MatrixXd e = Map<MatrixXd>(grad, m, n);
-
-	// 		/*//std::cout << n << ", " << m << std::endl;
-
-	// 		for (int i = 0; i < m; ++i)
-	// 		{
-	// 			for (int j = 0; j < n; ++j)
-	// 			{
-	// 				//std::cout << grad[i*n + j] << ", ";
-	// 			}
-	// 			//std::cout << std::endl;
-	// 		}
-
-	// 		//std::cout << J << std::endl;*/
-
-	// 		//for (int i = 0; i < thisPP->_nTimeSamples; ++i)
-	// 		//{
-	// 		//	for (int j = 0; j < n; ++j)
-	// 		//	{
-	// 		//		////std::cout << i * 6 + 6 << ", " << j << std::endl;
-	// 		//		J(i*6 + 6, j) = grad[(i * 6 + 6)*n + j];
-	// 		//		J(i*6 + 6 + 1, j) = grad[(i * 6 + 6 + 1)*n + j];
-	// 		//	}
-	// 		//}
-	// 		/*for (int i = 0; i < m; ++i)
-	// 		{
-	// 			for (int j = 0; j < n; ++j)
-	// 			{
-	// 				J(i, j) = grad[(i)*n + j];
-	// 			}
-	// 		}*/
-
-	// 		////std::cout << "\nGrad\n" << Map<MatrixXd>(grad, 1, m*n) << std::endl;
-	// 		//IOFormat CleanFmt(3, 0, " ", "\n", "", "");
-	// 		////std::cout << "\nJ\n" << J.block<70, 8>(2, 0).format(CleanFmt) << std::endl;
-
-	// 		/*MatrixXd e(m, n);
-
-	// 		for (int i = 0; i < m; ++i)
-	// 		{
-	// 			for (int j = 0; j < n; ++j)
-	// 			{
-	// 				e(i, j) = grad[(i)*n + j];
-	// 			}
-	// 		}*/
-	// 		//MatrixXd e = Map<MatrixXd>(grad, n, m);
-	// 		////std::cout << "\nJnum\n" << (J.block<86, 14>(0, 0) - e.block<86,14>(0, 0)).format(CleanFmt) << std::endl
-
-	// 		//boost::this_thread::sleep(boost::posix_time::milliseconds(2000));
-	// 	}
-	// }
-	// void PathPlannerRecHor::ineqFuncColl(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
-	// {
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
-
-	// 	thisPP->eval_ineq_coll(result, n, x, data);
-
-	// 	if (grad)
-	// 	{
-	// 		const double eps = sqrt(std::numeric_limits< double >::epsilon());
-
-	// 		double *constrPre = new double[m];
-	// 		double *constrPos = new double[m];
-	// 		double *x1 = new double[n];
-	// 		double h, dx;
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			x1[i] = x[i];
-	// 		}
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			h = x[i] < eps*thisPP->h ? eps*thisPP->h : eps*x[i];
-	// 			x1[i] = x[i] + h;
-	// 			thisPP->eval_ineq_coll(constrPos, n, x1, data);
-	// 			dx = x1[i] - x[i];
-	// 			x1[i] = x[i] - h;
-	// 			thisPP->eval_ineq_coll(constrPre, n, x1, data);
-	// 			dx = dx + x[i] - x1[i];
-	// 			x1[i] = x[i];
-
-	// 			for (int j = 0; j < m; ++j)
-	// 			{
-	// 				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
-	// 			}
-				
-	// 		}
-	// 		delete[] constrPre;
-	// 		delete[] constrPos;
-	// 		delete[] x1;
-	// 	}
-	// }
+	void PathPlannerRecHor::computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double*, unsigned, volatile double*, PathPlannerRecHor*))
+	{
+		const double eps = sqrt(std::numeric_limits< double >::epsilon())*1e2;
+
+		double *constrPre = new double[m];
+		double *constrPos = new double[m];
+		volatile double *x1 = new double[n];
+		double h, dx;
+
+		for (int i = 0; i < int(n); ++i)
+		{
+			x1[i] = x[i];
+		}
+
+		(*eval)(constrPre, n, x1, this);
+
+		for (int i = 0; i < int(n); ++i)
+		{
+			h = x[i] < eps ? eps*eps : eps*x[i];
+			x1[i] = x[i] + h;
+			dx = x1[i] - x[i];
+			(*eval)(constrPos, n, x1, this);
+
+			// x1[i] = x[i] - h;
+			// dx = dx + (x[i] - x1[i]);
+			// (*eval)(constrPre, n, x1, this);
+			x1[i] = x[i];
+
+			for (int j = 0; j < m; ++j)
+			{
+				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
+			}
+			
+		}
+		delete[] constrPre;
+		delete[] constrPos;
+		delete[] x1;
+	}
+
+	double  PathPlannerRecHor::objectFunc(unsigned n, const double *x, double *grad, void *data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+
+		double result;
+		
+		evalObj(&result, n, x, context);
+
+		// If grad not NULL the Jacobian matrix must be given
+		if (grad)
+		{
+			context->computeNumGrad(1, n, x, grad, &evalObj);
+		}
+		return result;
+	}
+
+	void PathPlannerRecHor::eqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+		
+		evalEq(result, n, x, context);
+
+		if (grad)
+		{
+			context->computeNumGrad(m, n, x, grad, &evalEq);
+		}
+	}
+
+	void PathPlannerRecHor::ineqFunc(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+		
+		evalIneq(result, n, x, context);
+
+		if (grad)
+		{
+			context->computeNumGrad(m, n, x, grad, &evalIneq);
+		}
+		// std::cout << "IneqResults: " << std::endl;
+		// for (auto i=0; i < m; ++i)
+		// {
+		// 	std::cout << result[i] << ", ";
+		// }
+		// std::cout << std::endl << std::endl;
+		// std::cout << "gradIneq: " << std::endl;
+		// for (auto i=0; i<n*m; ++i)
+		// {
+		// 	std::cout << grad[i] << ", ";
+		// }
+		// std::cout << std::endl;
+	}
+
+
+	// LAST STEP COST EQ INEQ
+	double  PathPlannerRecHor::objectFuncLS(unsigned n, const double *x, double *grad, void *data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+
+		double result;
+		
+		evalObjLS(&result, n, x, context);
+
+		// If grad not NULL the Jacobian matrix must be given
+		if (grad)
+		{
+			context->computeNumGrad(1, n, x, grad, &evalObjLS);
+		}
+		return result;
+	}
+
+	void PathPlannerRecHor::eqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+		
+		evalEqLS(result, n, x, context);
+
+		if (grad)
+		{
+			context->computeNumGrad(m, n, x, grad, &evalEqLS);
+		}
+	}
+
+	void PathPlannerRecHor::ineqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
+	{
+		// get this path planner pointer
+		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
+		
+		evalIneqLS(result, n, x, context);
+
+		if (grad)
+		{
+			context->computeNumGrad(m, n, x, grad, &evalIneqLS);
+		}
+	}
+
+	
 
 	// // Stand alone constraints, final step
 
@@ -1392,10 +1043,10 @@ namespace aiv
 	// 	double finalPlanHorizon = x[0];
 
 	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
+	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
 
 	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
+	// 	MySpline::ControlPointVectorType ctrlPts(splDim, context->noCtrlPts);
 
 	// 	// Feed remaining rows with values from the primal variables x
 	// 	for (int i = 1; i < n; ++i)
@@ -1404,7 +1055,7 @@ namespace aiv
 	// 	}
 
 	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
+	// 	MySpline optSpline(context->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
 
 
 	// 	// EQUATIONS
@@ -1418,9 +1069,9 @@ namespace aiv
 
 	// 	// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
 	// 	PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
-	// 	diffPose.tail(1) -= thisPP->latestPose.tail(1);
+	// 	diffPose.tail(1) -= context->latestPose.tail(1);
 
-	// 	VeloVector diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - thisPP->latestVelocity;
+	// 	VeloVector diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->latestVelocity;
 
 	// 	int i = 0;
 	// 	for (; i < FlatoutputMonocycle::poseDim; ++i)
@@ -1441,10 +1092,10 @@ namespace aiv
 	// 	// Get error from pose at Tp and targeted pose
 	// 	diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
 	// 	diffPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +=
-	// 		thisPP->latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
-	// 	diffPose -= thisPP->targetedPose;
+	// 		context->latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+	// 	diffPose -= context->targetedPose;
 
-	// 	diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - thisPP->targetedVelocity;
+	// 	diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->targetedVelocity;
 
 	// 	for (i = j; i - j < FlatoutputMonocycle::poseDim; ++i)
 	// 	{
@@ -1460,9 +1111,9 @@ namespace aiv
 	// {
 	// 	////std::cout << "eqFuncLS" << std::endl;
 	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
+	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
 
-	// 	thisPP->eval_eqLS(result, n, x, data);
+	// 	context->eval_eqLS(result, n, x, data);
 
 	// 	if (grad)
 	// 	{
@@ -1483,10 +1134,10 @@ namespace aiv
 	// 			h = x[i] < eps ? eps*eps : eps*x[i];
 	// 			//h = eps;
 	// 			x1[i] = x[i] + h;
-	// 			thisPP->eval_eqLS(constrPos, n, x1, data);
+	// 			context->eval_eqLS(constrPos, n, x1, data);
 	// 			dx = x1[i] - x[i];
 	// 			x1[i] = x[i] - h;
-	// 			thisPP->eval_eqLS(constrPre, n, x1, data);
+	// 			context->eval_eqLS(constrPre, n, x1, data);
 	// 			dx = dx + x[i] - x1[i];
 	// 			//dx = 2 * h;
 	// 			x1[i] = x[i];
@@ -1509,10 +1160,10 @@ namespace aiv
 	// 	double finalPlanHorizon = x[0];
 
 	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
+	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
 
 	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, thisPP->noCtrlPts);
+	// 	MySpline::ControlPointVectorType ctrlPts(splDim, context->noCtrlPts);
 
 	// 	// Feed remaining rows with values from the primal variables x
 	// 	for (int i = 1; i < n; ++i)
@@ -1521,7 +1172,7 @@ namespace aiv
 	// 	}
 
 	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(thisPP->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
+	// 	MySpline optSpline(context->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
 
 	// 	////std::cout << "eval_ineqLS 2" << std::endl;
 	// 	// INEQUATIONS
@@ -1547,7 +1198,7 @@ namespace aiv
 	// 	for (; j < FlatoutputMonocycle::accelDim; ++j)
 	// 	{
 	// 		const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 		result[j] = absAcc - thisPP->maxAcceleration(j, 0);
+	// 		result[j] = absAcc - context->maxAcceleration(j, 0);
 	// 		////std::cout << "G[" << j << "] " << result[j] << std::endl;
 	// 	}
 
@@ -1561,7 +1212,7 @@ namespace aiv
 	// 	for (j = nAcc; j - nAcc < FlatoutputMonocycle::accelDim; ++j)
 	// 	{
 	// 		const double absAcc = (acceleration(j - nAcc, 0) > -acceleration(j - nAcc, 0)) ? acceleration(j - nAcc, 0) : -acceleration(j - nAcc, 0);
-	// 		result[j] = absAcc - thisPP->maxAcceleration(j - nAcc, 0);
+	// 		result[j] = absAcc - context->maxAcceleration(j - nAcc, 0);
 	// 		////std::cout << "G[" << j << "] " << result[j] << std::endl;
 	// 	}
 	// 	nAcc = 2*FlatoutputMonocycle::accelDim;
@@ -1569,11 +1220,11 @@ namespace aiv
 	// 	// inequations in ]0.0, Tp[
 
 	// 	//#pragma omp parallel for
-	// 	for (int i = 1; i < int(thisPP->_nTimeSamples); ++i)
+	// 	for (int i = 1; i < int(context->_nTimeSamples); ++i)
 	// 	{
 	// 		////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
 	// 		derivFlat =
-	// 			optSpline.derivatives(double(i) / thisPP->_nTimeSamples * finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
+	// 			optSpline.derivatives(double(i) / context->_nTimeSamples * finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
 
 	// 		////std::cout << "got derive meatrix" << std::endl;
 	// 		// reusing derivFlatEq variable, ugly but let's move on
@@ -1592,14 +1243,14 @@ namespace aiv
 	// 		for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
 	// 		{
 	// 			const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 			result[nAcc + j + (i - 1)*ieqPerSample] = absAcc - thisPP->maxAcceleration(j, 0);
+	// 			result[nAcc + j + (i - 1)*ieqPerSample] = absAcc - context->maxAcceleration(j, 0);
 	// 			////std::cout << "G[" << nAcc + j + (i - 1)*ieqPerSample << "] " << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 	// 		}
 
 	// 		for (int k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
 	// 		{
 	// 			const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
-	// 			result[nAcc + k + (i - 1)*ieqPerSample] = absVel - thisPP->maxVelocity(k - j, 0);
+	// 			result[nAcc + k + (i - 1)*ieqPerSample] = absVel - context->maxVelocity(k - j, 0);
 	// 			////std::cout << "G[" << nAcc + k + (i - 1)*ieqPerSample << "] " << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
 	// 		}
 	// 	}
@@ -1610,9 +1261,9 @@ namespace aiv
 	// {
 	// 	////std::cout << "ineqFuncLS" << std::endl;
 	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *thisPP = static_cast< PathPlannerRecHor *>(data);
+	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
 
-	// 	thisPP->eval_ineqLS(result, n, x, data);
+	// 	context->eval_ineqLS(result, n, x, data);
 
 	// 	////std::cout << "ineqFuncLS 2" << std::endl;
 
@@ -1635,10 +1286,10 @@ namespace aiv
 	// 			h = x[i] < eps ? eps*eps : eps*x[i];
 	// 			//h = eps;
 	// 			x1[i] = x[i] + h;
-	// 			thisPP->eval_ineqLS(constrPos, n, x1, data);
+	// 			context->eval_ineqLS(constrPos, n, x1, data);
 	// 			dx = x1[i] - x[i];
 	// 			x1[i] = x[i] - h;
-	// 			thisPP->eval_ineqLS(constrPre, n, x1, data);
+	// 			context->eval_ineqLS(constrPre, n, x1, data);
 	// 			dx = dx + x[i] - x1[i];
 	// 			//dx = 2 * h;
 	// 			x1[i] = x[i];
