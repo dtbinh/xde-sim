@@ -237,7 +237,7 @@ namespace aiv {
 			pplanner->setOption("conflictFreePathDeviation", pt.get<double>("root.mpmethod.conflictfreepathdeviation"));
 			pplanner->setOption("interRobotSafetyDist", pt.get<double>("root.mpmethod.interrobotsafetydist"));
 			pplanner->setOption("waitForThread", pt.get<bool>("root.mpmethod.waitforthread"));
-			//pplanner->setOption("numderivativedelta", pt.get<double>("root.mpmethod.numderivativedelta"));
+			pplanner->setOption("numDerivativeFactor", pt.get<double>("root.mpmethod.numderivativefactor"));
 
 			pplanner->setOption("optimizerType", pt.get<std::string>("root.mpmethod.optimizer.<xmlattr>.type"));
 			pplanner->setOption("xTol", pt.get<double>("root.mpmethod.optimizer.xtolerance"));

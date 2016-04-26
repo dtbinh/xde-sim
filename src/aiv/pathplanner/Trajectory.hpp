@@ -29,7 +29,7 @@ namespace aiv {
 		void updateFromUniform(const double *ctrlpts);
 		void updateFromUniform(const double *ctrlpts, const double parVarInterval);
 		void updateFromUniform(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
-		void updateFromUniform( const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
+		void updateFromUniform(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval);
 
 		Eigen::Matrix<double, dim, 1> operator()(const double evalTime) const;
 		Eigen::Matrix<double, dim, Eigen::Dynamic> operator()(const double evalTime, const unsigned deriv) const;
@@ -43,6 +43,7 @@ namespace aiv {
 		int nParam() const { return _nCtrlPts; };
 
 		Trajectory();
+		Trajectory(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& points, const double parVarInterval);
 		~Trajectory();
 
 	private:

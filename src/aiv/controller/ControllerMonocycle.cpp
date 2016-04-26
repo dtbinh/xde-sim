@@ -46,8 +46,8 @@ namespace aiv
 		{
 			_predictionTime = optionValue;
 			//update Gain Matrix
-			_K2 = (Eigen::Matrix<double, 1, 3>() << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.).finished();
-			_K1 = (Eigen::Matrix<double, 1, 2>() << 3./(2.*_predictionTime), 1.).finished();
+			_K2 << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.;
+			_K1 << 3./(2.*_predictionTime), 1.;
 			_K = (Eigen::Matrix< double, ControllerMonocycle::observDim, ControllerMonocycle::relativeDegOfNonLinMIMOSum >() <<
 				_K2, Eigen::Matrix<double, 1, 10>::Zero(),
 				Eigen::Matrix<double, 1,  3>::Zero(), _K2, Eigen::Matrix<double, 1, 7>::Zero(),
@@ -111,7 +111,7 @@ namespace aiv
 			y - y_r,
 			u*sin(theta)-ydot_r,
 			L2fy2 - ydotdot_r,
-			theta - theta_r,
+			Common::wrapToPi(theta - theta_r),
 			w - thetadot_r,
 			L2fy3 - thetadotdot_r,
 			u - u1_r,
@@ -146,6 +146,7 @@ namespace aiv
 		double plannedLinAccel,
 		double plannedAngAccel)
 	{
+
 		//double tic = Common::getRealTime();
 		// Getting robot's orientation projected in the ground plane (unless the vehicle is flying this is the right orientation)
 		//  1. get the quaternion part of the displacement

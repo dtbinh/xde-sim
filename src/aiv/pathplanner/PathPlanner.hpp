@@ -23,7 +23,8 @@ namespace aiv {
 		PathPlanner(std::string name);
 		virtual void update(std::map<std::string, Obstacle *> detectedObst,
 		 		std::map<std::string, AIV *> otherVehicles,
-		 		const Eigen::Displacementd & myRealPose) = 0;
+		 		const Eigen::Displacementd & myRealPose,
+		 		const double myRadius) = 0;
 		virtual double getLinVelocity() const = 0;
 		virtual double getAngVelocity() const = 0;
 		virtual double getLinAccel() const = 0;

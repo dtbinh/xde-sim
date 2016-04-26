@@ -40,6 +40,8 @@ public:
   */
   virtual Eigen::Vector2d getCurrentAcceleration() = 0;
 
+  virtual double getRad() = 0;
+
 
 protected:
   Application * app;

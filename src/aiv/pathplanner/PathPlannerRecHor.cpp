@@ -2,7 +2,6 @@
 #include "aiv/obstacle/Obstacle.hpp"
 #include "aiv/robot/AIV.hpp"
 
-#include "aiv/helpers/common.h"
 #include "aiv/helpers/MyException.hpp"
 //#include "aiv/pathplanner/constrJac.hpp"
 //#include "aiv/pathplanner/eq_cons_jac.hpp"
@@ -13,6 +12,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <string>
+
+#include <boost/math/special_functions/fpclassify.hpp>
 
 // #define foreach_ BOOST_FOREACH
 
@@ -25,32 +26,6 @@ using namespace Eigen;
 
 namespace aiv
 {
-
-	/* Map angles (:math:`\\theta \in R`) to unsigned angles
-	 * (:math:`\\theta \in [0, 2\pi)`).
-	 */
-	// template<class T>
-	double PathPlannerRecHor::_unsigned_angle(double angle)
-	{
-		while (angle < 0.0)
-			angle += 2*M_PI;
-		while (angle >= 2*M_PI)
-			angle -= 2*M_PI;
-		return angle;
-	}
-
-	/* Map angles (:math:`\\theta \in R`) to signed angles
-	 * (:math:`\\theta \in [-pi, +pi)`).
-	 */
-	// template<class T>
-	double PathPlannerRecHor::_signed_angle(double angle)
-	{
-		while (angle < -M_PI)
-			angle += 2*M_PI;
-		while (angle >= M_PI)
-			angle -= 2*M_PI;
-		return angle;
-	}
 
 	PathPlannerRecHor::PathPlannerRecHor(std::string name, double updateTimeStep)
 		: PathPlanner(name)
@@ -85,6 +60,8 @@ namespace aiv
 		// , _h(1e-15)
 		, _comRange(15)
 		, _firstPlanTimespan(1.0)
+		, _numDerivativeFactor(1e3)
+		, _radius(0.0)
 	{
 		_planOngoingMutex.initialize();
 		//this->opt_log.open("optlog///opt_log.txt");
@@ -153,9 +130,9 @@ namespace aiv
 		double compHorizon,
 		double planHorizon,
 		unsigned nTimeSamples,
-		unsigned _nIntervNonNull)
+		unsigned nIntervNonNull)
 	{
-		init(initPose, initVelocity, targetedPose, targetedVelocity, maxVelocity, compHorizon, planHorizon, nTimeSamples, _nIntervNonNull);
+		init(initPose, initVelocity, targetedPose, targetedVelocity, maxVelocity, compHorizon, planHorizon, nTimeSamples, nIntervNonNull);
 		_maxAcceleration = maxAcceleration;
 	}
 
@@ -196,6 +173,10 @@ namespace aiv
 		else if (optionName == "offsetTime")
 		{
 			_firstPlanTimespan = optionValue;
+		}
+		else if (optionName == "numDerivativeFactor")
+		{
+			_numDerivativeFactor = optionValue;
 		}
 	}
 	void PathPlannerRecHor::setOption(const std::string& optionName, const bool optionValue)
@@ -273,8 +254,9 @@ namespace aiv
 
 	void PathPlannerRecHor::update(std::map<std::string, Obstacle *> detectedObst,
 		std::map<std::string, AIV *> otherVehicles,
-		const Displacementd & myRealPose) //const Displacementd & realPose, const Twistd &realVelocity)
+		const Displacementd & myRealPose, const double myRadius) //const Displacementd & realPose, const Twistd &realVelocity)
 	{
+		_radius = myRadius;
 		// double tic = Common::getRealTime();
 		// std::cout << "update" << std::endl;
 		//double currentPlanningTime = _updateTimeStep*_updateCallCntr;
@@ -482,8 +464,12 @@ namespace aiv
 			_poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
 
 			_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
+				// _rotMat2WRef * _poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
 				_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
 				_initPoseForCurrPlan.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+
+			// _poseOutput(FlatoutputMonocycle::oriIdx, 0) =
+				// Common::wrapToPi(_poseOutput(FlatoutputMonocycle::oriIdx, 0) + _initPoseForCurrPlan(FlatoutputMonocycle::oriIdx, 0));
 
 			_velocityOutput = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
@@ -500,24 +486,35 @@ namespace aiv
 		// double tic = Common::getRealTime();
 		// GET ESTIMATE POSITION OF LAST POINT
 
-
 		FlatVector remainingDistVectorUni = _targetedFlat - _latestFlat;
 		double remainingDist = remainingDistVectorUni.norm();
 		remainingDistVectorUni /= remainingDist;
 		FlatVector lastPt = _maxStraightDist*remainingDistVectorUni;
 
 
+
 		// RECIDING HORIZON STOP CONDITION 
 
 
-		//std::cout << "---- Estimate Remaining Dist " << remainingDist << " -----" << std::endl;
+		double breakDist = (pow(_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0), 2) - pow(_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0), 2))/(-2*_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0));
+		double breakDuration = 2*breakDist/(_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0));
+		
 		if (remainingDist < _lastStepMinDist + _compHorizon*_maxVelocity[FlatoutputMonocycle::linSpeedIdx])
+		// if (remainingDist < _lastStepMinDist + _compHorizon*_maxVelocity[FlatoutputMonocycle::linSpeedIdx])
 		{
 			std::cout << "CONDITION FOR TERMINATION PLAN REACHED!" << std::endl;
 			_planLastPlan = true;
+			
 			//estimate last planning horizon
-			_optPlanHorizon = remainingDist / (_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) +  _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0))*2.;
-			std::cout << "_optPlanHorizon before opt " << _optPlanHorizon << std::endl;
+
+			// std::cout << "breakDist\n" << breakDist << std::endl;
+
+
+			// std::cout << "breakDuration\n" << breakDuration << std::endl;
+
+			_optPlanHorizon = breakDuration + max(2*(remainingDist - breakDist)/(_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)), 0.0);
+
+			// std::cout << "_optPlanHorizon before opt " << _optPlanHorizon << std::endl;
 			// TODO recompute n_ctrlpts n_knots
 			// call setoptions for optTrajectory and update maybe, think about it although there will be updates in the optimization process
 			// using _optTrajectory
@@ -528,11 +525,14 @@ namespace aiv
 		}
 
 
-		// GET WAYPOINT AND NEW DIRECTION
+		// GET WAYPOINT AND NEW DIRECTION (NOT GENERALIZED FOR)
+		// TODO: GENERALIZE FOR ANY DIMENSION, ONLY 2D SUPPORTED
 
 
 		// std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
-		FlatVector currDirec = (FlatVector() << cos(_latestPose(FlatoutputMonocycle::oriIdx, 0)), sin(_latestPose(FlatoutputMonocycle::oriIdx, 0))).finished();
+		FlatVector currDirec;
+		currDirec << cos(_latestPose(FlatoutputMonocycle::oriIdx, 0)),
+					 sin(_latestPose(FlatoutputMonocycle::oriIdx, 0));
 		// std::cout <<  "current direction: " << currDirec << std::endl;
 
 		FlatVector newDirec;
@@ -562,68 +562,143 @@ namespace aiv
 		// COMBINING CURVES FOR INTERPOLATION
 
 
-		double accel = _planLastPlan ? -1.*min(
-			(_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0))/_optPlanHorizon,
-			_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0)) : _maxAcceleration(FlatoutputMonocycle::linAccelIdx,0);
+		double accel = _maxAcceleration(FlatoutputMonocycle::linAccelIdx,0);
+		double maxDisplVariation;
+		double prevDispl;
+		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
 
-		double maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
-		double prevDispl = 0.0;
+		// NOT LAST STEP
+		// if (_planLastPlan == false)
+		// {
+		maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
+
+		prevDispl = 0.0;
 
 		// Create a sampled trajectory for a "bounded uniformed accelerated motion" in x axis
 		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curveCurrDirec(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
 		curveCurrDirec = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
-		
+	
 		// Create a sampled trajectory for a "bounded uniformed accelerated motion" in (direc-init_direc) direction in the xy plane
 		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curveNewDirec(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
-		curveNewDirec = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+		// curveNewDirec = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+
+		// double previousVelocity = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0);
+		// double deltaT = _optPlanHorizon/(_optTrajectory.nParam()-1);
+		// double displVar;
+
+		// for (auto i=1; i<_optTrajectory.nParam(); ++i)
+		// {
+		// 	displVar = previousVelocity*deltaT + accel/2.*deltaT*deltaT;
+		// 	displVar = displVar < maxDisplVariation ? max(displVar, 0.0) : maxDisplVariation;
+		// 	curveCurrDirec(0,i) = curveCurrDirec(0,i-1)+displVar;
+		// 	curveNewDirec.col(i) = curveNewDirec.col(i-1)+displVar*rotatedNewDirec;
+
+		// 	previousVelocity = displVar/deltaT;
+		// }
+
+		double beforeBreakDispl;
+		double beforeBreakDeltaT;
+		bool breakOn = false;
 
 		for (auto i=1; i<_optTrajectory.nParam(); ++i)
 		{
 			double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
-			double displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
+
+			double displ;
+
+			if (_planLastPlan && prevDispl >= remainingDist - breakDist)
+			{
+				if (breakOn == false)
+				{
+					beforeBreakDispl = prevDispl;
+					beforeBreakDeltaT = (i-1)*_optPlanHorizon/(_optTrajectory.nParam()-1);
+					accel = -_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0);
+					breakOn = true;
+				}
+				displ = beforeBreakDispl + _maxVelocity(FlatoutputMonocycle::linSpeedIdx,0)*(deltaT-beforeBreakDeltaT) + accel/2.*(deltaT-beforeBreakDeltaT)*(deltaT-beforeBreakDeltaT);
+			}
+			else
+			{
+				displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
+			}
 			displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
 			prevDispl = displ;
 			curveCurrDirec(0,i) = displ;
 			curveNewDirec.col(i) = displ*rotatedNewDirec;
 		}
 
-		Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> curve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
-		//curveNewDirec = Matrix<FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
-
 		double magicNumber = 1.5; //FIXME no magic numbers, at least no hard coded
 		double p;
 
 		for (auto i=0; i < _optTrajectory.nParam(); ++i)
-		//for (auto i=0; i < FlatoutputMonocycle::flatDim; ++i)
 		{
 			p = pow(double(i)/_optTrajectory.nParam(), magicNumber);
 			curve.col(i) = curveCurrDirec.col(i)*(1.0-p) + curveNewDirec.col(i)*p;
 		}
 
-
 		// IF LAST STEP LET US COMBINE CURVE WITH ANOTHER ONE THAT SMOOTHS THE ARRIVAL
-		// if (_planLastPlan)
-		// {
-		// 	double accel = min((_targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0))/_optPlanHorizon,
-		// 		_maxAcceleration(FlatoutputMonocycle::linAccelIdx,0));
+		if (_planLastPlan)
+		{
+			FlatVector fromGoalDirec;
+			fromGoalDirec<< cos(_targetedPose.tail<1>()(0,0) - M_PI),
+							sin(_targetedPose.tail<1>()(0,0) - M_PI);
+			std::cout << "fromGoalDirec bef rot\n" << fromGoalDirec << std::endl;
 
-		// 	double maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
-		// 	double prevDispl = 0.0;
+			fromGoalDirec = _rotMat2RRef * fromGoalDirec;
 
-		// 	// Create a sampled trajectory for a "bounded uniformed accelerated motion" in x axis
-		// 	Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> backwardsCurve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
-		// 	backwardsCurve = Matrix<double, FlatoutputMonocycle::flatDim, Dynamic>::Zero(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+			// FlatVector oposed2GoalDirec;
+			// oposed2GoalDirec = _latestFlat - _targetedFlat;
+			// oposed2GoalDirec /= oposed2GoalDirec.norm();
 
-		// 	for (auto i=1; i<_optTrajectory.nParam(); ++i)
-		// 	{
-		// 		double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
-		// 		double displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
-		// 		displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
-		// 		prevDispl = displ;
-		// 		curveCurrDirec(0,i) = displ;
-		// 		curveNewDirec.col(i) = displ*rotatedNewDirec;
-		// 	}
-		// }
+			// oposed2GoalDirec = _rotMat2RRef*oposed2GoalDirec;
+			// std::cout << "oposed2GoalDirec\n" << oposed2GoalDirec << std::endl;
+		
+			maxDisplVariation = (_optPlanHorizon/(_optTrajectory.nParam() - 1))*_maxVelocity(FlatoutputMonocycle::linSpeedIdx,0);
+
+			accel = _maxAcceleration(FlatoutputMonocycle::linAccelIdx,0);
+	
+			prevDispl = 0.0;
+
+			// Create a sampled trajectory for a "bounded uniformed accelerated motion" in x axis
+			Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> fromGoalCurve(FlatoutputMonocycle::flatDim, _optTrajectory.nParam());
+
+			for (auto i=1; i<_optTrajectory.nParam(); ++i)
+			{
+				double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
+				double displ = _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
+				displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
+				prevDispl = displ;
+				fromGoalCurve.col(i) = displ*fromGoalDirec;
+				// toGoalCurve.col(i) = displ*oposed2GoalDirec;
+			}
+			// Matrix<double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDim> rot180;
+			// rot180 << -1, 0, 0, -1;
+			Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> finalFromGoalCurve;
+			std::cout << "fromGoalCurve bef changes\n" << fromGoalCurve << std::endl;
+
+			finalFromGoalCurve = fromGoalCurve.rowwise().reverse() + (_rotMat2RRef*(_targetedFlat - _latestFlat)).replicate(1, _optTrajectory.nParam());
+
+
+			
+			// fromGoalCurve = rot180*fromGoalCurve +
+			// 	fromGoalCurve.rightCols<1>().replicate(1, _optTrajectory.nParam()) +
+			// 	(_rotMat2RRef*(_targetedFlat - _latestFlat)).replicate(1, _optTrajectory.nParam());
+
+			// toGoalCurve = rot180*toGoalCurve;
+			// toGoalCurve = toGoalCurve - toGoalCurve.rightCols<1>().replicate(1, _optTrajectory.nParam());	
+			std::cout << "fromGoalCurve\n" << finalFromGoalCurve << std::endl;
+
+			double magicNumber = 1.5; //FIXME no magic numbers, at least no hard coded
+			double p;
+
+			for (auto i=0; i < _optTrajectory.nParam(); ++i)
+			//for (auto i=0; i < FlatoutputMonocycle::flatDim; ++i)
+			{
+				p = pow(double(i)/_optTrajectory.nParam(), magicNumber);
+				curve.col(i) = curve.col(i)*(1.0-p) + finalFromGoalCurve.col(i)*p;
+			}
+			// curve = finalFromGoalCurve;
+		}
 		
 		// INTERPOLATION OF INITIAL GUESS
 
@@ -650,19 +725,25 @@ namespace aiv
 		
 		std::cout << "AFTER:\n";
 		std::cout << _optTrajectory.getCtrlPts() << std::endl;
-		std::cout << "AFTER ROTATED:\n";
-		std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
+		//std::cout << "AFTER ROTATED:\n";
+		//std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
 
 		// UPDATES
 
 		NDerivativesMatrix derivFlat = _optTrajectory(_compHorizon, FlatoutputMonocycle::flatDerivDeg);
 		
-		_latestFlat += derivFlat.col(0);
+		// _latestFlat += _rotMat2WRef * derivFlat.col(0);
+		_latestFlat +=  derivFlat.col(0);
 
 		PoseVector auxLatestPose = _latestPose;
 		_latestPose = FlatoutputMonocycle::flatToPose(derivFlat);
-		_latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +=
+		_latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
+			// _rotMat2WRef * _latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
+			_latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
 			auxLatestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+
+		// _latestPose(FlatoutputMonocycle::oriIdx,0) =
+			// Common::wrapToPi(_latestPose(FlatoutputMonocycle::oriIdx,0) + auxLatestPose(FlatoutputMonocycle::oriIdx,0));
 
 		_latestVelocity = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
@@ -722,7 +803,7 @@ namespace aiv
 			nEq = (FlatoutputMonocycle::poseDim + FlatoutputMonocycle::veloDim) * 2;
 			nIneq = FlatoutputMonocycle::veloDim * (_nTimeSamples - 1) +
 				FlatoutputMonocycle::accelDim * (_nTimeSamples + 1) +
-				_detectedObstacles.size() * (_nTimeSamples - 1);
+				_detectedObstacles.size() * (_nTimeSamples - 1) + 1;
 
 			optParam = new double[nParam];
 			optParam[0] = _optPlanHorizon;
@@ -806,9 +887,10 @@ namespace aiv
 			double minf;
 			
 
+			Trajectory safeTrajectory(_optTrajectory);
 			std::cout << "Optimizing..." << std::endl;
-			//int status = nlopt_optimize(opt, optParam, &minf);
-			int status = -1;
+			int status = nlopt_optimize(opt, optParam, &minf);
+			//int status = -1;
 
 			//int msg = status;
 			std::string msg;
@@ -835,21 +917,31 @@ namespace aiv
 					break;
 				case -1:
 					msg = "Generic failure code";
+					_optTrajectory = safeTrajectory;
 					break;
 				case -2:
 					msg = "Invalid arguments (e.g. lower bounds are bigger than upper bounds, an unknown algorithm was specified, etcetera)";
+					_optTrajectory = safeTrajectory;
 					break;
 				case -3:
 					msg = "Ran out of memory";
+					_optTrajectory = safeTrajectory;
 					break;
 				case -4:
 					msg = "Halted because roundoff errors limited progress (in this case, the optimization still typically returns a useful result)";
+					_optTrajectory = safeTrajectory;
 					break;
 				case -5:
 					msg = "Halted because of a forced termination: the user called nlopt_force_stop(opt) on the optimization’s nlopt_opt object opt from the user’s objective function or constraints";
+					_optTrajectory = safeTrajectory;
 					break;
 			}
 			std::cout << "Optimization ended with status: \"" << msg << "\"" << std::endl;
+		}
+		else if (_optimizerType == "TESTINIT")
+		{
+			//do nothing
+			//std::cout << "TESTINIT" << std::endl;
 		}
 		else
 		{
@@ -958,7 +1050,11 @@ namespace aiv
 				_optTrajectory.updateFromUniform(optParam);
 				//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(optParam));
 			else
+			{
 				_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(optParam));
+				// _optTrajectory.update((const double*)optParam);
+			}
+
 		}
 		else
 		{
@@ -966,7 +1062,10 @@ namespace aiv
 				_optTrajectory.updateFromUniform(&(optParam[1]), optParam[0]);
 				//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(&(optParam[1])), optParam[0]);
 			else
+			{
 				_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(&(optParam[1])), optParam[0]);
+				// _optTrajectory.update((const double*)&(optParam[1]), optParam[0]);
+			}
 			_optPlanHorizon = optParam[0];
 		}
 
@@ -985,7 +1084,7 @@ namespace aiv
 
 	void PathPlannerRecHor::computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double*, unsigned, volatile double*, PathPlannerRecHor*))
 	{
-		const double eps = sqrt(std::numeric_limits< double >::epsilon()*1e2);
+		const double eps = sqrt(std::numeric_limits< double >::epsilon()*_numDerivativeFactor);
 
 		double *constrPre = new double[m];
 		double *constrPos = new double[m];
@@ -1014,6 +1113,10 @@ namespace aiv
 			for (int j = 0; j < m; ++j)
 			{
 				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
+				if (boost::math::isnan(grad[j*n + i]))
+				{
+					grad[j*n + i] = 0.0;
+				}
 			}
 			
 		}

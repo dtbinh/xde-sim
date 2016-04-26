@@ -8,6 +8,30 @@ import xml.etree.ElementTree as ET
 from optparse import OptionParser
 #C:\Users\JM246044\workspace\dev\xde\xde\xde\xde\build\out\Release\bin\..\..\..\..\src\aiv\
 
+
+def wrapTo2Pi(angle):
+    """ Map angles (:math:`\\theta \in R`) to unsigned angles
+    (:math:`\\theta \in [0, 2\pi)`).
+
+    .. note:: Method not used.
+    """
+    while angle < 0.0:
+        angle += 2*np.pi
+    while angle >= 2*np.pi:
+        angle -= 2*np.pi
+    return 2.*np.pi+angle if angle < 0.0 else angle
+
+def wrapToPi(angle):
+    """ Map angles (:math:`\\theta \in R`) to signed angles
+    (:math:`\\theta \in [-pi, +pi)`).
+    """
+    while angle < -np.pi:
+        angle += 2*np.pi;
+    while angle >= np.pi:
+        angle -= 2*np.pi;
+    return angle;
+
+
 def add_cmdline_options(parser):
         parser.add_option("-f", "--frames", dest='genFrames',
                 action='store_true', default=False,
@@ -123,7 +147,7 @@ class Robots:
     def posErrTS(self):
         return np.array([np.sqrt(ex**2+ey**2) for ex, ey in zip(self.xErrTS(), self.yErrTS())])
     def thetaErrTS(self):
-        return self.realTabl[:,4] - self.plTabl[:,3]
+        return np.array([wrapToPi(a-b) for a, b in zip(self.realTabl[:,4], self.plTabl[:,3])])
     def realRadTS(self):
         return self.realTabl[:,1]
 
@@ -362,11 +386,11 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
     axArrayAccel[1].grid()
 
     axArrayAccel[0].plot(simTime, sRSInfo.planLinAccelTS(), 'b', label=r'$u_{ref}[0]$ (planner linaccel)')
-    axArrayAccel[0].plot(simTime, approxPlLinAccelTS, 'y--', label=r'approx planner linaccel')
+    # axArrayAccel[0].plot(simTime, approxPlLinAccelTS, 'y--', label=r'approx planner linaccel')
     # axArrayAccel[0].plot(simTime, approxLinAccelTS, 'r', label=r'actual linaccel')
 
     axArrayAccel[1].plot(simTime, sRSInfo.planAngAccelTS(), 'b', label=r'planner angaccel')
-    axArrayAccel[1].plot(simTime, approxPlAngAccelTS, 'y--', label=r'approx planner angaccel')
+    # axArrayAccel[1].plot(simTime, approxPlAngAccelTS, 'y--', label=r'approx planner angaccel')
     # axArrayAccel[1].plot(simTime, approxAngAccelTS, 'r', label=r'actual angaccel')
 
     # axArrayAccel[0].set_ylim([1.5, -1.5])
@@ -442,6 +466,8 @@ for t, index in zip(timeRange, range(len(timeRange))):
 
 ax.relim()
 ax.autoscale_view(True, True, True)
+ax.set_ylim([-6, 6]);
+ax.set_xlim([-6, 6]);
 fig.canvas.draw()
 
 #handles, labels = ax.get_legend_handles_labels()

@@ -1,6 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define _USE_MATH_DEFINES
+
+#include <math.h>
 
 #if defined(_WIN32)
 #include <Windows.h>
@@ -40,6 +43,16 @@ namespace Common
    * between two calls to this function.
    */
   double getRealTime( );
+
+  /* Map angles (:math:`\\theta \in R`) to signed angles
+   * (:math:`\\theta \in [-pi, +pi)`).
+   */
+  double wrapToPi(double angle);
+  
+  /* Map angles (:math:`\\theta \in R`) to unsigned angles
+   * (:math:`\\theta \in [0, 2\pi)`).
+   */
+  double wrapTo2Pi(double angle);
 
 }
 }

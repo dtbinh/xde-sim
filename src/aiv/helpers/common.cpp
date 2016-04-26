@@ -1,5 +1,24 @@
 #include "common.h"
 
+double aiv::Common::wrapTo2Pi(double angle)
+{
+    while (angle < 0.0)
+        angle += 2*M_PI;
+    while (angle >= 2*M_PI)
+        angle -= 2*M_PI;
+    return angle;
+}
+
+double aiv::Common::wrapToPi(double angle)
+{
+    while (angle < -M_PI)
+        angle += 2*M_PI;
+    while (angle >= M_PI)
+        angle -= 2*M_PI;
+    return angle;
+}
+
+
 float aiv::Common::finvsqrt( float number )
 {
     long i;
@@ -9,7 +28,7 @@ float aiv::Common::finvsqrt( float number )
     x2 = number * 0.5F;
     y  = number;
     i  = * ( long * ) &y;                       // evil floating point bit level hacking
-    i  = 0x5f375a86 - ( i >> 1 );               // Chris Lomont constant
+    i  = 0x5f375a86 - ( i >> 1 );               // Chris Lomont's constant
     y  = * ( float * ) &i;
     y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
     //      y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed

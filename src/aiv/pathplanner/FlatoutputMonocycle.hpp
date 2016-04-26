@@ -56,30 +56,34 @@ namespace aiv {
 		{
 			return pose.block< aiv::FlatoutputMonocycle::flatDim, 1 >(0, 0);
 		}
-		//FIXME
+
 		template<class T>
 		static Eigen::Matrix< T, poseDim, 1 > flatToPose(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
-			//double vx = abs(dFlat(0, 1)); // THIS IS CRUTIAL FOR THE OPTIMIZATION TO WORK
+			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1); // THIS IS CRUTIAL FOR THE OPTIMIZATION TO WORK
 			double vx = dFlat(0,1);
+
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::poseDim, 1 >() <<
 				dFlat.leftCols(1),
 				atan2(dFlat(1, 1), vx)
 				).finished();
 		}
-		// FIXME
+
 		template<class T>
 		static Eigen::Matrix< T, veloDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
 		{
-			T den = dFlat(0, 1)*dFlat(0, 1) + dFlat(1, 1)*dFlat(1, 1); //+eps so no /0 + static_cast<T>(std::numeric_limits< float >::epsilon())
+			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1);
+			double vx = dFlat(0,1);
+
+			T den =vx*vx + dFlat(1, 1)*dFlat(1, 1); //+eps so no /0 + static_cast<T>(std::numeric_limits< float >::epsilon())
 			den = den < static_cast<T>(std::numeric_limits< double >::epsilon()) ? static_cast<T>(std::numeric_limits< double >::epsilon()) : den;
 
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1>() <<
 				dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1>(0, 1).norm(),
-				(dFlat(0, 1)*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) / den
+				(vx*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) / den
 				).finished();
 		}
-// eps = np.finfo(float).eps
+// 			   eps = np.finfo(float).eps
 //             pquartereps = eps**(.25)
 //             # Prevent division by zero
 //             dz_norm = LA.norm(zl[:, 1])
@@ -89,6 +93,8 @@ namespace aiv {
 		template<class T>
 		static Eigen::Matrix< T, veloDim, 1 > flatToAcceleration(const Eigen::Matrix< T, flatDim, flatDerivDeg + 2 > &dFlat)
 		{
+			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1);
+			double vx = dFlat(0,1);
 
 			T dflat_norm = dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1 >(0, 1).norm();
 
@@ -98,10 +104,10 @@ namespace aiv {
 			T dflat_norm_den1 = dflat_norm < min_den_norm_dv ? min_den_norm_dv : dflat_norm;
 			T dflat_norm_den2 = dflat_norm < min_den_norm_dw ? min_den_norm_dw : dflat_norm;
 			
-			T dv = (dFlat(0, 1)*dFlat(0, 2) + dFlat(1, 1)*dFlat(1, 2)) / dflat_norm_den1;
-			T dw = ((dFlat(0, 2)*dFlat(1, 2) + dFlat(1, 3)*dFlat(0, 1) -
+			T dv = (vx*dFlat(0, 2) + dFlat(1, 1)*dFlat(1, 2)) / dflat_norm_den1;
+			T dw = ((dFlat(0, 2)*dFlat(1, 2) + dFlat(1, 3)*vx -
 				(dFlat(1, 2)*dFlat(0, 2) + dFlat(0, 3)*dFlat(1, 1)))*(pow(dflat_norm, 2)) -
-				(dFlat(0, 1)*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) * 2 * dflat_norm*dv) / pow(dflat_norm_den2, 4);
+				(vx*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) * 2 * dflat_norm*dv) / pow(dflat_norm_den2, 4);
 
 			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1 >() <<
 				dv,

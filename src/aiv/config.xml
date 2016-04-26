@@ -62,12 +62,12 @@
         <!--y unit="m">-5.656854</y-->
         <!--x unit="m">-5.656854</x-->
         <!--y unit="m">5.656854</y-->
-        <x unit="m">-5.656854</x>
-        <y unit="m">-5.656854</y>
+        <!--x unit="m">-5.656854</x-->
+        <!--y unit="m">-5.656854</y-->
         <!--x unit="m">5.656854</x-->
         <!--y unit="m">5.656854</y-->
-        <!--x unit="m">8.0</x-->
-        <!--y unit="m">0.0</y-->
+        <x unit="m">8.0</x>
+        <y unit="m">0.0</y>
         <!--x unit="m">-8.0</x-->
         <!--y unit="m">0.0</y-->
         <!--x unit="m">0.0</x-->
@@ -76,9 +76,9 @@
         <!--y unit="m">-8.0</y-->
         <!--theta unit="rad">2.35619449</theta-->
         <!--theta unit="rad">-0.785398</theta-->
-        <theta unit="rad">0.0</theta>
-        <!--theta unit="rad">-2.35619449</theta-->
-        <!--theta unit="rad">3.141592653589793238462643383279502884197169</theta-->
+        <!--theta unit="rad">0.0</theta-->
+        <!--theta unit="rad">-2.35619449019</theta-->
+        <theta unit="rad">3.141592653589793238462643383279502884197169</theta>
         <!--theta unit="rad">0.0</theta-->
         <!--theta unit="rad">-1.5708</theta-->
         <!--theta unit="rad">1.5708</theta-->
@@ -92,23 +92,23 @@
         <!--y unit="m">5.656854</y-->
         <!--x unit="m">5.656854</x-->
         <!--y unit="m">-5.656854</y-->
-        <x unit="m">5.656854</x>
-        <y unit="m">5.656854</y>
+        <!--x unit="m">5.656854</x-->
+        <!--y unit="m">5.656854</y-->
         <!--x unit="m">-5.656854</x-->
         <!--y unit="m">-5.656854</y-->
-        <!--x unit="m">-8.0</x-->
-        <!--y unit="m">0.0</y-->
+        <x unit="m">-8.0</x>
+        <y unit="m">0.0</y>
         <!--x unit="m">8.0</x-->
         <!--y unit="m">0.0</y-->
-        <!--x unit="m">0.0</x-->
+        <!--x unit="m">0.0</x-->s
         <!--y unit="m">-8.0</y-->
         <!--x unit="m">0.0</x-->
         <!--y unit="m">8.0</y-->
         <!--theta unit="rad">2.35619449</theta-->
         <!--theta unit="rad">-0.785398</theta-->
-        <theta unit="rad">0.0</theta>
-        <!--theta unit="rad">-2.35619449</theta-->
-        <!--theta unit="rad">3.141592653589793238462643383279502884197169</theta-->
+        <!--theta unit="rad">0.0</theta-->
+        <!--theta unit="rad">-2.35619449019</theta-->
+        <theta unit="rad">3.141592653589793238462643383279502884197169</theta>
         <!--theta unit="rad">0.0</theta-->
         <!--theta unit="rad">-1.5708</theta-->
         <!--theta unit="rad">1.5708</theta-->
@@ -138,19 +138,19 @@
   <obstacles>
     <!---->
     <!---->
-    <!--
     <circular>
       <cadmodel>../../../../share/resources/scenes/cilinder_r3dm.dae</cadmodel>
       <cmposition>
         <x unit="m">0.0</x>
-        <y unit="m">2.9</y>
+        <y unit="m">0.3</y>
         <z unit="m">0.5</z>
       </cmposition>
-      <radius unit="m">2.0</radius>
+      <radius unit="m">1.0</radius>
       <mass>55.0</mass>
       <material>rubber</material>
       <color>xde/WhiteOpaque</color>
     </circular>
+    <!--
     <circular>
       <cadmodel>../../../../share/resources/scenes/cilinder_r3dm.dae</cadmodel>
       <cmposition>
@@ -175,6 +175,7 @@
     <interrobotsafetydist unit="m">0.1</interrobotsafetydist>
     <robotobstaclesafetydist unit="m">0.1</robotobstaclesafetydist>
     <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
+    <numderivativefactor>2.5e5</numderivativefactor>
     <optimizer type="SLSQP">
       <maxiteraction>
         <first>100</first>

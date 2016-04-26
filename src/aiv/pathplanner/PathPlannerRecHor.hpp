@@ -2,12 +2,10 @@
 #define __AIV_PATHPLANNERRECHOR_HPP__
 #pragma once
 
-#define _USE_MATH_DEFINES
-
-#include <cmath>
 #include "aiv/pathplanner/PathPlanner.hpp"
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
 #include "aiv/pathplanner/Trajectory.hpp"
+#include "aiv/helpers/common.h"
 #include <boost/thread.hpp>
 #include <fstream>
 
@@ -92,6 +90,7 @@ namespace aiv {
 		// std::set< std::string > _comAIVsSet;
 
 		double _comRange;
+		double _radius;
 		//double secRho; // secure distance from other robots and obstacles
 
 		unsigned _nTimeSamples;     // number of  time samples taken within a planning horizon
@@ -113,6 +112,7 @@ namespace aiv {
 		unsigned _lastMaxIteration;
 		unsigned _firstMaxIteration;
 		unsigned _interMaxIteration;
+		double _numDerivativeFactor;
 		// double _h; // for numeric derivation
 
 		// xde simulation related =========================================================
@@ -144,9 +144,6 @@ namespace aiv {
 		void _solveOptPbl();
 		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
 		// int nbPointsCloseInTimeEval();
-
-		static double _unsigned_angle(double angle);
-		static double _signed_angle(double angle);
 
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);
@@ -183,7 +180,7 @@ namespace aiv {
 
 		void update(std::map<std::string, Obstacle *> detectedObst,
 				std::map<std::string, AIV *> otherVehicles,
-				const Eigen::Displacementd & myRealPose); //const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity);
+				const Eigen::Displacementd & myRealPose, const double myRadius); //const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity);
 
 		// getters
 		inline double getLinVelocity() const { return _velocityOutput(FlatoutputMonocycle::linSpeedIdx); }
@@ -337,7 +334,7 @@ namespace aiv {
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
 				result[nAcc + j + (i - 1)*ieqPerSample] =
-					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head(2) + context->_latestPose.head(2), context->_robotObstacleSafetyDist);
+					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
 			}
 		}
 	}
@@ -379,8 +376,8 @@ namespace aiv {
 		// 2 equivalent things:
 		// diff = [Rw*p + latest_p, theta + latest_theta]T - targetpose
 		// diff = [p, theta]T - [Rr*(target_p - latest_p), target_theta - latest_theta]T
-		diffPose = poseAtTfWRTMySelf - (PoseVector() << context->_rotMat2RRef*(context->_targetedPose.head(2) - context->_latestFlat), _signed_angle(context->_targetedPose.tail(1)(0,0) - context->_latestPose.tail(1)(0,0))).finished();
-		//diffPose = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.head(2) + context->_latestFlat, _signed_angle(poseAtTfWRTMySelf.tail(1)(0,0)+context->_latestPose.tail(1)(0,0))).finished() - context->_targetedPose;
+		diffPose = poseAtTfWRTMySelf - (PoseVector() << context->_rotMat2RRef*(context->_targetedPose.head<2>() - context->_latestFlat), Common::wrapToPi(context->_targetedPose.tail<1>()(0,0) - context->_latestPose.tail<1>()(0,0))).finished();
+		//diffPose = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.head<2>() + context->_latestFlat, _signed_angle(poseAtTfWRTMySelf.tail<1>()(0,0)+context->_latestPose.tail<1>()(0,0))).finished() - context->_targetedPose;
 		//std::cout << context->_rotMat2RRef * context->_rotMat2WRef << std::endl;
 
 		diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_targetedVelocity;
@@ -411,13 +408,15 @@ namespace aiv {
 		AccelVector acceleration;
 		PoseVector pose;
 
+		result[0] = -x[0]; // time has to be positive
+
 		// ACCELERATION AT 0.0
 		derivFlat = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
 		int i, j, k;
-		for (i = 0; i < FlatoutputMonocycle::accelDim; ++i)
+		for (i = 1; i < FlatoutputMonocycle::accelDim; ++i)
 		{
 			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
 			// std::cout << "r[" << i << "]=" << result[i] << std::endl;
@@ -464,7 +463,7 @@ namespace aiv {
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
 				result[nAcc + j + (i - 1)*ieqPerSample] =
-					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head(2) + context->_latestPose.head(2), context->_robotObstacleSafetyDist);
+					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
 				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 			}
 		}

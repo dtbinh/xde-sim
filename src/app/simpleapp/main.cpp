@@ -183,11 +183,11 @@ int main()
 			//std::cout << "3\n";
 
 			// Apply controller output
-			//vehicle->setDesiredRightWheelVelocity((ctrlLinVel + ctrlAngVel*track / 2) / wheelRadius);	//rad/s
-			//vehicle->setDesiredLeftWheelVelocity((ctrlLinVel - ctrlAngVel*track / 2) / wheelRadius);	//rad/s
+			vehicle->setDesiredRightWheelVelocity((ctrlLinVel + ctrlAngVel*track / 2) / wheelRadius);	//rad/s
+			vehicle->setDesiredLeftWheelVelocity((ctrlLinVel - ctrlAngVel*track / 2) / wheelRadius);	//rad/s
 
-			vehicle->setDesiredRightWheelVelocity(0.0);	//rad/s
-			vehicle->setDesiredLeftWheelVelocity(0.0);	//rad/s
+			// vehicle->setDesiredRightWheelVelocity(0.0);	//rad/s
+			// vehicle->setDesiredLeftWheelVelocity(0.0);	//rad/s
 
 			//std::cout << "4\n";
 			//std::cout << "5\n";

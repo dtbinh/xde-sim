@@ -9,6 +9,14 @@ namespace aiv {
 
 	}
 
+	Trajectory::Trajectory(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlPts, const double parVarInterval)
+	{
+		_nCtrlPts = ctrlPts.cols();
+		_nIntervNonNull = ctrlPts.cols()-derivDeg;
+		_trajecSpl.~TrajectorySpline();
+		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, ctrlPts.cols()-derivDeg), ctrlPts);
+	}
+
 	void Trajectory::interpolate(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& points, const double parVarInterval)
 	{
 		Eigen::RowVectorXd parVariable = Eigen::RowVectorXd::LinSpaced(_nCtrlPts, 0.0, parVarInterval);
