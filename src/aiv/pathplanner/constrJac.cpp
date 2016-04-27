@@ -53,7 +53,7 @@ qJacMatrix qJac(const double t, const double Tp, const int span, const double *X
 
 dqJacMatrix dqJac(const double t, const double Tp, const int span, const double *X, const int Xdim, const int spld)
 {
-	dqJacMatrix J(aiv::FlatoutputMonocycle::velocityDim, Xdim);
+	dqJacMatrix J(aiv::FlatoutputMonocycle::veloDim, Xdim);
 
 	if (Xdim == 14)
 	{
@@ -94,7 +94,7 @@ dqJacMatrix dqJac(const double t, const double Tp, const int span, const double 
 }
 dqJacMatrix absdqJac(const double t, const double Tp, const int span, const double *X, const int Xdim, const int spld)
 {
-	dqJacMatrix J(aiv::FlatoutputMonocycle::velocityDim, Xdim);
+	dqJacMatrix J(aiv::FlatoutputMonocycle::veloDim, Xdim);
 
 	if (Xdim == 14)
 	{
@@ -137,7 +137,7 @@ dqJacMatrix absdqJac(const double t, const double Tp, const int span, const doub
 
 ddqJacMatrix ddqJac(const double t, const double Tp, const int span, const double *X, const int Xdim, const int spld)
 {
-	ddqJacMatrix J(aiv::FlatoutputMonocycle::accelerationDim, Xdim);
+	ddqJacMatrix J(aiv::FlatoutputMonocycle::accelDim, Xdim);
 
 	if (Xdim == 14)
 	{
@@ -178,7 +178,7 @@ ddqJacMatrix ddqJac(const double t, const double Tp, const int span, const doubl
 }
 ddqJacMatrix absddqJac(const double t, const double Tp, const int span, const double *X, const int Xdim, const int spld)
 {
-	ddqJacMatrix J(aiv::FlatoutputMonocycle::accelerationDim, Xdim);
+	ddqJacMatrix J(aiv::FlatoutputMonocycle::accelDim, Xdim);
 
 	if (Xdim == 14)
 	{

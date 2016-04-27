@@ -217,6 +217,8 @@ namespace aiv {
 
 		void computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double *, unsigned, volatile double*, PathPlannerRecHor*));
 
+		void _findNextWayPt();
+
 		//static void eval_eqHalf(double t, double *result, unsigned n, const double* x, void* data);
 		//static void eval_ineq_coll(double *result, unsigned n, const double* x, void* data);
 		// void eval_dobst_ineq(double *result, unsigned n, const double* x, void* data);
@@ -267,6 +269,8 @@ namespace aiv {
 
 		// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
 		PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
+		diffPoseAtT0.tail<1>()(0,0) = Common::wrapToPi(diffPoseAtT0.tail<1>()(0,0));
+
 		VeloVector diffVelocityAtT0 = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_latestVelocity;
 
 		int i;
@@ -355,6 +359,7 @@ namespace aiv {
 		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg);
 
 		PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
+		diffPose.tail<1>()(0,0) = Common::wrapToPi(diffPose.tail<1>()(0,0));
 
 		VeloVector diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_latestVelocity;
 

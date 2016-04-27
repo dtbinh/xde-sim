@@ -176,7 +176,7 @@
     <robotobstaclesafetydist unit="m">0.1</robotobstaclesafetydist>
     <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
     <numderivativefactor>2.5e5</numderivativefactor>
-    <optimizer type="SLSQP">
+    <optimizer type="TESTINIT">
       <maxiteraction>
         <first>100</first>
         <inter>100</inter>

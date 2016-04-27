@@ -481,6 +481,125 @@ namespace aiv
 		return;
 	}
 
+	void printDList(std::list< std::list< std::string > > forbiddenSpacesClusters)
+	{
+		std::cout << "[";
+		for (std::list< std::list< std::string > >::iterator dListIt = forbiddenSpacesClusters.begin(); dListIt != forbiddenSpacesClusters.end(); ++dListIt)
+		{
+			std::cout << "[";
+			for (std::list< std::string >::iterator listIt = dListIt->begin(); listIt != dListIt->end(); ++listIt)
+			{
+				if (*listIt != dListIt->back())
+					std::cout << *listIt << ", ";
+				else 
+					std::cout << *listIt;
+			}
+			std::cout << "]";
+		}
+		std::cout << "]\n";
+	}
+
+	void PathPlannerRecHor::_findNextWayPt()
+	{
+		// Initiate the list of forbiddenSpaces (regions to be avoided). The waypoint must guide the robot towards a possible region among all the forbidden ones) even if knownObstaclesList is empty, of course
+		typedef std::map< std::string, Obstacle* > Map_StrObst;
+		typedef std::list< std::string > List_Str;
+		typedef std::list< List_Str > DoubleList_Str;
+		//typedef std::queue< Obstacle* > Queue_Obst;
+
+		// Map_StrObst forbiddenSpaces(_knownObstacles);
+		Map_StrObst forbiddenSpaces(_detectedObstacles);
+
+		// if (_detectedCollisions.empty())
+		// {
+		// 	//TODO
+		// }
+
+		// Check if there is somthing to be avoided
+		if (forbiddenSpaces.empty())
+		{
+			_wayPt = _targetedFlat;
+			return;
+		}
+
+		// In order to avoid trying to pass among forbiddenSpaces that are to close together we have to identify cluster of forbidden spaces
+
+		// Initiate list of clusters of forbiddenSpaces
+		DoubleList_Str forbiddenSpacesClusters;
+
+		// Build the list of clusters
+
+		// Iterate over forbidden spaces dictionary
+		for (Map_StrObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
+		{
+
+			// is fsIt in any cluster in forbiddenSpacesClusters?
+			//
+			bool foundIt = false;
+			for (DoubleList_Str::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+			{
+				// if (clIt->find(fsIt->first) != clIt->end())
+				if (std::find(clIt->begin(), clIt->begin(), fsIt->first) != clIt->end())
+				{
+					foundIt = true;
+					break;
+				}	
+			}
+			//
+			
+			if (foundIt) continue;
+
+			// fsIt is not in any cluster in forbiddenSpacesClusters
+			// let's do a tree search in forbiddenSpaces looking for other forbiddenSpaces forming a cluster with this forbiddenSpace. If none, this forbiddenSpace is a cluster by it self
+
+			// forbiddenSpacesClusters.push_back(List_Str(fsIt->first));
+			// if the above doesn't work:
+			List_Str auxList;
+			auxList.push_back(fsIt->first);
+			forbiddenSpacesClusters.push_back(auxList);
+
+			// search using FIFO queue
+
+			List_Str queue;
+			queue.push_back(fsIt->first);
+			
+			while (queue.empty() == false)
+			{
+				std::string forbSpacName = queue.front();
+				queue.pop_front();
+
+				for (Map_StrObst::iterator candidIt = forbiddenSpaces.begin(); candidIt != forbiddenSpaces.end(); ++candidIt)
+				{
+					// is candidIt in any cluster in forbiddenSpacesClusters?
+					//
+					bool foundIt = false;
+					for (DoubleList_Str::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+					{
+						// if (clIt->find(fsIt->first) != clIt->end())
+						if (std::find(clIt->begin(), clIt->begin(), fsIt->first) != clIt->end())
+						{
+							foundIt = true;
+							break;
+						}	
+					}
+					//
+
+					bool tooClose = candidIt->second->distToAIV(forbiddenSpaces[forbSpacName]->getCurrentPosition().getTranslation().block<2,1>(0,0), forbiddenSpaces[forbSpacName]->getRad()) < 2.*_robotObstacleSafetyDist;
+
+					if (candidIt->first != forbSpacName && !foundIt && tooClose)
+					{
+						forbiddenSpacesClusters.back().push_back(candidIt->first);
+						queue.push_back(candidIt->first);
+					}
+				}
+			}
+		}
+
+		printDList(forbiddenSpacesClusters);
+
+		// Some clusters can be ignored, let's remove them. For the remaining clusters, let's find the information about avoiding each of their forbidden spaces
+	}
+
 	void PathPlannerRecHor::_plan()
 	{
 		// double tic = Common::getRealTime();
@@ -538,7 +657,7 @@ namespace aiv
 		FlatVector newDirec;
 		//FlatVector wayPoint;
 
-		//_findDirection(newDirec, this->_wayPt);
+		_findNextWayPt();
 		//
 		_wayPt = _targetedFlat;
 		newDirec = _wayPt - _latestFlat;
@@ -1278,297 +1397,6 @@ namespace aiv
 	}
 
 	
-
-	// // Stand alone constraints, final step
-
-	// double  PathPlannerRecHor::objectFuncLS(unsigned n, const double *x, double *grad, void *my_func_data)
-	// {
-	// 	double fx = x[0] * x[0];
-
-	// 	////std::cout << "objectFunLS" << std::endl;
-
-	// 	if (grad)
-	// 	{
-	// 		//myNLP->eval_grad_f ( n, x, true, grad );
-	// 		grad[0] = 2 * x[0];
-	// 		for (unsigned i = 1; i < n; ++i)
-	// 		{
-	// 			grad[i] = 0.0;
-	// 		}
-	// 	}
-
-	// 	return fx;
-	// }
-
-	// void PathPlannerRecHor::eval_eqLS(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	double finalPlanHorizon = x[0];
-
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, context->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 1; i < n; ++i)
-	// 	{
-	// 		ctrlPts((i - 1) % splDim, (i - 1) / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(context->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
-
-
-	// 	// EQUATIONS
-
-
-	// 	// @t=0
-
-	// 	// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-	// 	NDerivativesMatrix derivFlatEq =
-	// 		optSpline.derivatives(0.0, FlatoutputMonocycle::flatDerivDeg);
-
-	// 	// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
-	// 	PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
-	// 	diffPose.tail(1) -= context->latestPose.tail(1);
-
-	// 	VeloVector diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->latestVelocity;
-
-	// 	int i = 0;
-	// 	for (; i < FlatoutputMonocycle::poseDim; ++i)
-	// 	{
-	// 		result[i] = diffPose[i];
-	// 	}
-	// 	int j = i;
-	// 	for (; j - i < FlatoutputMonocycle::veloDim; ++j)
-	// 	{
-	// 		result[j] = diffVelocity[j - i];
-	// 	}
-
-	// 	// @t=Tp
-
-	// 	derivFlatEq =
-	// 		optSpline.derivatives(finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
-
-	// 	// Get error from pose at Tp and targeted pose
-	// 	diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
-	// 	diffPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +=
-	// 		context->latestPose.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
-	// 	diffPose -= context->targetedPose;
-
-	// 	diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->targetedVelocity;
-
-	// 	for (i = j; i - j < FlatoutputMonocycle::poseDim; ++i)
-	// 	{
-	// 		result[i] = diffPose[i - j];
-	// 	}
-	// 	for (j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
-	// 	{
-	// 		result[j] = diffVelocity[j - i];
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
-	// {
-	// 	////std::cout << "eqFuncLS" << std::endl;
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-
-	// 	context->eval_eqLS(result, n, x, data);
-
-	// 	if (grad)
-	// 	{
-	// 		const double eps = sqrt(std::numeric_limits< double >::epsilon());
-	// 		double *constrPre = new double[m];
-	// 		double *constrPos = new double[m];
-	// 		double *x1 = new double[n];
-	// 		double h, dx;
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			x1[i] = x[i];
-	// 		}
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			//h = x[i] < eps*1e2 ? eps*eps*1e2 : eps*x[i];
-	// 			h = x[i] < eps ? eps*eps : eps*x[i];
-	// 			//h = eps;
-	// 			x1[i] = x[i] + h;
-	// 			context->eval_eqLS(constrPos, n, x1, data);
-	// 			dx = x1[i] - x[i];
-	// 			x1[i] = x[i] - h;
-	// 			context->eval_eqLS(constrPre, n, x1, data);
-	// 			dx = dx + x[i] - x1[i];
-	// 			//dx = 2 * h;
-	// 			x1[i] = x[i];
-	// 			////std::cout << "INEQ: " << x[i] << ", " << eps << ", " << h << ", " << dx << std::endl;
-	// 			for (int j = 0; j < m; ++j)
-	// 			{
-	// 				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
-	// 				////std::cout << grad[j*n + i] << std::endl;
-	// 			}
-	// 		}
-	// 		delete[] constrPre;
-	// 		delete[] constrPos;
-	// 		delete[] x1;
-	// 	}
-	// }
-
-	// void PathPlannerRecHor::eval_ineqLS(double *result, unsigned n, const double* x, void* data)
-	// {
-	// 	////std::cout << "eval_ineqLS" << std::endl;
-	// 	double finalPlanHorizon = x[0];
-
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-
-	// 	// Create a CtrlPoints vector
-	// 	MySpline::ControlPointVectorType ctrlPts(splDim, context->noCtrlPts);
-
-	// 	// Feed remaining rows with values from the primal variables x
-	// 	for (int i = 1; i < n; ++i)
-	// 	{
-	// 		ctrlPts((i - 1) % splDim, (i - 1) / splDim) = x[i];
-	// 	}
-
-	// 	// Create a spline based on the new ctrlpts (using the same knots as before)
-	// 	MySpline optSpline(context->genKnots(0.0, finalPlanHorizon, false), ctrlPts); // has to be false, otherwise jacobien will be wrong
-
-	// 	////std::cout << "eval_ineqLS 2" << std::endl;
-	// 	// INEQUATIONS
-
-
-	// 	typedef Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
-
-	// 	Np1DerivativesMatrix derivFlat;
-	// 	NDerivativesMatrix derivFlatSmall;
-
-	// 	// inequations t = 0.0 and t = Tp
-
-	// 	// Create Matrices for storing velocity and acceleration
-	// 	VeloVector velocity;
-	// 	AccelVector acceleration;
-
-	// 	derivFlat =
-	// 		optSpline.derivatives(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 	acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 	int j = 0;
-	// 	for (; j < FlatoutputMonocycle::accelDim; ++j)
-	// 	{
-	// 		const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 		result[j] = absAcc - context->maxAcceleration(j, 0);
-	// 		////std::cout << "G[" << j << "] " << result[j] << std::endl;
-	// 	}
-
-	// 	derivFlat =
-	// 		optSpline.derivatives(finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 	acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 	int nAcc = j;
-
-	// 	for (j = nAcc; j - nAcc < FlatoutputMonocycle::accelDim; ++j)
-	// 	{
-	// 		const double absAcc = (acceleration(j - nAcc, 0) > -acceleration(j - nAcc, 0)) ? acceleration(j - nAcc, 0) : -acceleration(j - nAcc, 0);
-	// 		result[j] = absAcc - context->maxAcceleration(j - nAcc, 0);
-	// 		////std::cout << "G[" << j << "] " << result[j] << std::endl;
-	// 	}
-	// 	nAcc = 2*FlatoutputMonocycle::accelDim;
-
-	// 	// inequations in ]0.0, Tp[
-
-	// 	//#pragma omp parallel for
-	// 	for (int i = 1; i < int(context->_nTimeSamples); ++i)
-	// 	{
-	// 		////std::cout << "IEQ: SAMPLE IDX: " << i << std::endl;
-	// 		derivFlat =
-	// 			optSpline.derivatives(double(i) / context->_nTimeSamples * finalPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
-
-	// 		////std::cout << "got derive meatrix" << std::endl;
-	// 		// reusing derivFlatEq variable, ugly but let's move on
-	// 		derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
-
-	// 		////std::cout << "got vel" << std::endl;
-	// 		velocity = FlatoutputMonocycle::flatToVelocity(derivFlatSmall);
-
-	// 		////std::cout << "got acc" << std::endl;
-	// 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-
-	// 		int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim);
-	// 		//int ieqPerSample = (FlatoutputMonocycle::veloDim);
-
-	// 		int j;
-	// 		for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
-	// 		{
-	// 			const double absAcc = (acceleration(j, 0) > -acceleration(j, 0)) ? acceleration(j, 0) : -acceleration(j, 0);
-	// 			result[nAcc + j + (i - 1)*ieqPerSample] = absAcc - context->maxAcceleration(j, 0);
-	// 			////std::cout << "G[" << nAcc + j + (i - 1)*ieqPerSample << "] " << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
-	// 		}
-
-	// 		for (int k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
-	// 		{
-	// 			const double absVel = (velocity(k - j, 0) > -velocity(k - j, 0)) ? velocity(k - j, 0) : -velocity(k - j, 0);
-	// 			result[nAcc + k + (i - 1)*ieqPerSample] = absVel - context->maxVelocity(k - j, 0);
-	// 			////std::cout << "G[" << nAcc + k + (i - 1)*ieqPerSample << "] " << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
-	// 		}
-	// 	}
-	// 	//system("pause");
-	// }
-
-	// void PathPlannerRecHor::ineqFuncLS(unsigned m, double *result, unsigned n, const double* x, double* grad, void* data)
-	// {
-	// 	////std::cout << "ineqFuncLS" << std::endl;
-	// 	// get this path planner pointer
-	// 	PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-
-	// 	context->eval_ineqLS(result, n, x, data);
-
-	// 	////std::cout << "ineqFuncLS 2" << std::endl;
-
-	// 	if (grad)
-	// 	{
-	// 		const double eps = sqrt(std::numeric_limits< double >::epsilon());
-	// 		double *constrPre = new double[m];
-	// 		double *constrPos = new double[m];
-	// 		double *x1 = new double[n];
-	// 		double h, dx;
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			x1[i] = x[i];
-	// 		}
-
-	// 		for (int i = 0; i < int(n); ++i)
-	// 		{
-	// 			//h = x[i] < eps*1e2 ? eps*eps*1e2 : eps*x[i];
-	// 			h = x[i] < eps ? eps*eps : eps*x[i];
-	// 			//h = eps;
-	// 			x1[i] = x[i] + h;
-	// 			context->eval_ineqLS(constrPos, n, x1, data);
-	// 			dx = x1[i] - x[i];
-	// 			x1[i] = x[i] - h;
-	// 			context->eval_ineqLS(constrPre, n, x1, data);
-	// 			dx = dx + x[i] - x1[i];
-	// 			//dx = 2 * h;
-	// 			x1[i] = x[i];
-	// 			////std::cout << "INEQ: " << x[i] << ", " << eps << ", " << h << ", " << dx << std::endl;
-	// 			for (int j = 0; j < m; ++j)
-	// 			{
-	// 				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
-	// 				////std::cout << grad[j*n + i] << std::endl;
-	// 			}
-	// 		}
-	// 		delete[] constrPre;
-	// 		delete[] constrPos;
-	// 		delete[] x1;
-	// 	}
-	// }
-
-
 
 	// int PathPlannerRecHor::findspan(const double t)
 	// {
