@@ -15,7 +15,7 @@
 #include "xde/physics/builder/PhysicsBuilder.h"
 #include "xde/graphics/builder/GraphicsBuilder.h"
 
-#include "aiv/helpers/MyException.hpp"
+#include "aiv/helpers/Common.hpp"
 
 namespace aiv {
 
@@ -253,7 +253,7 @@ namespace aiv {
 			std::cout << "======  Unknown path planning type [ " << pt.get<std::string>("root.mpmethod.<xmlattr>.type") << " ] ================" << std::endl;
 			std::stringstream ss;
 			ss << "AIVBuilder::addAdeptLynxToApplication: Unknown path planning type [ " << pt.get<std::string>("root.mpmethod.<xmlattr>.type") << " ]. Check configuration file.";
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 
 		//-------------- Controller --------------
@@ -284,7 +284,7 @@ namespace aiv {
 			std::cout << "======  Unknown controller type [ " << pt.get<std::string>("root.controller.<xmlattr>.type") << " ] ================" << std::endl;
 			std::stringstream ss;
 			ss << "AIVBuilder::addAdeptLynxToApplication: Unknown controller type [ " << pt.get<std::string>("root.controller.<xmlattr>.type") << " ]. Check configuration file.";
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 
 		app->addVehicle(lynx);

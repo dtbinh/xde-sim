@@ -1,5 +1,5 @@
 #include "aiv/pathplanner/Trajectory.hpp"
-#include "aiv/helpers/MyException.hpp"
+#include "aiv/helpers/Common.hpp"
 #include <iostream>
 
 namespace aiv {
@@ -97,7 +97,7 @@ namespace aiv {
 
 		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
-		for (auto i=0; i < _nCtrlPts; ++i)
+		for (int i=0; i < int(_nCtrlPts); ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
@@ -113,7 +113,7 @@ namespace aiv {
 
 		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
-		for (auto i=0; i < _nCtrlPts; ++i)
+		for (int i=0; i < int(_nCtrlPts); ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
@@ -131,7 +131,7 @@ namespace aiv {
 
 		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
-		for (auto i=0; i < _nCtrlPts; ++i)
+		for (int i=0; i < int(_nCtrlPts); ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
@@ -147,7 +147,7 @@ namespace aiv {
 
 		Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic> points(dim, _nCtrlPts);
 
-		for (auto i=0; i < _nCtrlPts; ++i)
+		for (int i=0; i < int(_nCtrlPts); ++i)
 		{
 			points.col(i) = auxSpline(parVariable(i));
 		}
@@ -186,10 +186,10 @@ namespace aiv {
 		{
 			std::stringstream ss;
 			ss << "Trajectory::getParameters: invalid C-like array (points to NULL). Was memory allocated?";
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 		//unsigned nParam = _trajecSpl.ctrls().size(); // size() = total of coefficients (= rows() + cols())
-		for (auto i = 0; i < _nCtrlPts*dim; ++i)
+		for (int i = 0; i < int(_nCtrlPts*dim); ++i)
 		{
 			params[i] = _trajecSpl.ctrls()(i % dim, i / dim);
 		}
@@ -202,7 +202,7 @@ namespace aiv {
 		{
 			std::stringstream ss;
 			ss << "Trajectory::_genKnots: number of non null intervals is too low [ " << nIntervNonNull << " ].";
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 
 		double d = (finalT - initT) / (4 + (nIntervNonNull - 2));

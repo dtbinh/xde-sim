@@ -2,7 +2,7 @@
 #include "aiv/obstacle/Obstacle.hpp"
 #include "aiv/robot/AIV.hpp"
 
-#include "aiv/helpers/MyException.hpp"
+#include "aiv/helpers/Common.hpp"
 //#include "aiv/pathplanner/constrJac.hpp"
 //#include "aiv/pathplanner/eq_cons_jac.hpp"
 #include <nlopt.h>
@@ -12,6 +12,11 @@
 #include <cstdlib>
 #include <cmath>
 #include <string>
+
+#include <vector>
+#include <list>
+#include <utility> // for pair
+
 
 #include <boost/math/special_functions/fpclassify.hpp>
 
@@ -481,34 +486,108 @@ namespace aiv
 		return;
 	}
 
-	void printDList(std::list< std::list< std::string > > forbiddenSpacesClusters)
+	bool PathPlannerRecHor::_isForbSpaceInRobotsWay(const std::string& fsName)
 	{
-		std::cout << "[";
-		for (std::list< std::list< std::string > >::iterator dListIt = forbiddenSpacesClusters.begin(); dListIt != forbiddenSpacesClusters.end(); ++dListIt)
+		return true;
+	}
+
+	Common::CArray3d PathPlannerRecHor::_getAngularVariationAndDistForAvoidance(const std::string& fsName)
+	{
+
+		double theta1, theta2;
+
+		FlatVector forbSpacToRobot = _latestFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+		FlatVector robotToForbSpac = -1*forbSpacToRobot;
+
+		rad = _knownObstacles[fsName]->getRad() + _radius;
+
+		// sovling second degree eq for finding angular variations for passing by the "left" and "right" of this forbidden space
+
+		double a = robotToForbSpac*robotToForbSpac - rad*rad;
+		double b = -2.*robotToForbSpac(0,0)*robotToForbSpac(1,0);
+		double c = robotToForbSpac(1,0)**robotToForbSpac(1,0) - rad*rad;
+
+		double discriminant = b*b - 4*a*c;
+
+		if (discriminant < 0.0) // inside an forbidden zone
 		{
-			std::cout << "[";
-			for (std::list< std::string >::iterator listIt = dListIt->begin(); listIt != dListIt->end(); ++listIt)
-			{
-				if (*listIt != dListIt->back())
-					std::cout << *listIt << ", ";
-				else 
-					std::cout << *listIt;
-			}
-			std::cout << "]";
+			Common::CArray3d ret;
+			ret[0] = 0.0;
+			ret[1] = 0.0;
+			ret[2] = robotToForbSpac.norm() - rad;
+			return ret;
 		}
-		std::cout << "]\n";
+		else if (discriminant == 0.0)
+		{
+			theta1 = atan(-b/2/a); // [-pi, pi)
+			theta2 = theta1 - M_PI; // [-2pi, 0.0)
+			theta2 = Common::wrapToPi(theta2);
+		}
+		else
+		{
+			theta1 = atan((-b + np.sqrt(discriminant))/2/a);
+			theta2 = atan((-b - np.sqrt(discriminant))/2/a);
+		}
+
+		double refTheta = atan2(robotToObst(1,0), robotToObst(0,0));
+
+		double quad14RefTheta = (refTheta < M_PI_2 && refTheta >= -M_PI_2/2.) ? refTheta : Common::wrapToPi(refTheta - M_PI);
+
+		if ((quad14RefTheta < theta1 && quad14RefTheta < theta2) || (quad14RefTheta > theta1 && quad14RefTheta > theta2)
+		{
+			// angle to forbidden space is not between thetas
+			if (abs(quad14RefTheta - theta1) > abs(quad14RefTheta - theta2))
+			{
+				theta1 = Common::wrapToPi(theta1 - M_PI);
+			}
+			else
+			{
+				theta2 = Common::wrapToPi(theta2 - M_PI);
+			}
+		}
+
+		double dTheta1 = Common::wrapToPi(quad14RefTheta - theta1);
+		double dTheta2 = Common::wrapToPi(quad14RefTheta - theta2);
+
+		dTheta1 = Common::wrapToPi(wayPtTheta + dTheta1 - refTheta);
+		dTheta2 = Common::wrapToPi(wayPtTheta + dTheta2 - refTheta);
+
+		Common::CArray3d a;
+		a[0] = dTheta1;
+		a[1] = dTheta2;
+		a[2] = robotToObst.norm() - rad;
+		return a;
+	}
+
+	void PathPlannerRecHor::_sortForbiddenSpacesAccordingToAngularVariation(std::vector<std::vector<std::string> >::iterator clIt)
+	{
+		return;
 	}
 
 	void PathPlannerRecHor::_findNextWayPt()
 	{
 		// Initiate the list of forbiddenSpaces (regions to be avoided). The waypoint must guide the robot towards a possible region among all the forbidden ones) even if knownObstaclesList is empty, of course
-		typedef std::map< std::string, Obstacle* > Map_StrObst;
-		typedef std::list< std::string > List_Str;
-		typedef std::list< List_Str > DoubleList_Str;
-		//typedef std::queue< Obstacle* > Queue_Obst;
+		// typedef std::map< std::string, Obstacle* > MapObst;
+		typedef std::vector< Obstacle* > VecObst;
+		typedef std::map< std::string, Common::CArray3d > MapStrToArray3d;
+		typedef std::vector< std::string > VecStr;
+		typedef std::vector< VecStr > VecVecStr;
+		typedef std::list< std::string > ListStr;
 
-		// Map_StrObst forbiddenSpaces(_knownObstacles);
-		Map_StrObst forbiddenSpaces(_detectedObstacles);
+		// update known obstacles
+		//self._known_obst_idxs += [i[0] for i in idx_list if i[0] not in self._known_obst_idxs]
+		for(MapObst::iterator it=_detectedObstacles.begin();it != _detectedObstacles.end();++it )
+		{
+			if (std::find(_knownObstacles.begin(), _knownObstacles.end(), *it) == _knownObstacles.end())
+			{
+				_knownObstacles[it->first] = it->second;
+			}
+		}
+
+		MapObst forbiddenSpaces(_knownObstacles);
+		//VecObst forbiddenSpaces;
+		//Common::MapToVec(_knownObstacles, forbiddenSpaces);
 
 		// if (_detectedCollisions.empty())
 		// {
@@ -525,18 +604,18 @@ namespace aiv
 		// In order to avoid trying to pass among forbiddenSpaces that are to close together we have to identify cluster of forbidden spaces
 
 		// Initiate list of clusters of forbiddenSpaces
-		DoubleList_Str forbiddenSpacesClusters;
+		VecVecStr forbiddenSpacesClusters;
 
 		// Build the list of clusters
 
 		// Iterate over forbidden spaces dictionary
-		for (Map_StrObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
-		{
+		for (MapObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
+			{
 
 			// is fsIt in any cluster in forbiddenSpacesClusters?
 			//
 			bool foundIt = false;
-			for (DoubleList_Str::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+			for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 			{
 				// if (clIt->find(fsIt->first) != clIt->end())
 				if (std::find(clIt->begin(), clIt->begin(), fsIt->first) != clIt->end())
@@ -552,15 +631,15 @@ namespace aiv
 			// fsIt is not in any cluster in forbiddenSpacesClusters
 			// let's do a tree search in forbiddenSpaces looking for other forbiddenSpaces forming a cluster with this forbiddenSpace. If none, this forbiddenSpace is a cluster by it self
 
-			// forbiddenSpacesClusters.push_back(List_Str(fsIt->first));
+			// forbiddenSpacesClusters.push_back(VecStr(fsIt->first));
 			// if the above doesn't work:
-			List_Str auxList;
+			VecStr auxList;
 			auxList.push_back(fsIt->first);
 			forbiddenSpacesClusters.push_back(auxList);
 
 			// search using FIFO queue
 
-			List_Str queue;
+			ListStr queue;
 			queue.push_back(fsIt->first);
 			
 			while (queue.empty() == false)
@@ -568,15 +647,15 @@ namespace aiv
 				std::string forbSpacName = queue.front();
 				queue.pop_front();
 
-				for (Map_StrObst::iterator candidIt = forbiddenSpaces.begin(); candidIt != forbiddenSpaces.end(); ++candidIt)
+				for (MapObst::iterator candidIt = forbiddenSpaces.begin(); candidIt != forbiddenSpaces.end(); ++candidIt)
 				{
 					// is candidIt in any cluster in forbiddenSpacesClusters?
 					//
 					bool foundIt = false;
-					for (DoubleList_Str::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+					for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 					{
 						// if (clIt->find(fsIt->first) != clIt->end())
-						if (std::find(clIt->begin(), clIt->begin(), fsIt->first) != clIt->end())
+						if (std::find(clIt->begin(), clIt->end(), fsIt->first) != clIt->end())
 						{
 							foundIt = true;
 							break;
@@ -595,9 +674,90 @@ namespace aiv
 			}
 		}
 
-		printDList(forbiddenSpacesClusters);
+		Common::printNestedContainer(forbiddenSpacesClusters);
 
 		// Some clusters can be ignored, let's remove them. For the remaining clusters, let's find the information about avoiding each of their forbidden spaces
+
+		MapStrToArray3d avoidanceInfo;
+
+		VecVecStr::iterator clIt = forbiddenSpacesClusters.begin();
+		while (clIt !=  forbiddenSpacesClusters.end())
+		{
+			// is any fsIt in clIt cluster is the robot way?
+			//
+			bool inTheWay = false;
+			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
+			{
+				if (_isForbSpaceInRobotsWay(*fsIt))
+				{
+					inTheWay = true;
+					break;
+				}
+			}
+			//
+
+			if (inTheWay)
+			{
+				for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
+				{
+					// get two angular variations (positive if clockwise, negative otherwise) and distance for avoiding this forbiddenSpace
+					avoidanceInfo[*fsIt] = _getAngularVariationAndDistForAvoidance(*fsIt);
+					// [theta left, theta right, distance]
+				}
+				++clIt;
+			}
+			else // this cluster can be ignored
+			{
+				forbiddenSpacesClusters.erase(clIt);
+			}
+		}
+
+		// Did all clusters were removed? In this case return goal
+		if (forbiddenSpacesClusters.empty())
+		{
+			_wayPt = _targetedFlat;
+			return;
+		}
+
+		for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+		{
+			if (clIt->empty())
+			{
+				continue;
+			}
+			// Am I inside a forbiddenSpace? In this case return previous waypoint
+			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
+			{
+				if (avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
+					//return previousWayPoint
+					return;
+			}
+
+			// Sort cluster
+			_sortForbiddenSpacesAccordingToAngularVariation(clIt);
+
+		}
+			// Save minimum absolute angular variontion
+			// cluster.minAbsAngVar = minAbsAngVar(cluster)
+
+		// Sort list of clusters
+		//sortClustersAccordingToMinAbsAngVariation(clustersOfForbiddenSpacesList)
+
+		// The fist cluster in the list is a first guess for the cluster which will give the right direction to the new waypoint (based on the angular variation that gave the minimum absolute angular variation). But it has to respect a condition: do not suggest a direction that goes towards another clusters that is closer to the robot than the first cluster. In case it fails, check the following clusters
+		// for cluster in clustersOfForbiddenSpacesList:
+
+		// 	possibleBlockingClustersList = []
+		// 	for otherCluster in clustersOfForbiddenSpacesList.remove(cluster):
+		// 		if cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation:
+		// 			possibleBlockingClustersList.append(otherCluster)
+
+		// 	if possibleBlockingClustersList.isEmpty() == False:
+		// 		if any cluster in possibleBlockingClustersList is closer than cluster:
+		// 			continue
+		// 	break
+
+		// return waypointFromCluster(cluster)
+		
 	}
 
 	void PathPlannerRecHor::_plan()
@@ -631,7 +791,7 @@ namespace aiv
 
 			// std::cout << "breakDuration\n" << breakDuration << std::endl;
 
-			_optPlanHorizon = breakDuration + max(2*(remainingDist - breakDist)/(_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)), 0.0);
+			_optPlanHorizon = breakDuration + std::max(2*(remainingDist - breakDist)/(_latestVelocity(FlatoutputMonocycle::linSpeedIdx,0) + _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)), 0.0);
 
 			// std::cout << "_optPlanHorizon before opt " << _optPlanHorizon << std::endl;
 			// TODO recompute n_ctrlpts n_knots
@@ -708,7 +868,7 @@ namespace aiv
 		// for (auto i=1; i<_optTrajectory.nParam(); ++i)
 		// {
 		// 	displVar = previousVelocity*deltaT + accel/2.*deltaT*deltaT;
-		// 	displVar = displVar < maxDisplVariation ? max(displVar, 0.0) : maxDisplVariation;
+		// 	displVar = displVar < maxDisplVariation ? std::max(displVar, 0.0) : maxDisplVariation;
 		// 	curveCurrDirec(0,i) = curveCurrDirec(0,i-1)+displVar;
 		// 	curveNewDirec.col(i) = curveNewDirec.col(i-1)+displVar*rotatedNewDirec;
 
@@ -740,7 +900,7 @@ namespace aiv
 			{
 				displ = _latestVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
 			}
-			displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
+			displ = displ - prevDispl < maxDisplVariation ? std::max(displ, prevDispl) : prevDispl + maxDisplVariation;
 			prevDispl = displ;
 			curveCurrDirec(0,i) = displ;
 			curveNewDirec.col(i) = displ*rotatedNewDirec;
@@ -785,7 +945,7 @@ namespace aiv
 			{
 				double deltaT = i*_optPlanHorizon/(_optTrajectory.nParam()-1);
 				double displ = _targetedVelocity(FlatoutputMonocycle::linSpeedIdx,0)*deltaT + accel/2.*deltaT*deltaT;
-				displ = displ - prevDispl < maxDisplVariation ? max(displ, prevDispl) : prevDispl + maxDisplVariation;
+				displ = displ - prevDispl < maxDisplVariation ? std::max(displ, prevDispl) : prevDispl + maxDisplVariation;
 				prevDispl = displ;
 				fromGoalCurve.col(i) = displ*fromGoalDirec;
 				// toGoalCurve.col(i) = displ*oposed2GoalDirec;
@@ -839,7 +999,7 @@ namespace aiv
 		{
 			std::stringstream ss;
 			ss << "PathPlannerRecHor::_plan: call to solve optimization problem failed. " << e.what();
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 		
 		std::cout << "AFTER:\n";
@@ -962,7 +1122,7 @@ namespace aiv
 				delete[] optParam;
 				delete[] tolEq;
 				delete[] tolIneq;
-				throw(MyException(strs.str()));
+				throw(Common::MyException(strs.str()));
 			}
 
 			//std::stringstream ss(optParamString);
@@ -994,7 +1154,7 @@ namespace aiv
 				delete[] optParam;
 				delete[] tolEq;
 				delete[] tolIneq;
-				throw(MyException(ss.str()));
+				throw(Common::MyException(ss.str()));
 			}
 
 			nlopt_set_xtol_rel(opt, _xTol);
@@ -1069,7 +1229,7 @@ namespace aiv
 			delete[] optParam;
 			delete[] tolEq;
 			delete[] tolIneq;
-			throw(MyException(ss.str()));
+			throw(Common::MyException(ss.str()));
 		}
 
 		// if (_planLastPlan == false)
@@ -1229,7 +1389,7 @@ namespace aiv
 			// (*eval)(constrPre, n, x1, this);
 			x1[i] = x[i];
 
-			for (int j = 0; j < m; ++j)
+			for (int j = 0; j < int(m)	; ++j)
 			{
 				grad[j*n + i] = (constrPos[j] - constrPre[j]) / dx;
 				if (boost::math::isnan(grad[j*n + i]))

@@ -2,7 +2,7 @@
 #include "aiv/controller/ControllerMonocycle.hpp"
 #include <limits>
 //#include <boost/timer.hpp>
-#include "aiv/helpers/common.h"
+#include "aiv/helpers/Common.hpp"
 
 namespace aiv
 {

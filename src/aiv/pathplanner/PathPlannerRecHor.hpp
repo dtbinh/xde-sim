@@ -5,7 +5,7 @@
 #include "aiv/pathplanner/PathPlanner.hpp"
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
 #include "aiv/pathplanner/Trajectory.hpp"
-#include "aiv/helpers/common.h"
+#include "aiv/helpers/Common.hpp"
 #include <boost/thread.hpp>
 #include <fstream>
 
@@ -25,6 +25,8 @@ namespace aiv {
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, 1 > FlatVector;
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::veloDim, 1 > VeloVector;
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::accelDim, 1 > AccelVector;
+
+	typedef std::map< std::string, Obstacle* > MapObst;
 
 	class Obstacle;
 	class AIV;
@@ -83,7 +85,8 @@ namespace aiv {
 
 		//double _estTime;
 		
-		std::map< std::string, Obstacle* > _detectedObstacles;
+		MapObst _detectedObstacles;
+		MapObst _knownObstacles;
 		//std::map<std::string, std::vector<int> > conflictInfo;
 		// std::map< std::string, AIV* > _collisionAIVs;
 		// std::map< std::string, AIV* > _comOutAIVs;
@@ -144,6 +147,9 @@ namespace aiv {
 		void _solveOptPbl();
 		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
 		// int nbPointsCloseInTimeEval();
+		bool _isForbSpaceInRobotsWay(const std::string& fsName);
+		Common::CArray3d _getAngularVariationAndDistForAvoidance(const std::string& fsName);
+		void _sortForbiddenSpacesAccordingToAngularVariation(std::vector<std::vector<std::string> >::iterator clIt);
 
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);
@@ -305,14 +311,14 @@ namespace aiv {
 		// ACCELERATION AT 0.0
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-		int i, j, k;
+		unsigned i, j, k;
 		for (i = 0; i < FlatoutputMonocycle::accelDim; ++i)
 		{
 			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
 		}
 
-		int nAcc = i;
-		int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
+		unsigned nAcc = i;
+		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
 
 		//#pragma omp parallel for <== DO NOT USE IT, BREAKS THE EVALUATION OF CONSTRAINTS SOMEHOW
 		for (i = 1; i <= int(context->_nTimeSamples); ++i)
@@ -420,7 +426,7 @@ namespace aiv {
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
-		int i, j, k;
+		unsigned i, j, k;
 		for (i = 1; i < FlatoutputMonocycle::accelDim; ++i)
 		{
 			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
@@ -438,9 +444,9 @@ namespace aiv {
 			// std::cout << "r[" << j << "]=" << result[j] << std::endl;
 		}
 
-		int nAcc = j;
+		unsigned nAcc = j;
 
-		int ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
+		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
 
 		for (int i = 1; i < int(context->_nTimeSamples); ++i)
 		{

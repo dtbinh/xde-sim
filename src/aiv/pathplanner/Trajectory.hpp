@@ -68,7 +68,7 @@ namespace aiv {
 		Eigen::Matrix<double, dim, Eigen::Dynamic> ctrlPts(dim, _nCtrlPts);
 
 		// Feed ctrlPts rows with values from the primal variables x
-		for (int i = 0; i < _nCtrlPts*dim; ++i)
+		for (int i = 0; i < int(_nCtrlPts*dim); ++i)
 		{
 			ctrlPts(i % dim, i / dim) = ctrlpts[i];
 		}
