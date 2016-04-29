@@ -306,7 +306,7 @@ namespace Common
 	    {
 	        std::cout << "[";
 	        printNestedContainerHelper(toPrint);
-	        std::cout << "]\n";
+	        std::cout << "]";
 	    }
 	};
 

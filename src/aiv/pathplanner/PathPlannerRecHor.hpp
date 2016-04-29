@@ -31,6 +31,61 @@ namespace aiv {
 	class Obstacle;
 	class AIV;
 
+
+	class CompObj
+	{
+	private:
+		std::map<std::string, Common::CArray3d> _avoidanceInfo;
+		
+	public:
+		
+		CompObj(std::map<std::string, Common::CArray3d> avoidInfo):_avoidanceInfo(avoidInfo){};
+
+		bool operator() (const std::string& smaller, const std::string& greater)
+		{
+			double s0 = _avoidanceInfo[smaller][0];
+			double s1 = _avoidanceInfo[smaller][1];
+			double g0 = _avoidanceInfo[greater][0];
+			double g1 = _avoidanceInfo[greater][1];
+
+			if ((s0 < g0 && s0 < g1) ||
+				(s1 < g0 && s1 < g1))
+			{
+				// if (s1 < s0)
+				// {
+				// 	double aux = s1;
+				// 	_avoidanceInfo[smaller][1] = s0;
+				// 	_avoidanceInfo[smaller][0] = aux;
+				// }
+				return true;
+			}
+			else return false;
+		};
+
+		template < template < typename, typename > class C >
+		bool operator() (C<std::string, std::allocator<std::string> > smaller, C<std::string, std::allocator<std::string> > greater)
+		{
+			double sf0 = abs(_avoidanceInfo[smaller.front()][0]);
+			double sf1 = abs(_avoidanceInfo[smaller.front()][1]);
+			double sb0 = abs(_avoidanceInfo[smaller.back()][0]);
+			double sb1 = abs(_avoidanceInfo[smaller.back()][1]);
+			double gf0 = abs(_avoidanceInfo[greater.front()][0]);
+			double gf1 = abs(_avoidanceInfo[greater.front()][1]);
+			double gb0 = abs(_avoidanceInfo[greater.back()][0]);
+			double gb1 = abs(_avoidanceInfo[greater.back()][1]);
+
+			if ((sf0 < gf0 && sf0 < gf1 && sf0 < gb0 && sf0 < gb1) ||
+				(sf1 < gf0 && sf1 < gf1 && sf1 < gb0 && sf1 < gb1) ||
+				(sb0 < gf0 && sb0 < gf1 && sb0 < gb0 && sb0 < gb1) ||
+				(sb1 < gf0 && sb1 < gf1 && sb1 < gb0 && sb1 < gb1))
+			{
+				return true;
+			}
+			else return false;
+		};
+	};
+
+
 	class PathPlannerRecHor : public PathPlanner
 	{
 
@@ -104,6 +159,8 @@ namespace aiv {
 		FlatVector _wayPt;
 		//int _ongoingPlanIdx;
 
+		std::map< std::string, Common::CArray3d > _avoidanceInfo;
+
 		//enum ConflictEnum { NONE, COLL, COM, BOTH } _isThereConfl;
 
 		// Optimization parameters ========================================================
@@ -147,9 +204,9 @@ namespace aiv {
 		void _solveOptPbl();
 		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
 		// int nbPointsCloseInTimeEval();
+		bool _isAnyForbSpacInRobotsWayToTarget();
 		bool _isForbSpaceInRobotsWay(const std::string& fsName);
 		Common::CArray3d _getAngularVariationAndDistForAvoidance(const std::string& fsName);
-		void _sortForbiddenSpacesAccordingToAngularVariation(std::vector<std::vector<std::string> >::iterator clIt);
 
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);

@@ -2,7 +2,6 @@
 #include "aiv/obstacle/Obstacle.hpp"
 #include "aiv/robot/AIV.hpp"
 
-#include "aiv/helpers/Common.hpp"
 //#include "aiv/pathplanner/constrJac.hpp"
 //#include "aiv/pathplanner/eq_cons_jac.hpp"
 #include <nlopt.h>
@@ -486,32 +485,127 @@ namespace aiv
 		return;
 	}
 
+	bool PathPlannerRecHor::_isAnyForbSpacInRobotsWayToTarget()
+	{
+		FlatVector robotToTarget = _targetedFlat - _latestFlat;
+		double robotToTargetDist = robotToTarget.norm();
+		FlatVector targetDirec = robotToTarget/robotToTargetDist;
+		double targetTheta = atan2(targetDirec(1,0), targetDirec(0,0));
+
+		for(std::map<std::string, Obstacle* >::iterator it=_knownObstacles.begin();it != _knownObstacles.end(); ++it )
+		{
+			FlatVector forbSpacToRobot;
+			FlatVector forbSpacToWayPt;
+			double segmentNormTarg;
+			double discriminantTarg;
+			double determinantP1P2Targ;
+			double rad;
+
+			rad = it->second->getRad() + _radius + _robotObstacleSafetyDist;
+
+			forbSpacToRobot = _latestFlat - it->second->getCurrentPosition().getTranslation().block<2,1>(0,0);
+			
+			forbSpacToWayPt = _wayPt - it->second->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+			segmentNormTarg = (forbSpacToWayPt - forbSpacToRobot).norm();
+
+			determinantP1P2Targ = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
+
+			discriminantTarg = rad*rad * segmentNormTarg*segmentNormTarg - determinantP1P2Targ*determinantP1P2Targ;
+
+			if (discriminantTarg >= 0.0) // itersection
+			{
+				FlatVector robotToForbSpac = -1.*forbSpacToRobot;
+				double robotToForbSpacDist = robotToForbSpac.norm();
+
+				double signed_r2o_proj_on_tdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0)) - targetTheta);
+
+				if (signed_r2o_proj_on_tdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
+				{
+					continue;
+				}
+				else return true;
+			}
+		}
+		return false;
+	}
+
+	// bool PathPlannerRecHor::_intersectionDiscriminant(const std::string& fsName, FlatVector )
+	// {
+	// 	double rad = _knownObstacles[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
+
+	// 	FlatVector robotToForbSpac = _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
+
+	// 	FlatVector forbSpacToRobot = -1.*robotToForbSpac;
+
+	// 	// FlatVector robotToWayPt = _wayPt - _latestFlat;
+	// 	// double robotToWayPtDist = robotToWayPt.norm();
+	// 	double robotToForbSpacDist = robotToForbSpac.norm();
+		
+	// 	FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+	// 	double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+	// 	forbSpacToWayPt = _wayPt - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+	// 	forbSpacToTarget = _targetedFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+	// 	// double rad = _knownObstacles[fsName]->getRad() + _radius;
+
+	// 	double segmentNorm = (forbSpacToWayPt - forbSpacToRobot).norm();
+
+	// 	determinantP1P2 = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
+
+	// 	discriminantWay = rad*rad * segmentNorm*segmentNorm - determinantP1P2*determinantP1P2;
+
+	// 	if (discriminantWay < 0)
+	// 	{
+	// 		return false;
+	// 	}
+	// 	else
+	// 	{
+	// 		//robotToForbSpacDist
+	// 		signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta)
+
+	// 		if (signed_r2o_proj_on_wdir <= _maxVelocity.block<double FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)*_compHorizon)
+	// 		{
+	// 			return false;
+	// 		}
+	// 	}
+
+	// 	if (!_isAnyForbSpacInRobotsWayToTarget())
+	// 	{
+	// 		return false;
+	// 	}
+
+	// 	return true;
+	// }
+
 	bool PathPlannerRecHor::_isForbSpaceInRobotsWay(const std::string& fsName)
 	{
-		double rad = _knownObstacles[fsName]->getRad() + _radius;
+		double rad = _knownObstacles[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
 
 		FlatVector robotToForbSpac = _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
 
 		FlatVector forbSpacToRobot = -1.*robotToForbSpac;
-
-		// FlatVector robotToWayPt = _wayPt - _latestFlat;
-		// double robotToWayPtDist = robotToWayPt.norm();
 		double robotToForbSpacDist = robotToForbSpac.norm();
+
+		FlatVector robotToWayPt = _wayPt - _latestFlat;
+		double robotToWayPtDist = robotToWayPt.norm();
 		
 		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
 		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
 
-		forbSpacToWayPt = _wayPt - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+		FlatVector forbSpacToWayPt = _wayPt - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
-		forbSpacToTarget = _targetedFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+		FlatVector forbSpacToTarget = _targetedFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
 		// double rad = _knownObstacles[fsName]->getRad() + _radius;
 
 		double segmentNorm = (forbSpacToWayPt - forbSpacToRobot).norm();
 
-		determinantP1P2 = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
+		double determinantP1P2 = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
 
-		discriminantWay = rad*rad * segmentNorm*segmentNorm - determinantP1P2*determinantP1P2;
+		double discriminantWay = rad*rad * segmentNorm*segmentNorm - determinantP1P2*determinantP1P2;
 
 		if (discriminantWay < 0)
 		{
@@ -520,17 +614,17 @@ namespace aiv
 		else
 		{
 			//robotToForbSpacDist
-			signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta)
+			double signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta);
 
-			_maxVelocity.block<double FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)
+			if (signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
+			{
+				return false;
+			}
+		}
 
-			if signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim >()*_compHorizon: #0.0
-				#and signed_r2o_proj_on_gdir <= self.k_mod.u_max[0,0]*self._Tc:
-				print obstIdx, ': obstacle was left behind'
-				# obstacle was left behind
-				#return (d_theta, d_theta, LA.norm(robot2obst)-rad)
-				#return (0.0, 0.0, robot2goal_dist)
-				return False
+		if (!_isAnyForbSpacInRobotsWayToTarget())
+		{
+			return false;
 		}
 
 		return true;
@@ -549,7 +643,7 @@ namespace aiv
 		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
 		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
 
-		double rad = _knownObstacles[fsName]->getRad() + _radius;
+		double rad = _knownObstacles[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
 
 		// sovling second degree eq for finding angular variations for passing by the "left" and "right" of this forbidden space
 
@@ -609,11 +703,6 @@ namespace aiv
 		return array;
 	}
 
-	void PathPlannerRecHor::_sortForbiddenSpacesAccordingToAngularVariation(std::vector<std::vector<std::string> >::iterator clIt)
-	{
-		return;
-	}
-
 	void PathPlannerRecHor::_findNextWayPt()
 	{
 		// Initiate the list of forbiddenSpaces (regions to be avoided). The waypoint must guide the robot towards a possible region among all the forbidden ones) even if knownObstaclesList is empty, of course
@@ -657,7 +746,7 @@ namespace aiv
 
 		// Build the list of clusters
 
-		// Iterate over forbidden spaces dictionary
+		// Iterate over forbidden spaces vector
 		for (MapObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
 			{
 
@@ -724,10 +813,11 @@ namespace aiv
 		}
 
 		Common::printNestedContainer(forbiddenSpacesClusters);
+		std::cout << std::endl;
 
 		// Some clusters can be ignored, let's remove them. For the remaining clusters, let's find the information about avoiding each of their forbidden spaces
 
-		MapStrToArray3d avoidanceInfo;
+		MapStrToArray3d _avoidanceInfo;
 
 		VecVecStr::iterator clIt = forbiddenSpacesClusters.begin();
 		while (clIt !=  forbiddenSpacesClusters.end())
@@ -750,7 +840,8 @@ namespace aiv
 				for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 				{
 					// get two angular variations (positive if clockwise, negative otherwise) and distance for avoiding this forbiddenSpace
-					avoidanceInfo[*fsIt] = _getAngularVariationAndDistForAvoidance(*fsIt);
+					_avoidanceInfo[*fsIt] = _getAngularVariationAndDistForAvoidance(*fsIt);
+					std::cout << *fsIt << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << ", " << _avoidanceInfo[*fsIt][2] << std::endl;
 					// [theta left, theta right, distance]
 				}
 				++clIt;
@@ -768,6 +859,9 @@ namespace aiv
 			return;
 		}
 
+		CompObj comp(_avoidanceInfo);
+
+
 		for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 		{
 			if (clIt->empty())
@@ -777,36 +871,124 @@ namespace aiv
 			// Am I inside a forbiddenSpace? In this case return previous waypoint
 			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 			{
-				if (avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
+				if (_avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
 					//return previousWayPoint
 					return;
 			}
 
-			// Sort cluster
-			_sortForbiddenSpacesAccordingToAngularVariation(clIt);
+			// Sort forbidden spaces according to angular variation
+			std::sort (clIt->begin(), clIt->end(), comp);//, *this);
 
 		}
 			// Save minimum absolute angular variontion
 			// cluster.minAbsAngVar = minAbsAngVar(cluster)
 
-		// Sort list of clusters
-		//sortClustersAccordingToMinAbsAngVariation(clustersOfForbiddenSpacesList)
+		// Sort clusters according to abs ang variation
+		std::sort (forbiddenSpacesClusters.begin(), forbiddenSpacesClusters.end(), comp);//, *this);
 
-		// The fist cluster in the list is a first guess for the cluster which will give the right direction to the new waypoint (based on the angular variation that gave the minimum absolute angular variation). But it has to respect a condition: do not suggest a direction that goes towards another clusters that is closer to the robot than the first cluster. In case it fails, check the following clusters
-		// for cluster in clustersOfForbiddenSpacesList:
 
-		// 	possibleBlockingClustersList = []
-		// 	for otherCluster in clustersOfForbiddenSpacesList.remove(cluster):
-		// 		if cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation:
-		// 			possibleBlockingClustersList.append(otherCluster)
+		// The first cluster in the list is a first guess for the cluster which will give the right direction to the new waypoint (based on the angular variation that gave the minimum absolute angular variation). But it has to respect a condition: do not suggest a direction that goes towards another clusters that is closer to the robot than the first cluster. In case it fails, check the following clusters
+		clIt = forbiddenSpacesClusters.begin();
+		//VecVecStr::iterator clIt;
+		// for (clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+		// {
+		// 	VecStr possibleBlockingClusters;
 
-		// 	if possibleBlockingClustersList.isEmpty() == False:
-		// 		if any cluster in possibleBlockingClustersList is closer than cluster:
-		// 			continue
-		// 	break
+		// 	VecVecStr subForbiddenSpacesClusters(forbiddenSpacesClusters.begin(), clIt-1);
+		// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.end(), VecVecStr(clIt+1, forbiddenSpacesClusters.end()));
 
-		// return waypointFromCluster(cluster)
-		
+		// 	for (VecVecStr::iterator othClIt = subForbiddenSpacesClusters.begin(); othClIt != subforbiddenSpacesClusters.end(); ++othClIt)
+		// 	{
+		// 		double cf0 = _avoidanceInfo[clIt->front()][0];
+		// 		double cf1 = _avoidanceInfo[clIt->front()][1];
+		// 		double cb0 = _avoidanceInfo[clIt->back()][0];
+		// 		double cb1 = _avoidanceInfo[clIt->back()][1];
+		// 		double of0 = _avoidanceInfo[othClIt->front()][0];
+		// 		double of1 = _avoidanceInfo[othClIt->front()][1];
+		// 		double ob0 = _avoidanceInfo[othClIt->back()][0];
+		// 		double ob1 = _avoidanceInfo[othClIt->back()][1];
+
+		// 		// cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation
+		// 		double dTheta = abs(min(cf0, cf1)) < abs(max(cb0, cb1)) ? min(cf0, cf1) else max(cb0, cb1);
+		// 		if (dTheta < max(ob0, ob1) && dTheta < min(of0, of1))
+		// 		{
+		// 			possibleBlockingClusters.push_back(*othClIt);
+		// 		}
+		// 	}
+
+		// 	if (!possibleBlockingClusters.empty())
+		// 	{
+		// 		//
+		// 		double myMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
+		// 		std::string myFSName = clIt->front();
+
+		// 		for (VecStr::iterator fsIt = clIt->begin()+1; fsIt != clIt->end(); ++fsIt)
+		// 		{
+		// 			newMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
+		// 			if (myMinAbsAvg > newMinAbsAvg)
+		// 			{
+		// 				myMinAbsAvg = newMinAbsAvg;
+		// 				myFSName = *fsIt;
+		// 			}
+		// 		}
+
+		// 		bool foundIt = false;
+		// 		for (VecVecStr::iterator othClIt = possibleBlockingClusters.begin(); othClIt != possibleBlockingClusters.end(); ++othClIt)
+		// 		{
+		// 			//
+		// 			double othMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
+		// 			std::string othFSName = othClIt->front();
+
+		// 			for (VecStr::iterator fsIt = othClIt->begin()+1; fsIt != othClIt->end(); ++fsIt)
+		// 			{
+		// 				newMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
+		// 				if (othMinAbsAvg > newMinAbsAvg)
+		// 				{
+		// 					othMinAbsAvg = newMinAbsAvg;
+		// 					othFSName = *fsIt;
+		// 				}
+		// 			}
+		// 			if (_avoidanceInfo[othFSName][2] < _avoidanceInfo[myFSName][2])
+		// 			{
+		// 				foundIt = true;
+		// 				break;
+		// 			}
+		// 		}
+		// 		//
+		// 		if (foundIt) continue;
+		// 	}	
+		// 	break;
+		// }
+
+		FlatVector robotToWayPt = _wayPt - _latestFlat;
+		double robotToWayPtDist = robotToWayPt.norm();
+		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+		double f0 = _avoidanceInfo[clIt->front()][0];
+		double f1 = _avoidanceInfo[clIt->front()][1];
+		double b0 = _avoidanceInfo[clIt->back()][0];
+		double b1 = _avoidanceInfo[clIt->back()][1];
+
+		std::cout << "wayTheta: " << wayPtTheta << std::endl;
+		std::cout << "all ang var: " << f0 << ", " << f1 << ", " << b0 << ", " << b1 << std::endl;
+
+		double dTheta = abs(std::min(f0, f1)) < abs(std::max(b0, b1)) ? std::min(f0, f1) : std::max(b0, b1);
+		std::cout << "delta Theta: " << dTheta << std::endl;
+
+		double eps = dTheta < 0.0 ? -0.03 : +0.03;
+
+		double theta = Common::wrapToPi(wayPtTheta - dTheta + eps);
+
+		std::cout << "final theta: " << theta  << std::endl;
+
+		FlatVector newWayPtDirec;
+		newWayPtDirec << cos(theta),
+						 sin(theta);
+
+		_wayPt = newWayPtDirec*robotToWayPtDist + _latestFlat;
+
+		return;
 	}
 
 	void PathPlannerRecHor::_plan()
@@ -868,7 +1050,7 @@ namespace aiv
 
 		_findNextWayPt();
 		//
-		_wayPt = _targetedFlat;
+		//_wayPt = _targetedFlat;
 		newDirec = _wayPt - _latestFlat;
 		newDirec /= newDirec.norm();
 		//std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
