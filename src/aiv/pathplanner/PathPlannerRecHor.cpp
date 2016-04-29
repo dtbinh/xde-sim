@@ -488,25 +488,74 @@ namespace aiv
 
 	bool PathPlannerRecHor::_isForbSpaceInRobotsWay(const std::string& fsName)
 	{
+		double rad = _knownObstacles[fsName]->getRad() + _radius;
+
+		FlatVector robotToForbSpac = _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
+
+		FlatVector forbSpacToRobot = -1.*robotToForbSpac;
+
+		// FlatVector robotToWayPt = _wayPt - _latestFlat;
+		// double robotToWayPtDist = robotToWayPt.norm();
+		double robotToForbSpacDist = robotToForbSpac.norm();
+		
+		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+		forbSpacToWayPt = _wayPt - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+		forbSpacToTarget = _targetedFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+
+		// double rad = _knownObstacles[fsName]->getRad() + _radius;
+
+		double segmentNorm = (forbSpacToWayPt - forbSpacToRobot).norm();
+
+		determinantP1P2 = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
+
+		discriminantWay = rad*rad * segmentNorm*segmentNorm - determinantP1P2*determinantP1P2;
+
+		if (discriminantWay < 0)
+		{
+			return false;
+		}
+		else
+		{
+			//robotToForbSpacDist
+			signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta)
+
+			_maxVelocity.block<double FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)
+
+			if signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim >()*_compHorizon: #0.0
+				#and signed_r2o_proj_on_gdir <= self.k_mod.u_max[0,0]*self._Tc:
+				print obstIdx, ': obstacle was left behind'
+				# obstacle was left behind
+				#return (d_theta, d_theta, LA.norm(robot2obst)-rad)
+				#return (0.0, 0.0, robot2goal_dist)
+				return False
+		}
+
 		return true;
 	}
 
 	Common::CArray3d PathPlannerRecHor::_getAngularVariationAndDistForAvoidance(const std::string& fsName)
 	{
-
 		double theta1, theta2;
 
-		FlatVector forbSpacToRobot = _latestFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
+		// FlatVector forbSpacToRobot = _latestFlat - _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
-		FlatVector robotToForbSpac = -1*forbSpacToRobot;
+		FlatVector robotToForbSpac = _knownObstacles[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
 
-		rad = _knownObstacles[fsName]->getRad() + _radius;
+		FlatVector robotToWayPt = _wayPt - _latestFlat;
+		double robotToWayPtDist = robotToWayPt.norm();
+		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+		double rad = _knownObstacles[fsName]->getRad() + _radius;
 
 		// sovling second degree eq for finding angular variations for passing by the "left" and "right" of this forbidden space
 
-		double a = robotToForbSpac*robotToForbSpac - rad*rad;
+		double a = robotToForbSpac(0,0)*robotToForbSpac(0,0) - rad*rad;
 		double b = -2.*robotToForbSpac(0,0)*robotToForbSpac(1,0);
-		double c = robotToForbSpac(1,0)**robotToForbSpac(1,0) - rad*rad;
+		double c = robotToForbSpac(1,0)*robotToForbSpac(1,0) - rad*rad;
 
 		double discriminant = b*b - 4*a*c;
 
@@ -526,15 +575,15 @@ namespace aiv
 		}
 		else
 		{
-			theta1 = atan((-b + np.sqrt(discriminant))/2/a);
-			theta2 = atan((-b - np.sqrt(discriminant))/2/a);
+			theta1 = atan((-b + sqrt(discriminant))/2/a);
+			theta2 = atan((-b - sqrt(discriminant))/2/a);
 		}
 
-		double refTheta = atan2(robotToObst(1,0), robotToObst(0,0));
+		double refTheta = atan2(robotToForbSpac(1,0), robotToForbSpac(0,0));
 
 		double quad14RefTheta = (refTheta < M_PI_2 && refTheta >= -M_PI_2/2.) ? refTheta : Common::wrapToPi(refTheta - M_PI);
 
-		if ((quad14RefTheta < theta1 && quad14RefTheta < theta2) || (quad14RefTheta > theta1 && quad14RefTheta > theta2)
+		if ((quad14RefTheta < theta1 && quad14RefTheta < theta2) || (quad14RefTheta > theta1 && quad14RefTheta > theta2))
 		{
 			// angle to forbidden space is not between thetas
 			if (abs(quad14RefTheta - theta1) > abs(quad14RefTheta - theta2))
@@ -553,11 +602,11 @@ namespace aiv
 		dTheta1 = Common::wrapToPi(wayPtTheta + dTheta1 - refTheta);
 		dTheta2 = Common::wrapToPi(wayPtTheta + dTheta2 - refTheta);
 
-		Common::CArray3d a;
-		a[0] = dTheta1;
-		a[1] = dTheta2;
-		a[2] = robotToObst.norm() - rad;
-		return a;
+		Common::CArray3d array;
+		array[0] = dTheta1;
+		array[1] = dTheta2;
+		array[2] = robotToForbSpac.norm() - rad;
+		return array;
 	}
 
 	void PathPlannerRecHor::_sortForbiddenSpacesAccordingToAngularVariation(std::vector<std::vector<std::string> >::iterator clIt)
