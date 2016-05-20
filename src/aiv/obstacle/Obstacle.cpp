@@ -9,6 +9,11 @@ Obstacle::Obstacle(std::string name, Application * app)
 {
 }
 
+Obstacle::Obstacle(std::string name)
+  : name(name)
+{
+}
+
 std::string Obstacle::getName() const
 {
   return name;

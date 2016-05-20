@@ -124,6 +124,7 @@ namespace aiv {
 				it->second->getSensor()->getObstacles(),
 				it->second->getSensor()->getVehicles(),
 				it->second->getCurrentPosition(),
+				it->second->getCurrentVelocity(),
 				it->second->getRad());
 			//std::cout << "after planner update [" << it->first << "]" << std::endl;
 			//it->second->getCurrentPosition(), it->second->getCurrentVelocity()); // pplanner update call with state feedback ! THIS MAKES NO SENSE

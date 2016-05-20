@@ -1,17 +1,16 @@
-#ifndef __AIV_PATHPLANNER_HPP__
-#define __AIV_PATHPLANNER_HPP__
+#ifndef __AIV__PATHPLANNER_HPP__
+#define __AIV__PATHPLANNER_HPP__
 #pragma once
 
-#include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Lgsm>
 #include <map>
-#include <unsupported/Eigen/Splines>
+//#include <unsupported/Eigen/Splines>
 #include "aiv/pathplanner/FlatoutputMonocycle.hpp"
+#include "aiv/pathplanner/Trajectory.hpp"
 
-namespace aiv {
-
-	//typedef Eigen::Spline< double, aiv::FlatoutputMonocycle::flatDim, aiv::FlatoutputMonocycle::flatDerivDeg + 1 > MySpline;
+namespace aiv
+{
 	class Obstacle;
 	class AIV;
 
@@ -22,9 +21,30 @@ namespace aiv {
 	public:
 		PathPlanner(std::string name);
 		virtual void update(std::map<std::string, Obstacle *> detectedObst,
-		 		std::map<std::string, AIV *> otherVehicles,
-		 		const Eigen::Displacementd & myRealPose,
-		 		const double myRadius) = 0;
+			std::map<std::string, AIV *> otherVehicles,
+			const Eigen::Displacementd & currentPose,
+			const Eigen::Twistd & currentVelo,
+			const double myRadius) = 0;
+
+		virtual void lockIntendedSolMutex() = 0;
+		virtual void unlockIntendedSolMutex() = 0;
+		
+		virtual double getIntendedBaseTime() const = 0;
+		virtual double getIntendedPlanHor() const = 0;
+
+		virtual const Eigen::Matrix<double, FlatoutputMonocycle::flatDim, 1> & getIntendedBasePos() const = 0;
+
+		virtual const Trajectory & getIntendedTrajectory() const = 0;
+		
+		// virtual double getMaxLinAccel() const = 0;
+
+		enum PlanStage {INIT, INTER, FINAL, DONE};
+		
+		virtual PlanStage getIntendedPlanStage() const = 0;
+
+		virtual double getTargetedLinVelocity() const = 0;
+		virtual const Eigen::Matrix<double, FlatoutputMonocycle::poseDim, 1> & getTargetedPose() const = 0;
+
 		virtual double getLinVelocity() const = 0;
 		virtual double getAngVelocity() const = 0;
 		virtual double getLinAccel() const = 0;
@@ -34,17 +54,12 @@ namespace aiv {
 		virtual double getXPosition() const = 0;
 		virtual double getYPosition() const = 0;
 		virtual double getOrientation() const = 0;
+		virtual double getComRange() const = 0;
+		virtual double getInterRobSafDist() const = 0;
 
-		//virtual double getSecRho() = 0;
-		//virtual double getComRange() = 0;
-		//irtual bool isDone() = 0;
-		//virtual double getInitTimeOfCurrPlan() = 0;
-		//virtual MySpline getSpline() = 0;
-		//const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity) = 0;
 	};
-
 }
 
-#endif // __AIV_PATHPLANNER_HPP__
+#endif // __AIV__PATHPLANNER_HPP__
 
 // cmake:sourcegroup=PathPlanner

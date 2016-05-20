@@ -328,6 +328,8 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
     hand, lab = axArrayErrPose[1].get_legend_handles_labels()
     axArrayErrPose[1].legend(hand, lab, ncol=1, prop={'size':10}, loc=2)
 
+    print list(sRSInfo.thetaErrTS())
+
     figErrPose.savefig(direc+'build/out/Release/bin/images/exytheta'+ str(sRSInfo.id) +'.pdf', bbox_inches='tight', dpi=300)
     figErrPose.savefig(direc+'build/out/Release/bin/images/exytheta'+ str(sRSInfo.id) +'.png', bbox_inches='tight', dpi=300)
     ##########

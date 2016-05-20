@@ -11,14 +11,15 @@ class Obstacle
   friend class ApplicationBuilder;
 public:
   Obstacle(std::string name, Application * app);
+  Obstacle(std::string name);
   virtual ~Obstacle(){};
 
 public:
   std::string getName() const;
 
-  Eigen::Displacementd getCurrentPosition();
+  virtual Eigen::Displacementd getCurrentPosition();
 
-  Eigen::Twistd getCurrentVelocity();
+  virtual Eigen::Twistd getCurrentVelocity();
 
   /*!
     Get the (updated) velocity wrt the global

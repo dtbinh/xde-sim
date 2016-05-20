@@ -25,6 +25,7 @@ namespace aiv
 			Eigen::Matrix<double, 1,  6>::Zero(), _K2, Eigen::Matrix<double, 1, 4>::Zero(),
 			Eigen::Matrix<double, 1,  9>::Zero(), _K1, Eigen::Matrix<double, 1, 2>::Zero(),
 			Eigen::Matrix<double, 1, 11>::Zero(), _K1).finished();
+
 	}
 
 	void ControllerMonocycle::setOption(std::string optionName, DyModParamVector optionValue)
@@ -32,7 +33,7 @@ namespace aiv
 		if (optionName == "dynModelParam")
 		{
 			_dMParameters = optionValue;
-			std::cout << "======  Set option [ " << optionName << " ] to value [ " << optionValue << " ]" << std::endl;
+			std::cout << "======  Set option [ " << optionName << " ] to value [ " << optionValue.transpose() << " ]" << std::endl;
 		}
 		else
 		{
@@ -50,7 +51,7 @@ namespace aiv
 			_K1 << 3./(2.*_predictionTime), 1.;
 			_K = (Eigen::Matrix< double, ControllerMonocycle::observDim, ControllerMonocycle::relativeDegOfNonLinMIMOSum >() <<
 				_K2, Eigen::Matrix<double, 1, 10>::Zero(),
-				Eigen::Matrix<double, 1,  3>::Zero(), _K2, Eigen::Matrix<double, 1, 7>::Zero(),
+			Eigen::Matrix<double, 1,  3>::Zero(), _K2, Eigen::Matrix<double, 1, 7>::Zero(),
 				Eigen::Matrix<double, 1,  6>::Zero(), _K2, Eigen::Matrix<double, 1, 4>::Zero(),
 				Eigen::Matrix<double, 1,  9>::Zero(), _K1, Eigen::Matrix<double, 1, 2>::Zero(),
 				Eigen::Matrix<double, 1, 11>::Zero(), _K1).finished();
@@ -125,6 +126,7 @@ namespace aiv
 										0,							   0, _dMParameters[1]/2., 				   0, _dMParameters[1]/2.).finished();
 
 		Eigen::Vector2d cntrlOut;
+		// cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*(Eigen::Matrix<double, 3, 3*3>() << _K.block<2, 3*3>(0,0), Eigen::Matrix<double, 1,  9>::Zero()).finished()*E.block<3*3, 1>(0,0);
 		cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*_K.block<3, 3*3>(0,0)*E.block<3*3, 1>(0,0);
 
 		_u1 = cntrlOut(0,0);

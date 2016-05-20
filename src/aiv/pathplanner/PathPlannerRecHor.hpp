@@ -9,15 +9,16 @@
 #include <boost/thread.hpp>
 #include <fstream>
 
+#include <nlopt.h>
+
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 
 #include <set>
 
 
-//Spline< dim, degree >
-
-namespace aiv {
+namespace aiv
+{
 
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1 > NDerivativesMatrix;
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 2 > Np1DerivativesMatrix;
@@ -27,10 +28,13 @@ namespace aiv {
 	typedef Eigen::Matrix< double, FlatoutputMonocycle::accelDim, 1 > AccelVector;
 
 	typedef std::map< std::string, Obstacle* > MapObst;
+	typedef std::map< std::string, AIV* > MapAIV;
+
+	typedef std::map< std::string, Eigen::Matrix < double, FlatoutputMonocycle::posDim, Eigen::Dynamic > > MapIntendedPath;
+
 
 	class Obstacle;
 	class AIV;
-
 
 	class CompObj
 	{
@@ -39,7 +43,7 @@ namespace aiv {
 		
 	public:
 		
-		CompObj(std::map<std::string, Common::CArray3d> avoidInfo):_avoidanceInfo(avoidInfo){};
+		CompObj(std::map<std::string, Common::CArray3d> avoidInfo):_avoidanceInfo(avoidInfo){}
 
 		bool operator() (const std::string& smaller, const std::string& greater)
 		{
@@ -60,7 +64,7 @@ namespace aiv {
 				return true;
 			}
 			else return false;
-		};
+		}
 
 		template < template < typename, typename > class C >
 		bool operator() (C<std::string, std::allocator<std::string> > smaller, C<std::string, std::allocator<std::string> > greater)
@@ -82,7 +86,7 @@ namespace aiv {
 				return true;
 			}
 			else return false;
-		};
+		}
 	};
 
 
@@ -110,8 +114,13 @@ namespace aiv {
 		VeloVector _targetedVelocity;
 		VeloVector _maxVelocity;
 		AccelVector _maxAcceleration;
+
 		FlatVector _latestFlat;
 		PoseVector _latestPose;
+		Eigen::Displacementd _currentPose;
+		Eigen::Twistd _currentVelo;
+		Eigen::QuaternionBase<Eigen::Quaternion<double> >::Vector3 _currentDirec;
+
 		VeloVector _latestVelocity;
 		PoseVector _initPoseForFuturePlan; // buffer for base position
 		PoseVector _initPoseForCurrPlan; // buffer for base position
@@ -135,17 +144,23 @@ namespace aiv {
 		double _robotObstacleSafetyDist;
 		double _maxStraightDist;
 
-		enum PlanStage { INIT, INTER, FINAL, DONE } _planStage;
+		PlanStage _planStage;
+		PlanStage _intendedPlanStage;
 		bool _waitForThread;
 
 		//double _estTime;
 		
 		MapObst _detectedObstacles;
 		MapObst _knownObstacles;
+
 		//std::map<std::string, std::vector<int> > conflictInfo;
-		// std::map< std::string, AIV* > _collisionAIVs;
-		// std::map< std::string, AIV* > _comOutAIVs;
-		// std::set< std::string > _comAIVsSet;
+		MapAIV _knownRobots;
+		
+		MapAIV _collisionAIVs;
+		MapAIV _comOutAIVs;
+		MapIntendedPath _pathsFromConflictualAIVs;
+
+		std::set< std::string > _comAIVsSet;
 
 		double _comRange;
 		double _radius;
@@ -180,17 +195,31 @@ namespace aiv {
 		double _firstPlanTimespan;
 		//unsigned long long _updateCallCntr;
 		double _currentPlanningTime;
+		double _baseTime;
+		double _timeOffset;
 
 		// multithreading management ======================================================
 		boost::mutex _planOngoingMutex;
 		boost::thread _planThread;
 
+		boost::mutex _comAIVsSetMutex;
+		boost::mutex _knownRobotsMutex;
+		boost::mutex _intendedSolMutex;
+
+		unsigned _optIterCnter;
+
+		nlopt_opt _opt;
 
 		// In out streamming ==============================================================
 		// std::ofstream _opt_log;
 		// std::ofstream _eq_log;
 		boost::property_tree::ptree _property_tree;
 
+
+		Trajectory _intendedTraj;
+		FlatVector _intendedBasePos;
+		double _intendedPlanHor;
+		double _intendedBaseTime;
 		//double nbPointsCloseInTime;
 
 		//double initTimeOfCurrPlan;
@@ -201,12 +230,15 @@ namespace aiv {
 	private:
 		void _plan();
 		//int findspan(const double t);
-		void _solveOptPbl();
-		//void _conflictEval(std::map<std::string, AIV *> otherVehicles, const Eigen::Displacementd & myRealPose);
+		bool _solveOptPbl();
+		void _conflictEval();
+
 		// int nbPointsCloseInTimeEval();
-		bool _isAnyForbSpacInRobotsWayToTarget();
-		bool _isForbSpaceInRobotsWay(const std::string& fsName);
-		Common::CArray3d _getAngularVariationAndDistForAvoidance(const std::string& fsName);
+		bool _isAnyForbSpacInRobotsWayToTarget(MapObst forbiddenSpaces);
+		bool _isForbSpaceInRobotsWay(const std::string& fsName, MapObst forbiddenSpaces);
+		Common::CArray3d _getAngularVariationAndDistForAvoidance(const std::string& fsName, MapObst forbiddenSpaces);
+		Common::CArray3d _estimateCollisionCenterAndRadius(const std::string& othRobName);	
+
 
 	public:
 		PathPlannerRecHor(std::string name, double updateTimeStep);
@@ -241,18 +273,30 @@ namespace aiv {
 		void setOption(const std::string& optionName, const unsigned optionValue);
 		void setOption(const std::string& optionName, const std::string& optionValue);
 
-		void update(std::map<std::string, Obstacle *> detectedObst,
-				std::map<std::string, AIV *> otherVehicles,
-				const Eigen::Displacementd & myRealPose, const double myRadius); //const Eigen::Displacementd & realPose, const Eigen::Twistd &realVelocity);
+		void update(MapObst detectedObst, MapAIV otherVehicles, const Eigen::Displacementd & currentPose, const Eigen::Twistd & currertVelo, const double myRadius);
+
+		inline void lockIntendedSolMutex() { _intendedSolMutex.lock(); }
+		inline void unlockIntendedSolMutex() { _intendedSolMutex.unlock(); }
 
 		// getters
+		inline double getIntendedBaseTime() const { return _intendedBaseTime; }
+		inline PlanStage getIntendedPlanStage() const { return _intendedPlanStage; }
+		inline double getIntendedPlanHor() const { return _intendedPlanHor; }
+		inline const FlatVector& getIntendedBasePos() const { return _intendedBasePos; }
+		inline const Trajectory& getIntendedTrajectory() const { return _intendedTraj; }
+		
+		inline const PoseVector& getTargetedPose() const { return _targetedPose; }
+		// inline double getMaxLinAccel() const { return _maxAcceleration(FlatoutputMonocycle::linAccelIdx); }
+
 		inline double getLinVelocity() const { return _velocityOutput(FlatoutputMonocycle::linSpeedIdx); }
+		inline double getTargetedLinVelocity() const { return _targetedVelocity(FlatoutputMonocycle::linSpeedIdx); }
 		inline double getMaxLinVelocity() const { return _maxVelocity(FlatoutputMonocycle::linSpeedIdx); }
 		inline double getAngVelocity() const { return _velocityOutput(FlatoutputMonocycle::angSpeedIdx); }
 		inline double getLinAccel() const { return _accelOutput(FlatoutputMonocycle::linSpeedIdx); }
 		inline double getAngAccel() const { return _accelOutput(FlatoutputMonocycle::angSpeedIdx); }
 		inline double getRobotObstacleSafetyDist() const { return _robotObstacleSafetyDist; }
 		inline double getComRange() const { return _comRange; }
+		inline double getInterRobSafDist() const { return _interRobotSafetyDist; }
 
 		inline double getXPosition() const { return _poseOutput(FlatoutputMonocycle::posIdx); }
 		inline double getYPosition() const { return _poseOutput(FlatoutputMonocycle::posIdx + 1); }
@@ -303,6 +347,12 @@ namespace aiv {
 	template<class T>
 	void PathPlannerRecHor::evalObj(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
+		// Increment number of eval obj calls
+		context->_optIterCnter++;
+
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
 
@@ -324,11 +374,14 @@ namespace aiv {
 	template<class T>
 	void PathPlannerRecHor::evalEq(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg);
+		NDerivativesMatrix derivFlatEq = context->_optTrajectory(1e-6, FlatoutputMonocycle::flatDerivDeg);
 
 		// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
 		PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
@@ -350,6 +403,9 @@ namespace aiv {
 	template<class T>
 	void PathPlannerRecHor::evalIneq(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
 
@@ -375,7 +431,7 @@ namespace aiv {
 		}
 
 		unsigned nAcc = i;
-		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
+		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size() + context->_collisionAIVs.size() + context->_comOutAIVs.size());
 
 		//#pragma omp parallel for <== DO NOT USE IT, BREAKS THE EVALUATION OF CONSTRAINTS SOMEHOW
 		for (i = 1; i <= int(context->_nTimeSamples); ++i)
@@ -397,29 +453,63 @@ namespace aiv {
 				result[nAcc + k + (i - 1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
 			}
 
-			std::map<std::string, Obstacle *>::iterator it;
-			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
+			MapObst::iterator obsIt;
+			for (obsIt = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++obsIt)
 			{
 				result[nAcc + j + (i - 1)*ieqPerSample] =
-					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
+					-1. * obsIt->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
 			}
+
+			MapAIV::iterator aivIt;
+			for (aivIt = context->_collisionAIVs.begin(), j = k; j - k < context->_collisionAIVs.size(); ++j, ++aivIt)
+			{
+
+				aivIt->second->getPathPlanner()->lockIntendedSolMutex();
+				
+				
+				double othBaseTime = aivIt->second->getPathPlanner()->getIntendedBaseTime();
+				double othPlanHor = aivIt->second->getPathPlanner()->getIntendedPlanHor();
+				FlatVector othPosition(aivIt->second->getPathPlanner()->getIntendedBasePos());
+				Trajectory othTraj = aivIt->second->getPathPlanner()->getIntendedTrajectory();
+				PlanStage othPlanStage = aivIt->second->getPathPlanner()->getIntendedPlanStage();
+
+				
+				aivIt->second->getPathPlanner()->unlockIntendedSolMutex();
+
+			}
+			
+			for (aivIt = context->_comOutAIVs.begin(), j = k; j - k < context->_comOutAIVs.size(); ++j, ++aivIt)
+			{
+
+
+			}
+
 		}
 	}
 
 	template<class T>
 	void PathPlannerRecHor::evalObjLS(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
-		*result = x[0];
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
+		// Increment number of eval obj calls
+		context->_optIterCnter++;
+
+		*result = x[0]*x[0];
 	}
 
 	template<class T>
 	void PathPlannerRecHor::evalEqLS(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(&(x[1]), x[0]);
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg);
+		NDerivativesMatrix derivFlatEq = context->_optTrajectory(1e-6, FlatoutputMonocycle::flatDerivDeg);
 
 		PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
 		diffPose.tail<1>()(0,0) = Common::wrapToPi(diffPose.tail<1>()(0,0));
@@ -437,7 +527,7 @@ namespace aiv {
 		}
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		derivFlatEq = context->_optTrajectory(x[0], FlatoutputMonocycle::flatDerivDeg);
+		derivFlatEq = context->_optTrajectory(x[0]-1e-6, FlatoutputMonocycle::flatDerivDeg);
 
 		PoseVector poseAtTfWRTMySelf = FlatoutputMonocycle::flatToPose(derivFlatEq);
 		
@@ -463,6 +553,9 @@ namespace aiv {
 	template<class T>
 	void PathPlannerRecHor::evalIneqLS(double *result, unsigned n, T x, PathPlannerRecHor *context)
 	{
+		try { boost::this_thread::interruption_point(); }
+		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
 		//std::cout << "::evalIneqLS call" << std::endl;
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(&(x[1]), x[0]);
@@ -503,7 +596,13 @@ namespace aiv {
 
 		unsigned nAcc = j;
 
-		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size());
+		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size() + context->_collisionAIVs.size() + context->_comOutAIVs.size());
+
+		// Manage intended solutions between myself and others not begining at the same moment
+		if (!context->_collisionAIVs.empty() || !context->_comOutAIVs.empty())
+		{
+
+		}
 
 		for (int i = 1; i < int(context->_nTimeSamples); ++i)
 		{
@@ -527,15 +626,28 @@ namespace aiv {
 				// std::cout << "r[" << nAcc + k + (i - 1)*ieqPerSample << "]=" << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
 			}
 
-			std::map<std::string, Obstacle *>::iterator it;
+			MapObst::iterator it;
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
 				result[nAcc + j + (i - 1)*ieqPerSample] =
 					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
 				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 			}
+
+			MapAIV::iterator aivIt;
+			for (aivIt = context->_collisionAIVs.begin(), j = k; j - k < context->_collisionAIVs.size(); ++j, ++aivIt)
+			{
+
+			}
+			
+			for (aivIt = context->_comOutAIVs.begin(), j = k; j - k < context->_comOutAIVs.size(); ++j, ++aivIt)
+			{
+
+			}
 		}
 	}
+	
+
 }
 
 #endif // __AIV_PATHPLANNERRECHOR_HPP__

@@ -14,7 +14,8 @@ namespace aiv {
 		_nCtrlPts = ctrlPts.cols();
 		_nIntervNonNull = ctrlPts.cols()-derivDeg;
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, ctrlPts.cols()-derivDeg), ctrlPts);
+		_knots = _genKnots(0.0, parVarInterval, true, ctrlPts.cols()-derivDeg);
+		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
 	}
 
 	void Trajectory::interpolate(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& points, const double parVarInterval)
@@ -29,8 +30,9 @@ namespace aiv {
 		TrajectorySpline::ControlPointVectorType ctrlPts(dim, _nCtrlPts);
 		ctrlPts = _trajecSpl.ctrls();
 
+		_knots = _genKnots(0.0, parVarInterval, true, _nIntervNonNull);
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlPts);
+		new (&_trajecSpl) TrajectorySpline(_knots, ctrlPts);
 
 		//std::cout << "knots\n" << _trajecSpl.knots() << std::endl;
 		//std::cout << "genKnots\n" << _genKnots(0.0, parVarInterval, true, _nIntervNonNull) << std::endl;
@@ -71,20 +73,23 @@ namespace aiv {
 
 	void Trajectory::update(const double *ctrlpts, const double parVarInterval)
 	{
+		_knots = _genKnots(0.0, parVarInterval, true, _nIntervNonNull);
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
+		new (&_trajecSpl) TrajectorySpline(_knots, cArray2CtrlPtsMat(ctrlpts));
 	}
 
 	void Trajectory::update(volatile double *ctrlpts, volatile double parVarInterval)
 	{
+		_knots = _genKnots(0.0, parVarInterval, true, _nIntervNonNull);
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), cArray2CtrlPtsMat(ctrlpts));
+		new (&_trajecSpl) TrajectorySpline(_knots, cArray2CtrlPtsMat(ctrlpts));
 	}
 
 	void Trajectory::update(const Eigen::Matrix<double, Trajectory::dim, Eigen::Dynamic>& ctrlpts, const double parVarInterval)
 	{
+		_knots = _genKnots(0.0, parVarInterval, true, _nIntervNonNull);
 		_trajecSpl.~TrajectorySpline();
-		new (&_trajecSpl) TrajectorySpline(_genKnots(0.0, parVarInterval, true, _nIntervNonNull), ctrlpts);
+		new (&_trajecSpl) TrajectorySpline(_knots, ctrlpts);
 	}
 
 	void Trajectory::updateFromUniform(const double *ctrlpts)

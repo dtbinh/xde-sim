@@ -436,7 +436,9 @@ for t, index in zip(timeRange, range(len(timeRange))):
     [sRSInfo.updatePlot(fig, t) for sRSInfo in simulInfo]
 
     ax.relim()
-    ax.autoscale_view(True, True, True)
+    # ax.autoscale_view(True, True, True)
+    ax.set_ylim([-10, 10])
+    ax.set_xlim([-10, 10])
     fig.canvas.draw()
 
     # if t == timeRange[-1]:

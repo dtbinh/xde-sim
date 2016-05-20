@@ -18,7 +18,7 @@ namespace aiv {
 		void setOption(std::string optionName, unsigned optionValue);
 		template<class T>
 		Eigen::Matrix<double, dim, Eigen::Dynamic> cArray2CtrlPtsMat(T ctrlpts);
-
+		
 		void update(const double *ctrlpts);
 		void update(volatile double *ctrlpts);
 		void update(const Eigen::Matrix<double, dim, Eigen::Dynamic>& ctrlpts);
@@ -39,6 +39,7 @@ namespace aiv {
 		void getParameters(double* params) const;
 		//double getParVarInterv() const { return _trajecSpl.knots().tail(1)(0,0); };
 		Eigen::Matrix<double, dim, Eigen::Dynamic> getCtrlPts() const { return _trajecSpl.ctrls(); };
+		Eigen::Matrix<double, 1, Eigen::Dynamic> getKnots() const { return _trajecSpl.knots(); };
 
 		int nParam() const { return _nCtrlPts; };
 

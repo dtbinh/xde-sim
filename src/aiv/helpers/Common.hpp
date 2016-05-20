@@ -26,8 +26,26 @@
 #error "Unable to define Common::getRealTime( ) for an unknown OS."
 #endif
 
+#define FG_B_RED "\033[1;31m"
+#define FG_B_GREEN "\033[1;32m"
+#define FG_B_YELLOW "\033[1;33m"
+#define FG_B_BLUE "\033[1;34m"
+#define FG_B_MAGENTA "\033[1;35m"
+#define FG_B_CYAN "\033[1;36m"
+#define FG_B_L_RED "\033[1;91m"
+#define FG_B_L_GREEN "\033[1;92m"
+#define FG_B_L_YELLOW "\033[1;93m"
+#define FG_B_L_BLUE "\033[1;94m"
+#define FG_B_L_MAGENTA "\033[1;95m"
+#define FG_B_L_CYAN "\033[1;96m"
+#define RESET "\033[0m"
+
+#define BG_L_RED "\033[101m"
+
 namespace Common
 {
+
+
 
 	class MyException: public std::exception
 	{
@@ -311,11 +329,20 @@ namespace Common
 	};
 
 	template <class M, class V>
-	void MapToVec(const  M & m, V & v)
+	void ValsOnMapToVec(const M & m, V & v)
 	{
 		for (M::const_iterator it = m.begin(); it != m.end(); ++it)
 		{
-			v.push_back( it->second );
+			v.insert( v.end(), it->second );
+		}
+	};
+
+	template <class M, class V>
+	void KeysOnMapToVec(const M & m, V & v)
+	{
+		for (M::const_iterator it = m.begin(); it != m.end(); ++it)
+		{
+			v.insert( v.end(), it->first );
 		}
 	};
 
@@ -340,6 +367,7 @@ namespace Common
 	};
 
 	typedef CArray<double, 3> CArray3d;
+	typedef CArray<double, 2> CArray2d;
 
 }
 
