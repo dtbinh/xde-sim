@@ -309,7 +309,7 @@ To find the control law that minimizes $J$ is to find $u$ satisfying the equatio
 \frac{\partial J}{\partial u} = 0_{p\times 1}
 \end{align*}
 
-For solving the above equation the prediction error must be determined and the criterion rewritten in a matricial form.
+For solving the above equation a expression for the prediction error must be defined and the criterion rewritten in a matrix form.
 
 %Predictive control equation minimizing the position and orientation errors.
 
@@ -417,7 +417,8 @@ L_f^{(\rho_m)}h_m - h^{(\rho_m)}_{\text{ref},\,m}
 
 \begin{eqnarray}
 K = 
-\left[\begin{array}{ccc}
+\left[
+\begin{array}{ccc}
 \Pi^{ss}_1 & & 0\\
 & \ddots &\\
 0 & & \Pi^{ss}_m
@@ -429,11 +430,21 @@ K =
 \end{array}\right]
 \end{eqnarray}
 
-with $\Pi^{s}_i$ the last line of the matrix $\Pi_i$ and $\Pi^{ss}_i$ the last element of the vector $\Pi^{s}_i$. $\Pi_i$ being defined as:
+with $\Pi^{s}_i$ the last line of the matrix $\Pi_i$ and $\Pi^{ss}_i$ the last element of the vector $\Pi^{s}_i$. 
 
-\begin{eqnarray}
-\Pi_i = \int^{T_i}_0\Lambda_i^T\Lambda_id\tau
-\end{eqnarray}
+$\Pi_i$ being defined as:
+
+%& \frac{\tau^{(\rho_i-1)+1}}{((\rho_i-1)+1)(\rho_i-1)!}
+
+\begin{align}
+&\Pi_i = \int^{T_i}_0\Lambda_i^T\Lambda_id\tau\\
+&=  \left[\begin{array}{cccccc}
+T_i & \frac{T_i^2}{2} & \dots & \frac{T_i^{(\rho_i-1)+1}}{((\rho_i-1)+1)(\rho_i-1)!} & \frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!}\\
+\frac{T_i^2}{2} & \frac{T_i^3}{3} & \dots &  \frac{T_i^{((\rho_i-1)+1)+1}}{(((\rho_i-1)+1)+1)(\rho_i-1)!} & \frac{T_i^{(\rho_i+1)+1}}{((\rho_i+1)+1)\rho_i!}\\
+& & \ddots & & \\
+\frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!} & & \dots & \frac{T_i^{(\rho_i+(\rho_i-1))+1}}{((\rho_i+(\rho_i-1))+1)\rho_i!(\rho_i-1)!} & \frac{T_i^{(\rho_i+\rho_i)+1}}{((\rho_i+\rho_i)+1)\rho_i!\rho_i!}
+\end{array}\right]
+\end{align}
 
 The MIMO (Multiple Input Multiple Output) system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
 
