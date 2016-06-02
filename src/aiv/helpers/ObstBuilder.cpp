@@ -32,7 +32,7 @@ void ObstBuilder::addCircularObstToApplication(const std::string & name,
                                       obstInitDisplacements,  // position
                                       v.second.get<double>("mass"), // mass
                                       true, // enableWeight
-                                      Eigen::Vector3d::Constant(0.0254),  // scale
+                                      v.second.get<double>("radius")*Eigen::Vector3d::Constant(0.0254),  // scale
                                       0.005); // offset
   
   obst->radius = v.second.get<double>("radius");
@@ -69,7 +69,7 @@ void ObstBuilder::addPolygonObstToApplication(const std::string & name,
                                       obstInitDisplacements,  // position
                                       v.second.get<double>("mass"), // mass
                                       true, // enableWeight
-                                      Eigen::Vector3d::Constant(0.0254),  // scale
+                                      v.second.get<double>("radius")*Eigen::Vector3d::Constant(0.0254),  // scale
                                       0.005); // offset
 
   // get polygon vertices' position in the XY plan

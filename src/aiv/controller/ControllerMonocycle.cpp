@@ -18,6 +18,7 @@ namespace aiv
 		_predictionTime(0.6)
 	{
 		_K2 = (Eigen::Matrix<double, 1, 3>() << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.).finished();
+		_K22 = (Eigen::Matrix<double, 1, 3>() << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.).finished();
 		_K1 = (Eigen::Matrix<double, 1, 2>() << 3./(2.*_predictionTime), 1.).finished();
 		_K = (Eigen::Matrix< double, ControllerMonocycle::observDim, ControllerMonocycle::relativeDegOfNonLinMIMOSum >() <<
 			_K2, Eigen::Matrix<double, 1, 10>::Zero(),
@@ -48,10 +49,11 @@ namespace aiv
 			_predictionTime = optionValue;
 			//update Gain Matrix
 			_K2 << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.;
+			// _K22 << 10./(3.*_predictionTime*_predictionTime), 5./(2.*_predictionTime), 1.;
 			_K1 << 3./(2.*_predictionTime), 1.;
 			_K = (Eigen::Matrix< double, ControllerMonocycle::observDim, ControllerMonocycle::relativeDegOfNonLinMIMOSum >() <<
-				_K2, Eigen::Matrix<double, 1, 10>::Zero(),
-			Eigen::Matrix<double, 1,  3>::Zero(), _K2, Eigen::Matrix<double, 1, 7>::Zero(),
+				1*_K2, Eigen::Matrix<double, 1, 10>::Zero(),
+				Eigen::Matrix<double, 1,  3>::Zero(), 1*_K2, Eigen::Matrix<double, 1, 7>::Zero(),
 				Eigen::Matrix<double, 1,  6>::Zero(), _K2, Eigen::Matrix<double, 1, 4>::Zero(),
 				Eigen::Matrix<double, 1,  9>::Zero(), _K1, Eigen::Matrix<double, 1, 2>::Zero(),
 				Eigen::Matrix<double, 1, 11>::Zero(), _K1).finished();
@@ -106,10 +108,10 @@ namespace aiv
 
 		Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1> E =
 			(Eigen::Matrix < double, relativeDegOfNonLinMIMOSum, 1>() <<
-			x - x_r,
+			(x - x_r),
 			u*cos(theta)-xdot_r,
 			L2fy1 - xdotdot_r,
-			y - y_r,
+			(y - y_r),
 			u*sin(theta)-ydot_r,
 			L2fy2 - ydotdot_r,
 			Common::wrapToPi(theta - theta_r),
@@ -129,8 +131,15 @@ namespace aiv
 		// cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*(Eigen::Matrix<double, 3, 3*3>() << _K.block<2, 3*3>(0,0), Eigen::Matrix<double, 1,  9>::Zero()).finished()*E.block<3*3, 1>(0,0);
 		cntrlOut = -2.*DtDm1Dt.block<outputDim, 3>(0,0)*_K.block<3, 3*3>(0,0)*E.block<3*3, 1>(0,0);
 
+		double a = ydot_r;
+		double b = -xdot_r;
+		double c = xdot_r * y_r - ydot_r * x_r;
+
+		double signedDist = (a*x + b*y + c) * Common::finvsqrt(a*a + b*b);
+
+
 		_u1 = cntrlOut(0,0);
-		_u2 = cntrlOut(1,0);
+		_u2 = cntrlOut(1,0) + signedDist;
 
 		// limiting output
 		_u1 = max( min( _u1, _maxU1 ), -1*_maxU1 );

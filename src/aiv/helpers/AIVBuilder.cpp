@@ -244,9 +244,9 @@ namespace aiv {
 			pplanner->setOption("eqTol", pt.get<double>("root.mpmethod.optimizer.eqtolerance"));
 			pplanner->setOption("ineqTol", pt.get<double>("root.mpmethod.optimizer.ineqtolerance"));
 			pplanner->setOption("fTol", pt.get<double>("root.mpmethod.optimizer.ftolerance"));
-			pplanner->setOption("lastMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.last"));
-			pplanner->setOption("firstMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.first"));
-			pplanner->setOption("interMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteraction.inter"));
+			pplanner->setOption("lastMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteration.last"));
+			pplanner->setOption("firstMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteration.first"));
+			pplanner->setOption("interMaxIteration", pt.get<unsigned>("root.mpmethod.optimizer.maxiteration.inter"));
 		}
 		else
 		{

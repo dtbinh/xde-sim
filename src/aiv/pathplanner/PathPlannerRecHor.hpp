@@ -30,7 +30,7 @@ namespace aiv
 	typedef std::map< std::string, Obstacle* > MapObst;
 	typedef std::map< std::string, AIV* > MapAIV;
 
-	typedef std::map< std::string, Eigen::Matrix < double, FlatoutputMonocycle::posDim, Eigen::Dynamic > > MapIntendedPath;
+	typedef std::map< std::string, Eigen::Matrix < double, FlatoutputMonocycle::posDim, Eigen::Dynamic > > MapSharedPath;
 
 
 	class Obstacle;
@@ -110,6 +110,7 @@ namespace aiv
 		FlatVector _initFlat;
 		VeloVector _initVelocity;
 		PoseVector _targetedPose;
+		PoseVector _sharedTargetedPose;
 		FlatVector _targetedFlat;
 		VeloVector _targetedVelocity;
 		VeloVector _maxVelocity;
@@ -145,7 +146,7 @@ namespace aiv
 		double _maxStraightDist;
 
 		PlanStage _planStage;
-		PlanStage _intendedPlanStage;
+		PlanStage _sharedPlanStage;
 		bool _waitForThread;
 
 		//double _estTime;
@@ -158,16 +159,18 @@ namespace aiv
 		
 		MapAIV _collisionAIVs;
 		MapAIV _comOutAIVs;
-		MapIntendedPath _pathsFromConflictualAIVs;
+		MapSharedPath _pathsFromConflictualAIVs;
 
 		std::set< std::string > _comAIVsSet;
 
 		double _comRange;
 		double _radius;
+		double _sharedRadius;
 		//double secRho; // secure distance from other robots and obstacles
 
 		unsigned _nTimeSamples;     // number of  time samples taken within a planning horizon
 		int _executingPlanIdx;
+		bool _spawnP0;
 
 		Eigen::Matrix2d _rotMat2WRef;
 		Eigen::Matrix2d _rotMat2RRef;
@@ -204,7 +207,7 @@ namespace aiv
 
 		boost::mutex _comAIVsSetMutex;
 		boost::mutex _knownRobotsMutex;
-		boost::mutex _intendedSolMutex;
+		boost::mutex _sharedSolMutex;
 
 		unsigned _optIterCnter;
 
@@ -216,10 +219,10 @@ namespace aiv
 		boost::property_tree::ptree _property_tree;
 
 
-		Trajectory _intendedTraj;
-		FlatVector _intendedBasePos;
-		double _intendedPlanHor;
-		double _intendedBaseTime;
+		Trajectory _sharedTraj;
+		FlatVector _sharedBasePos;
+		double _sharedPlanHor;
+		double _sharedBaseTime;
 		//double nbPointsCloseInTime;
 
 		//double initTimeOfCurrPlan;
@@ -275,17 +278,19 @@ namespace aiv
 
 		void update(MapObst detectedObst, MapAIV otherVehicles, const Eigen::Displacementd & currentPose, const Eigen::Twistd & currertVelo, const double myRadius);
 
-		inline void lockIntendedSolMutex() { _intendedSolMutex.lock(); }
-		inline void unlockIntendedSolMutex() { _intendedSolMutex.unlock(); }
+		inline void lockSharedSolMutex() { _sharedSolMutex.lock(); }
+		inline void unlockSharedSolMutex() { _sharedSolMutex.unlock(); }
 
 		// getters
-		inline double getIntendedBaseTime() const { return _intendedBaseTime; }
-		inline PlanStage getIntendedPlanStage() const { return _intendedPlanStage; }
-		inline double getIntendedPlanHor() const { return _intendedPlanHor; }
-		inline const FlatVector& getIntendedBasePos() const { return _intendedBasePos; }
-		inline const Trajectory& getIntendedTrajectory() const { return _intendedTraj; }
+		inline double getSharedBaseTime() const { return _sharedBaseTime; }
+		inline PlanStage getSharedPlanStage() const { return _sharedPlanStage; }
+		inline double getSharedPlanHor() const { return _sharedPlanHor; }
+		inline const FlatVector& getSharedBasePos() const { return _sharedBasePos; }
+		inline const Trajectory& getSharedTrajectory() const { return _sharedTraj; }
 		
-		inline const PoseVector& getTargetedPose() const { return _targetedPose; }
+		inline const PoseVector& getSharedTargetedPose() const { return _sharedTargetedPose; }
+
+		inline double getSharedRadius() const { return _sharedRadius; }
 		// inline double getMaxLinAccel() const { return _maxAcceleration(FlatoutputMonocycle::linAccelIdx); }
 
 		inline double getLinVelocity() const { return _velocityOutput(FlatoutputMonocycle::linSpeedIdx); }
@@ -461,28 +466,31 @@ namespace aiv
 			}
 
 			MapAIV::iterator aivIt;
-			for (aivIt = context->_collisionAIVs.begin(), j = k; j - k < context->_collisionAIVs.size(); ++j, ++aivIt)
+			for (aivIt = context->_collisionAIVs.begin(), k = j; k - j < context->_collisionAIVs.size(); ++k, ++aivIt)
 			{
+				// std::cout << "Insinde conllision\n";
+				double distanceInterRobots = (context->_rotMat2WRef*derivFlat.col(0) +context->_latestPose.head<2>() - context->_pathsFromConflictualAIVs[aivIt->first].col(i-1)).norm();
 
-				aivIt->second->getPathPlanner()->lockIntendedSolMutex();
-				
-				
-				double othBaseTime = aivIt->second->getPathPlanner()->getIntendedBaseTime();
-				double othPlanHor = aivIt->second->getPathPlanner()->getIntendedPlanHor();
-				FlatVector othPosition(aivIt->second->getPathPlanner()->getIntendedBasePos());
-				Trajectory othTraj = aivIt->second->getPathPlanner()->getIntendedTrajectory();
-				PlanStage othPlanStage = aivIt->second->getPathPlanner()->getIntendedPlanStage();
+				// std::cout << "distanceInterRobots " << distanceInterRobots << std::endl;
 
-				
-				aivIt->second->getPathPlanner()->unlockIntendedSolMutex();
+				aivIt->second->getPathPlanner()->lockSharedSolMutex();
+				double radii = aivIt->second->getPathPlanner()->getSharedRadius() + context->_radius;
+				aivIt->second->getPathPlanner()->unlockSharedSolMutex();
+
+				double dSecurity = max(context->_interRobotSafetyDist, aivIt->second->getPathPlanner()->getInterRobSafDist());
+
+				result[nAcc + k + (i - 1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
+
+				 // - distanceInterRobots + ;
+				// std::cout << "result[nAcc + k + (i - 1)*ieqPerSample] " << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
 
 			}
 			
-			for (aivIt = context->_comOutAIVs.begin(), j = k; j - k < context->_comOutAIVs.size(); ++j, ++aivIt)
-			{
+			// for (aivIt = context->_comOutAIVs.begin(), j = k; j - k < context->_comOutAIVs.size(); ++j, ++aivIt)
+			// {
 
 
-			}
+			// }
 
 		}
 	}
@@ -598,12 +606,6 @@ namespace aiv
 
 		unsigned ieqPerSample = (FlatoutputMonocycle::veloDim + FlatoutputMonocycle::accelDim + context->_detectedObstacles.size() + context->_collisionAIVs.size() + context->_comOutAIVs.size());
 
-		// Manage intended solutions between myself and others not begining at the same moment
-		if (!context->_collisionAIVs.empty() || !context->_comOutAIVs.empty())
-		{
-
-		}
-
 		for (int i = 1; i < int(context->_nTimeSamples); ++i)
 		{
 			derivFlat = context->_optTrajectory(double(i) / context->_nTimeSamples * context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
@@ -634,14 +636,22 @@ namespace aiv
 				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
 			}
 
-			MapAIV::iterator aivIt;
-			for (aivIt = context->_collisionAIVs.begin(), j = k; j - k < context->_collisionAIVs.size(); ++j, ++aivIt)
-			{
-
-			}
 			
-			for (aivIt = context->_comOutAIVs.begin(), j = k; j - k < context->_comOutAIVs.size(); ++j, ++aivIt)
+			MapAIV::iterator aivIt;
+			for (aivIt = context->_collisionAIVs.begin(), k = j; k - j < context->_collisionAIVs.size(); ++k, ++aivIt)
 			{
+				// std::cout << "Insinde conllision\n";
+				double distanceInterRobots = (context->_rotMat2WRef*derivFlat.col(0) +context->_latestPose.head<2>() - context->_pathsFromConflictualAIVs[aivIt->first].col(i-1)).norm();
+
+				// std::cout << "distanceInterRobots " << distanceInterRobots << std::endl;
+
+				aivIt->second->getPathPlanner()->lockSharedSolMutex();
+				double radii = aivIt->second->getPathPlanner()->getSharedRadius() + context->_radius;
+				aivIt->second->getPathPlanner()->unlockSharedSolMutex();
+
+				double dSecurity = max(context->_interRobotSafetyDist, aivIt->second->getPathPlanner()->getInterRobSafDist());
+
+				result[nAcc + k + (i - 1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
 
 			}
 		}

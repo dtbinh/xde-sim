@@ -508,11 +508,11 @@
     <robotobstaclesafetydist unit="m">0.1</robotobstaclesafetydist>
     <conflictfreepathdeviation unit="m">3.0</conflictfreepathdeviation>
     <optimizer type="NONE">
-      <maxiteraction>
+      <maxiteration>
         <first>100</first>
         <inter>100</inter>
         <last>100</last>
-      </maxiteraction>
+      </maxiteration>
       <xtolerance>1e-2</xtolerance>
       <ftolerance>1e-2</ftolerance> <!-- not used -->
       <eqtolerance>1e-4</eqtolerance>

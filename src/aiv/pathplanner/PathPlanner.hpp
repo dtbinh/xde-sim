@@ -26,24 +26,26 @@ namespace aiv
 			const Eigen::Twistd & currentVelo,
 			const double myRadius) = 0;
 
-		virtual void lockIntendedSolMutex() = 0;
-		virtual void unlockIntendedSolMutex() = 0;
+		virtual void lockSharedSolMutex() = 0;
+		virtual void unlockSharedSolMutex() = 0;
 		
-		virtual double getIntendedBaseTime() const = 0;
-		virtual double getIntendedPlanHor() const = 0;
+		virtual double getSharedBaseTime() const = 0;
+		virtual double getSharedPlanHor() const = 0;
 
-		virtual const Eigen::Matrix<double, FlatoutputMonocycle::flatDim, 1> & getIntendedBasePos() const = 0;
+		virtual const Eigen::Matrix<double, FlatoutputMonocycle::flatDim, 1> & getSharedBasePos() const = 0;
 
-		virtual const Trajectory & getIntendedTrajectory() const = 0;
+		virtual const Trajectory & getSharedTrajectory() const = 0;
 		
 		// virtual double getMaxLinAccel() const = 0;
 
 		enum PlanStage {INIT, INTER, FINAL, DONE};
 		
-		virtual PlanStage getIntendedPlanStage() const = 0;
+		virtual PlanStage getSharedPlanStage() const = 0;
 
 		virtual double getTargetedLinVelocity() const = 0;
-		virtual const Eigen::Matrix<double, FlatoutputMonocycle::poseDim, 1> & getTargetedPose() const = 0;
+		virtual const Eigen::Matrix<double, FlatoutputMonocycle::poseDim, 1> & getSharedTargetedPose() const = 0;
+
+		virtual double getSharedRadius() const = 0;
 
 		virtual double getLinVelocity() const = 0;
 		virtual double getAngVelocity() const = 0;

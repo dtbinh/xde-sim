@@ -79,7 +79,7 @@ double AdeptLynx::getTrack()
 
 double AdeptLynx::getRad()
 {
-  return 2*getTrack(); //TODO get biggest dimension of robot /2
+  return 2.5*getTrack(); //TODO get biggest dimension of robot /2
 }
 
 }

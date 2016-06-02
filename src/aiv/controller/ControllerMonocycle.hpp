@@ -25,6 +25,7 @@ namespace aiv {
 		static const unsigned relativeDegOfNonLinMIMOSum = 13; // equals to (relativeDegOfNonLinMIMO+1).sum(), but sum() is runtime, I want it at compitation time
 
 		Eigen::Matrix<double, 1, 3> _K2;
+		Eigen::Matrix<double, 1, 3> _K22;
 		Eigen::Matrix<double, 1, 2> _K1;
 		Eigen::Matrix< double, observDim, relativeDegOfNonLinMIMOSum > _K;
 		DyModParamVector _dMParameters;

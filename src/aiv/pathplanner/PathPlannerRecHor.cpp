@@ -56,7 +56,7 @@ namespace aiv
 		, _maxAcceleration(AccelVector::Constant(std::numeric_limits<double>::infinity()))
 
 		, _planStage(INIT)
-		, _intendedPlanStage(INIT)
+		, _sharedPlanStage(INIT)
 		//, _ongoingPlanIdx(-1)
 		, _executingPlanIdx(-1)
 		//, _isThereConfl(NONE)
@@ -69,6 +69,7 @@ namespace aiv
 		, _radius(0.0)
 		, _optIterCnter(0)
 		, _timeOffset(Common::getRealTime<double>())
+		, _spawnP0(false)
 	{
 		_planOngoingMutex.initialize();
 		//this->opt_log.open("optlog///opt_log.txt");
@@ -98,6 +99,7 @@ namespace aiv
 		_initVelocity = initVelocity;
 
 		_targetedPose = targetedPose;
+		_sharedTargetedPose = targetedPose;
 		_targetedFlat = FlatoutputMonocycle::poseToFlat(_targetedPose);
 		_targetedVelocity = targetedVelocity;
 		
@@ -223,7 +225,7 @@ namespace aiv
 		_comOutAIVs.clear();
 		_pathsFromConflictualAIVs.clear();
 
-		//MapIntendedPath
+		//MapSharedPath
 
 		// Vector2d myPosition;
 		// myPosition << _currentPose.x(), _currentPose.y();
@@ -234,19 +236,20 @@ namespace aiv
 		{
 			
 			
-			it->second->getPathPlanner()->lockIntendedSolMutex();
+			it->second->getPathPlanner()->lockSharedSolMutex();
 			
 			
-			double othBaseTime = it->second->getPathPlanner()->getIntendedBaseTime();
-			double othPlanHor = it->second->getPathPlanner()->getIntendedPlanHor();
-			FlatVector othPosition(it->second->getPathPlanner()->getIntendedBasePos());
-			Trajectory othTraj = it->second->getPathPlanner()->getIntendedTrajectory();
-			PlanStage othPlanStage = it->second->getPathPlanner()->getIntendedPlanStage();
+			double othBaseTime = it->second->getPathPlanner()->getSharedBaseTime();
+			double othPlanHor = it->second->getPathPlanner()->getSharedPlanHor();
+			FlatVector othPosition(it->second->getPathPlanner()->getSharedBasePos());
+			Trajectory othTraj = it->second->getPathPlanner()->getSharedTrajectory();
+			PlanStage othPlanStage = it->second->getPathPlanner()->getSharedPlanStage();
+			FlatVector othTargetedPos = it->second->getPathPlanner()->getSharedTargetedPose().block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+			
 
-			
-			it->second->getPathPlanner()->unlockIntendedSolMutex();
+			it->second->getPathPlanner()->unlockSharedSolMutex();
 
-			FlatVector myPosition(_intendedBasePos);
+			FlatVector myPosition(_sharedBasePos);
 
 			double dSecutiry = std::max(_interRobotSafetyDist, it->second->getPathPlanner()->getInterRobSafDist());
 
@@ -263,7 +266,7 @@ namespace aiv
 
 				bool conflictual = false;
 
-				if (dInterRobot <= dSecutiry + _intendedPlanHor*maxAbsRelVel)
+				if (dInterRobot <= dSecutiry + _sharedPlanHor*maxAbsRelVel + _radius + it->second->getRad())
 				{
 					_collisionAIVs[it->first] = it->second;
 					std::cout << FG_B_L_CYAN << "=========== " << it->first << " was added" <<  "===========" << RESET << std::endl;
@@ -281,7 +284,6 @@ namespace aiv
 
 				if (conflictual)
 				{
-					FlatVector othTargetedPos = it->second->getPathPlanner()->getTargetedPose().block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
 
 					_pathsFromConflictualAIVs[it->first] = othTargetedPos.replicate(1, _nTimeSamples);
 				}
@@ -289,26 +291,26 @@ namespace aiv
 			}
 			else
 			{
-				bool mIEarly = _intendedBaseTime >= othBaseTime && _intendedBaseTime <= othBaseTime + othPlanHor;
-				bool mILate = _intendedBaseTime <= othBaseTime && _intendedBaseTime + _intendedPlanHor >= othBaseTime;
+				bool mIEarly = _sharedBaseTime >= othBaseTime && _sharedBaseTime <= othBaseTime + othPlanHor;
+				bool mILate = _sharedBaseTime <= othBaseTime && _sharedBaseTime + _sharedPlanHor >= othBaseTime;
 
 				if (mILate || mIEarly)
 				{
-					othPosition = mIEarly ? othTraj(_intendedBaseTime - othBaseTime) + othPosition : othPosition;
-					myPosition = mILate ? _intendedTraj(othBaseTime - _intendedBaseTime) + myPosition : myPosition;
+					othPosition = mIEarly ? othTraj(_sharedBaseTime - othBaseTime) + othPosition : othPosition;
+					myPosition = mILate ? _sharedTraj(othBaseTime - _sharedBaseTime) + myPosition : myPosition;
 					
-					std::cout << FG_B_L_CYAN << "=========== D_TIME " << _intendedBaseTime - othBaseTime << RESET << std::endl;
+					std::cout << FG_B_L_CYAN << "=========== D_TIME " << _sharedBaseTime - othBaseTime << RESET << std::endl;
 					std::cout << FG_B_L_CYAN << "=========== POS " << myPosition.transpose() << " ||| " << othPosition.transpose() << RESET << std::endl;
 
 					double dInterRobot = (myPosition - othPosition).norm();
 
 					double maxAbsRelVel = _maxVelocity[FlatoutputMonocycle::linAccelIdx] + it->second->getPathPlanner()->getMaxLinVelocity();
 
-					std::cout << FG_B_L_CYAN << "=========== Dist|planHor|maxabsvel|sec " << dInterRobot << " ||| " << _intendedPlanHor << " ||| " << maxAbsRelVel <<  " ||| " << dSecutiry <<RESET << std::endl;
+					std::cout << FG_B_L_CYAN << "=========== Dist|planHor|maxabsvel|sec " << dInterRobot << " ||| " << _sharedPlanHor << " ||| " << maxAbsRelVel <<  " ||| " << dSecutiry <<RESET << std::endl;
 
 					bool conflictual = false;
 					
-					if (dInterRobot <= dSecutiry + _intendedPlanHor*maxAbsRelVel)
+					if (dInterRobot <= dSecutiry + _sharedPlanHor*maxAbsRelVel + _radius + it->second->getRad())
 					{
 						conflictual = true;
 						_collisionAIVs[it->first] = it->second;
@@ -331,8 +333,8 @@ namespace aiv
 
 					if (conflictual)
 					{
-						// othPosition = mIEarly ? othTraj(_intendedBaseTime - othBaseTime) + othPosition : othPosition;
-						// myPosition = mILate ? _intendedTraj(othBaseTime - _intendedBaseTime) + myPosition : myPosition;
+						// othPosition = mIEarly ? othTraj(_sharedBaseTime - othBaseTime) + othPosition : othPosition;
+						// myPosition = mILate ? _sharedTraj(othBaseTime - _sharedBaseTime) + myPosition : myPosition;
 
 						// PoseVector othTargetedPose = it->second->getPathPlanner()->getTargetedPose();
 
@@ -342,7 +344,7 @@ namespace aiv
 						// othTargetedOri << cos(othTargetedPose(FlatoutputMonocycle::oriIdx, 0)),
 						// 				  sin(othTargetedPose(FlatoutputMonocycle::oriIdx, 0));
 						
-						double diffTime = _intendedBaseTime - othBaseTime;
+						double diffTime = _sharedBaseTime - othBaseTime;
 
 						// Initialization
 						_pathsFromConflictualAIVs[it->first] = Matrix< double, FlatoutputMonocycle::posDim, Dynamic >::Zero(FlatoutputMonocycle::posDim, _nTimeSamples);
@@ -391,11 +393,11 @@ namespace aiv
 									othProjTime = othMoment;
 								}
 
-								_pathsFromConflictualAIVs[it->first].col(i) = othBasePosition + othProjTime * othLinVelo * othOri;
+								_pathsFromConflictualAIVs[it->first].col(i-1) = othBasePosition + othProjTime * othLinVelo * othOri;
 							}
 							else
 							{
-								_pathsFromConflictualAIVs[it->first].col(i) = othTraj(othMoment);
+								_pathsFromConflictualAIVs[it->first].col(i-1) = othPosition + othTraj(othMoment);
 							}
 
 						}
@@ -403,7 +405,7 @@ namespace aiv
 				}
 				else
 				{
-					std::cout << FG_B_L_MAGENTA << "TEMPORALY APART: " << RESET << _intendedBaseTime << ", " << othBaseTime << std::endl;
+					std::cout << FG_B_L_MAGENTA << "TEMPORALY APART: " << RESET << _sharedBaseTime << ", " << othBaseTime << std::endl;
 				}
 			}
 		}
@@ -447,7 +449,9 @@ namespace aiv
 		{
 
 			// First update call
-			if (_currentPlanningTime == 0.0)
+			if (_currentPlanningTime >= _firstPlanTimespan - _compHorizon && !_spawnP0)
+			// WHY WAIT? Why not start P0 at _currentPlanningTime=0, because "runtime error R6025 - pure virtual function call"
+			// was happening https://support.microsoft.com/en-us/kb/125749
 			{
 				// _timeOffset = ;
 				// std::cout << "_______ " << std::string(name).substr(0,10) <<" First update call ________ " << _executingPlanIdx << std::endl;
@@ -462,6 +466,7 @@ namespace aiv
 				
 				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
 				//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				_spawnP0 = true;
 			}
 
 			// If no plan is been executed yet but the fistPlanTimespan is over
@@ -569,10 +574,14 @@ namespace aiv
 				{
 					_planHorizon = _optPlanHorizon;
 
-					_intendedSolMutex.lock();
-					_intendedBasePos = _targetedFlat;
-					_intendedPlanStage = DONE;
-					_intendedSolMutex.unlock();
+					_sharedSolMutex.lock();
+					
+					_sharedBasePos = _targetedFlat;
+					_sharedRadius = _radius;
+					_sharedTargetedPose = _targetedPose;
+					_sharedPlanStage = DONE;
+					
+					_sharedSolMutex.unlock();
 
 					_planOngoingMutex.unlock();
 					//opt_log << "update: !!!!! Now goint to execute last plan !!!!!" << std::endl;
@@ -618,7 +627,7 @@ namespace aiv
 		{
 			std::cout << "Planning is over!" << std::endl;
 			std::cout << "Last step planning horizon: " << _planHorizon << std::endl;
-			boost::this_thread::sleep(boost::posix_time::milliseconds(20));
+			// boost::this_thread::sleep(boost::posix_time::milliseconds(20));
 		}
 		else //INTER or FINAL
 		{
@@ -821,11 +830,11 @@ namespace aiv
 				(FlatVector() << _currentPose.x(), _currentPose.y()).finished() +
 				myLinVel*(FlatVector() << _currentDirec.x(), _currentDirec.y()).finished()*r1 +
 				(FlatVector() << _currentPose.x(), _currentPose.y()).finished() +
-				myLinVel*(FlatVector() << _currentDirec.x(), _currentDirec.y()).finished()*r2)/2.0;
+				myLinVel*(FlatVector() << _currentDirec.x(), _currentDirec.y()).finished()*r2)/2.;
 				//(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*_knownRobots[othRobName]->getRad();
 
 			Common::CArray3d ret;
-			ret[2] = _knownRobots[othRobName]->getRad()/4.;
+			ret[2] = _knownRobots[othRobName]->getRad() * std::min(1., _radius*Common::finvsqrt(deltaP0x*deltaP0x + deltaP0x*deltaP0x));
 			// ret[2] = 0.01;
 			ret[0] = forbiddenSpaceCentroid(0,0);
 			ret[1] = forbiddenSpaceCentroid(1,0);
@@ -869,17 +878,22 @@ namespace aiv
 
 		double discriminantWay = rad*rad * segmentNorm*segmentNorm - determinantP1P2*determinantP1P2;
 
+		// std::cout << fsName << ": discriminant: " << discriminantWay << std::endl;
+
 		if (discriminantWay < 0)
 		{
+			// std::cout << fsName << ": not in the way because of det < 0" << std::endl;
 			return false;
 		}
 		else
 		{
+			// std::cout << fsName << ": discriminant non negative" << std::endl;
 			//robotToForbSpacDist
 			double signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta);
 
 			if (signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
 			{
+				// std::cout << fsName << ": not in the way because projection in robots way is less than computation distance" << std::endl;
 				return false;
 			}
 		}
@@ -900,11 +914,6 @@ namespace aiv
 
 		FlatVector robotToForbSpac = forbiddenSpaces[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
 
-		FlatVector robotToWayPt = _wayPt - _latestFlat;
-		double robotToWayPtDist = robotToWayPt.norm();
-		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
-		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
-
 		double rad = forbiddenSpaces[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
 
 		// sovling second degree eq for finding angular variations for passing by the "left" and "right" of this forbidden space
@@ -917,11 +926,12 @@ namespace aiv
 
 		if (discriminant < 0.0) // inside an forbidden zone
 		{
-			std::cout << "WARNING: inside forbidden space [ " << fsName << " ]\n";
+			std::cout << BG_L_RED << "WARNING: inside forbidden space [ " << fsName << " ]" << RESET << std::endl;
+			double robotToForbSpacDist = robotToForbSpac.norm();
 			Common::CArray3d ret;
-			ret[0] = 0.0;
-			ret[1] = 0.0;
-			ret[2] = robotToForbSpac.norm() - rad;
+			ret[0] = -robotToForbSpac[0]/robotToForbSpacDist;
+			ret[1] = -robotToForbSpac[1]/robotToForbSpacDist;
+			ret[2] = robotToForbSpacDist - rad;
 			return ret;
 		}
 		else if (discriminant == 0.0)
@@ -953,6 +963,11 @@ namespace aiv
 			}
 		}
 
+		FlatVector robotToWayPt = _wayPt - _latestFlat;
+		double robotToWayPtDist = robotToWayPt.norm();
+		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+
+		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
 		double dTheta1 = Common::wrapToPi(quad14RefTheta - theta1);
 		double dTheta2 = Common::wrapToPi(quad14RefTheta - theta2);
 
@@ -1003,7 +1018,7 @@ namespace aiv
 		// 	{
 		// 		// Priority to the right!!!
 
-		// 		// line equation representing robot's current intended path (general form)
+		// 		// line equation representing robot's current Shared path (general form)
 		// 		double a = _currentDirec.y();
 		// 		double b = -1.*_currentDirec.x();
 		// 		double c = _currentDirec.x()*_currentPose.y() - _currentDirec.y()*_currentPose.x();
@@ -1032,18 +1047,20 @@ namespace aiv
 		// 			// ImaginaryForbiddenSpace bla(otherRobot->first, collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished());
 		// 			// std::cout << "dummy cosntructed\n";
 		// 			forbiddenSpaces[otherRobot->first] = new ImaginaryForbiddenSpace(otherRobot->first, collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished());
-		// 			forbiddenSpaces[otherRobot->first+"_2"] = new ImaginaryForbiddenSpace(otherRobot->first+"_2", collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished()+
-		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*2*_knownRobots[otherRobot->first]->getRad());
-		// 			forbiddenSpaces[otherRobot->first+"_3"] = new ImaginaryForbiddenSpace(otherRobot->first+"_3", collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished()+
-		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*4.*_knownRobots[otherRobot->first]->getRad());
-		// 			forbiddenSpaces[otherRobot->first+"_4"] = new ImaginaryForbiddenSpace(otherRobot->first+"_4", collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished()+
-		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*6.*_knownRobots[otherRobot->first]->getRad());
-		// 			forbiddenSpaces[otherRobot->first+"_5"] = new ImaginaryForbiddenSpace(otherRobot->first+"_5", collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished()+
-		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*8.*_knownRobots[otherRobot->first]->getRad());
+		// 			forbiddenSpaces[otherRobot->first+"_2"] = new ImaginaryForbiddenSpace(otherRobot->first+"_2", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*1.5*collInfo[2]);
+		// 			// forbiddenSpaces[otherRobot->first+"_3"] = new ImaginaryForbiddenSpace(otherRobot->first+"_3", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*2.5*_knownRobots[otherRobot->first]->getRad());
+		// 			// forbiddenSpaces[otherRobot->first+"_4"] = new ImaginaryForbiddenSpace(otherRobot->first+"_4", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*3.5*_knownRobots[otherRobot->first]->getRad());
+		// 			// forbiddenSpaces[otherRobot->first+"_5"] = new ImaginaryForbiddenSpace(otherRobot->first+"_5", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*4.5*_knownRobots[otherRobot->first]->getRad());
+		// 			// forbiddenSpaces[otherRobot->first+"_6"] = new ImaginaryForbiddenSpace(otherRobot->first+"_6", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*5.5*_knownRobots[otherRobot->first]->getRad());
 		// 			// std::cout << "*************AFTER fon[] = new\n";
 		// 		}
 		// 	}
-		// 	// std::cout << FG_B_L_BLUE << "[3] _knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
+		// 	std::cout << FG_B_L_BLUE << "[3] _knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
 
 		// }
 
@@ -1062,7 +1079,7 @@ namespace aiv
 		VecVecStr forbiddenSpacesClusters;
 
 		// Build the list of clusters
-		std::cout << "BUILD CLUSTER\n";
+		// std::cout << "BUILD CLUSTER\n";
 
 		// Iterate over forbidden spaces vector
 		for (MapObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
@@ -1075,13 +1092,13 @@ namespace aiv
 			bool foundIt = false;
 			for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 			{
-				std::cout << "searching for " << fsIt->first << " in ";
+				// std::cout << "searching for " << fsIt->first << " in ";
 				Common::printNestedContainer(*clIt);
 				std::cout << std::endl;
 				// if (clIt->find(fsIt->first) != clIt->end())
 				if (std::find(clIt->begin(), clIt->end(), fsIt->first) != clIt->end())
 				{
-					std::cout << "found!\n";
+					// std::cout << "found!\n";
 					foundIt = true;
 					break;
 				}
@@ -1090,7 +1107,7 @@ namespace aiv
 			
 			if (foundIt) continue;
 
-			std::cout << "Add new list " << fsIt->first << std::endl;
+			// std::cout << "Add new list " << fsIt->first << std::endl;
 
 			// fsIt is not in any cluster in forbiddenSpacesClusters
 			// let's do a tree search in forbiddenSpaces looking for other forbiddenSpaces forming a cluster with this forbiddenSpace. If none, this forbiddenSpace is a cluster by it self
@@ -1156,17 +1173,17 @@ namespace aiv
 					// std::cout << candidIt->first << " " << candidIt->second->getRad() << " " << dist << std::endl;
 					bool tooClose = dist < 2.*_robotObstacleSafetyDist + _radius*2;
 					// std::cout << candidIt->first << " *************AFTER [5]\n";
-					std::cout << "Is " << candidIt->first << " too close to " << forbSpacName << "? [dist=" << dist << "]" << std::endl;
+					// std::cout << "Is " << candidIt->first << " too close to " << forbSpacName << "? [dist=" << dist << "]" << std::endl;
 					if (tooClose)
 					{
-						std::cout << "YES\n";
+						// std::cout << "YES\n";
 						// std::cout << "\n";
 						forbiddenSpacesClusters.back().push_back(candidIt->first);
 						// std::cout << "*************AFTER [5.2]\n";
 						queue.push_back(candidIt->first);
 					}
-					else
-						std::cout << "NO\n";
+					// else
+						// std::cout << "NO\n";
 					// {
 					// 	VecStr auxList;
 					// 	auxList.push_back(candidIt->first);
@@ -1178,7 +1195,7 @@ namespace aiv
 			}
 		}
 
-		std::cout << this->name << "::forbiddenSpacesClusters ------- \033[1;36m";
+		std::cout << this->name << "::fbClusters\033[1;36m";
 		Common::printNestedContainer(forbiddenSpacesClusters);
 		std::cout << "\033[0m" << std::endl;
 		// std::cout << "*************AFTER [6]\n";
@@ -1187,37 +1204,29 @@ namespace aiv
 
 		MapArray3d _avoidanceInfo;
 
-		// std::cout << "*************AFTER [6.1]\n";
 		VecVecStr::iterator clIt = forbiddenSpacesClusters.begin();
-		// std::cout << "*************AFTER [6.2]\n";
+
 		while (clIt !=  forbiddenSpacesClusters.end())
 		{
 			// is any fsIt in clIt cluster is the robot way?
 			//
-			// std::cout << "*************AFTER [6.3]\n";
 			bool inTheWay = false;
-			// std::cout << "*************AFTER [6.4]\n";
 			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 			{
-				// std::cout << "*************AFTER [7]\n";
-				std::cout << "Is " << *fsIt << "[rad=" << forbiddenSpaces[*fsIt]->getRad() << "], [pos=" << forbiddenSpaces[*fsIt]->getCurrentPosition().getTranslation().block<2,1>(0,0) << "] in robot's way?\n";
+				std::cout << "Is " << *fsIt << " [rad=" << forbiddenSpaces[*fsIt]->getRad() << "], [pos=" << forbiddenSpaces[*fsIt]->getCurrentPosition().getTranslation().block<2,1>(0,0).transpose() << "] in robot's way?\n";
 				bool test = _isForbSpaceInRobotsWay(*fsIt, forbiddenSpaces);
 				if (test) std::cout << "YES\n";
 				else std::cout << "NO\n";
-				// std::cout << "*************AFTER [7.1]\n";
 				if (test)
 				{
-					// std::cout << "*************AFTER [8]\n";
 					inTheWay = true;
 					break;
 				}
 			}
 			//
-			// std::cout << "*************AFTER [9]\n";
 
 			if (inTheWay)
 			{
-				// std::cout << "*************AFTER [10]\n";
 				for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 				{
 					// get two angular variations (positive if clockwise, negative otherwise) and distance for avoiding this forbiddenSpace
@@ -1230,18 +1239,22 @@ namespace aiv
 			else // this cluster can be ignored
 			{
 				forbiddenSpacesClusters.erase(clIt);
+				std::cout << this->name << "::sorted\033[1;36m";
+				Common::printNestedContainer(forbiddenSpacesClusters);
+				std::cout << "\033[0m" << std::endl;
 			}
 		}
 
 		// Did all clusters were removed? In this case return goal
 		if (forbiddenSpacesClusters.empty())
 		{
+
 			_wayPt = _targetedFlat;
 			return;
 		}
 
+		// Instantiate comparation object for sorting
 		CompObj comp(_avoidanceInfo);
-
 
 		for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 		{
@@ -1249,12 +1262,20 @@ namespace aiv
 			{
 				continue;
 			}
-			// Am I inside a forbiddenSpace? In this case return previous waypoint
+			// Am I inside a forbiddenSpace? In this case return a way point to scape from the obstacle center
 			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 			{
 				if (_avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
+				{
 					//return previousWayPoint
+					FlatVector outOfForbSpac;
+					outOfForbSpac << _avoidanceInfo[*fsIt][0], _avoidanceInfo[*fsIt][1];
+					FlatVector robotToWayPt = _wayPt - _latestFlat;
+					double robotToWayPtDist = robotToWayPt.norm();
+					double weight = std::min(abs(_avoidanceInfo[*fsIt][2])/_robotObstacleSafetyDist, 1.);
+					_wayPt = weight*(outOfForbSpac*robotToWayPtDist + _latestFlat) + (1-weight)*(_wayPt);
 					return;
+				}
 			}
 
 			// Sort forbidden spaces according to angular variation
@@ -1266,6 +1287,10 @@ namespace aiv
 
 		// Sort clusters according to abs ang variation
 		std::sort (forbiddenSpacesClusters.begin(), forbiddenSpacesClusters.end(), comp);//, *this);
+
+		std::cout << this->name << "::sorted\033[1;36m";
+		Common::printNestedContainer(forbiddenSpacesClusters);
+		std::cout << "\033[0m" << std::endl;
 
 
 		// The first cluster in the list is a first guess for the cluster which will give the right direction to the new waypoint (based on the angular variation that gave the minimum absolute angular variation). But it has to respect a condition: do not suggest a direction that goes towards another clusters that is closer to the robot than the first cluster. In case it fails, check the following clusters
@@ -1601,7 +1626,7 @@ namespace aiv
 
 		// Feed aux trajectory with desired points and time horizon
 		_optTrajectory.interpolate(curve, _optPlanHorizon);
-		std::cout << FG_B_L_YELLOW << "BEFORE OPT, WRT ROBOT:"<< RESET << std::endl;
+		std::cout << name << FG_B_L_YELLOW << "BEFORE OPT, WRT ROBOT:"<< RESET << std::endl;
 		std::cout << _optTrajectory.getCtrlPts() << std::endl;
 
 
@@ -1626,25 +1651,48 @@ namespace aiv
 
 		
 		//---------------------------------------------------------------------------
-		_intendedSolMutex.lock();
+		_sharedSolMutex.lock();
 		//---------------------------------------------------------------------------
 
-		_intendedTraj = _optTrajectory;
-		_intendedPlanHor = _optPlanHorizon;
-		_intendedBasePos = _latestFlat;
-		_intendedBaseTime = _baseTime;
+		_sharedTraj = _optTrajectory;
+		_sharedPlanHor = _optPlanHorizon;
+		_sharedBasePos = _latestFlat;
+		_sharedBaseTime = _baseTime;
+		_sharedRadius = _radius;
+		_sharedTargetedPose = _targetedPose;
 
 		//---------------------------------------------------------------------------
-		_intendedSolMutex.unlock();
+		_sharedSolMutex.unlock();
 		//---------------------------------------------------------------------------
 
 		if (!gotInterrupted)
 		{
 			_conflictEval();
 
-			if (!_collisionAIVs.empty() || !_comOutAIVs.empty())
+			// VecStr aux;
+			// KeysOnMapToVec(_collisionAIVs, aux);
+			// Common::printNestedContainer(aux);
+			// KeysOnMapToVec(, aux);
+			// Common::printNestedContainer(aux);
+
+			if (!_collisionAIVs.empty())
 			{
 				_optTrajectory.update(_rotMat2RRef * _optTrajectory.getCtrlPts());
+
+				std::cout << name << BG_L_RED  << " SOLVING SECOND OPT PROBLEM!" << RESET << std::endl;
+
+
+
+
+				std::cout << _pathsFromConflictualAIVs[_collisionAIVs.begin()->first] << std::endl;
+				std::cout << std::endl;
+
+				FlatVector derivFlat;
+				for(int i = 1; i <= int(_nTimeSamples); ++i)
+				{
+					derivFlat = _optTrajectory(double(i) / _nTimeSamples * _optPlanHorizon);
+					std::cout << derivFlat.transpose() << std::endl;
+				}
 
 				try
 				{
@@ -1660,21 +1708,21 @@ namespace aiv
 			}
 
 			//---------------------------------------------------------------------------
-			_intendedSolMutex.lock();
+			_sharedSolMutex.lock();
 			//---------------------------------------------------------------------------
 
-			_intendedTraj = _optTrajectory;
-			_intendedPlanHor = _optPlanHorizon;
+			_sharedTraj = _optTrajectory;
+			_sharedPlanHor = _optPlanHorizon;
 
 			//---------------------------------------------------------------------------
-			_intendedSolMutex.unlock();
+			_sharedSolMutex.unlock();
 			//---------------------------------------------------------------------------
 		
 		}
 
 		std::cout << "AFTER OPT, WRT DISPLACED WORLD:\n";
 		std::cout << _optTrajectory.getCtrlPts() << std::endl;
-		std::cout << FG_B_L_GREEN << "AFTER OPT, WRT ROBOT:" << RESET << std::endl;
+		std::cout << name << FG_B_L_GREEN << " AFTER OPT, WRT ROBOT:" << RESET << std::endl;
 		std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
 		//std::cout << _optTrajectory.getCtrlPts() << std::endl;
 

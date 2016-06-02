@@ -147,43 +147,43 @@ Application * ApplicationBuilder::buildSimpleAdeptApp()
 
   // COLLISIONS
   // typdefs needed for using boost for each or just for simplifying
-  typedef std::map<std::string, AIV *> aiv_map;
-  typedef std::map<std::string, Obstacle *> obst_map;
+  typedef std::map<std::string, AIV *> MapAIV;
+  typedef std::map<std::string, Obstacle *> MapObst;
 
   //vehicle-to-vehicle and vehicle-to-obstacle
-  for ( aiv_map::iterator it_v1 = app->vehicles.begin(); it_v1 != app->vehicles.end(); ++it_v1 )
-  {
-  //foreach_ ( aiv_map::value_type& v1, app->vehicles )
-  //{
-    std::cout << "Vehicle A ----------- " << it_v1->first << std::endl;
-    for ( obst_map::iterator it_obst = app->obstacles.begin(); it_obst != app->obstacles.end(); ++it_obst )
-    {
-    //foreach_ ( obst_map::value_type& obst, app->obstacles )
-    //{
-      std::cout << "OBST: "<< it_obst->first << std::endl;
-      //app->getGVMScene().enableContactForBodyPair(obst.second->object, static_cast<AdeptLynx*>(v1.second)->frame, true);
-      app->getGVMScene().enableContactForBodyPair(it_obst->second->object, static_cast<AdeptLynx*>(it_v1->second)->frame, true);
-    }
+  // for ( MapAIV::iterator it_v1 = app->vehicles.begin(); it_v1 != app->vehicles.end(); ++it_v1 )
+  // {
+  // //foreach_ ( MapAIV::value_type& v1, app->vehicles )
+  // //{
+  //   std::cout << "Vehicle A ----------- " << it_v1->first << std::endl;
+  //   for ( MapObst::iterator it_obst = app->obstacles.begin(); it_obst != app->obstacles.end(); ++it_obst )
+  //   {
+  //   //foreach_ ( MapObst::value_type& obst, app->obstacles )
+  //   //{
+  //     std::cout << "OBST: "<< it_obst->first << std::endl;
+  //     //app->getGVMScene().enableContactForBodyPair(obst.second->object, static_cast<AdeptLynx*>(v1.second)->frame, true);
+  //     app->getGVMScene().enableContactForBodyPair(it_obst->second->object, static_cast<AdeptLynx*>(it_v1->second)->frame, true);
+  //   }
 
-    //aiv_map::iterator it_v1 = (app->vehicles).find(v1.first);
-    for ( aiv_map::iterator it_v2 = std::next(it_v1); it_v2 != app->vehicles.end(); ++it_v2 )
-    {
-      std::cout << "Vehicle B - " << it_v2->first << std::endl;
-      app->getGVMScene().enableContactForBodyPair(static_cast<AdeptLynx*>(it_v1->second)->frame,
-          static_cast<AdeptLynx*>(it_v2->second)->frame, true);
-    }
-  }
+  //   //MapAIV::iterator it_v1 = (app->vehicles).find(v1.first);
+  //   for ( MapAIV::iterator it_v2 = std::next(it_v1); it_v2 != app->vehicles.end(); ++it_v2 )
+  //   {
+  //     std::cout << "Vehicle B - " << it_v2->first << std::endl;
+  //     app->getGVMScene().enableContactForBodyPair(static_cast<AdeptLynx*>(it_v1->second)->frame,
+  //         static_cast<AdeptLynx*>(it_v2->second)->frame, true);
+  //   }
+  // }
 
-  // obstacle-to-obstacle
-  for ( obst_map::iterator it_obst1 = app->obstacles.begin(); it_obst1 != app->obstacles.end(); ++it_obst1 )
-  {
-    std::cout << "OBST A - " << it_obst1->first << std::endl;
-    for ( obst_map::iterator it_obst2 = ++it_obst1; it_obst2 != app->obstacles.end(); ++it_obst2 )
-    {
-      std::cout << "OBST B - " << it_obst2->first << std::endl;
-      app->getGVMScene().enableContactForBodyPair(it_obst1->second->object, it_obst2->second->object, true);
-    }
-  }
+  // // obstacle-to-obstacle
+  // for ( MapObst::iterator it_obst1 = app->obstacles.begin(); it_obst1 != app->obstacles.end(); ++it_obst1 )
+  // {
+  //   std::cout << "OBST A - " << it_obst1->first << std::endl;
+  //   for ( MapObst::iterator it_obst2 = ++it_obst1; it_obst2 != app->obstacles.end(); ++it_obst2 )
+  //   {
+  //     std::cout << "OBST B - " << it_obst2->first << std::endl;
+  //     app->getGVMScene().enableContactForBodyPair(it_obst1->second->object, it_obst2->second->object, true);
+  //   }
+  // }
 
   app->getGraphicSceneInterface().hideNode("ground");
 
