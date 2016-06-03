@@ -30,6 +30,7 @@
 \usepackage{subcaption}
 \usepackage{ dsfont }
 \usepackage{ amsmath }
+\usepackage[makeroom]{cancel} % \cancel{what} \cancelto{to}{what}
 
 \hyphenpenalty=100000
 
@@ -173,9 +174,10 @@ Although, the plans generated with this approach are not necessarily appropriate
 \mbox{}
 
 
+\clearpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Predictive control law synthesis}
+\section{Predictive control}
 
 \subsection{Extended Model}
 
@@ -193,15 +195,15 @@ For finding a predictive control law an extended model which integrates the dyna
 v\cos\theta\\
 v\sin\theta\\
 \omega\\
-\frac{p_3}{p_1}\omega^2 - \frac{p_4}{p_1}v\\
--\frac{p_5}{p_2}v\omega - \frac{p_6}{p_2}\omega
+\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\\
+-\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega
 \end{array}\right]}_{f(q)}+
 \underbrace{\left[\begin{array}{cc}
 0 & 0\\
 0 & 0\\
 0 & 0\\
-\frac{1}{p_1} & 0\\
-0 & \frac{1}{p_2}
+\frac{1}{l_1} & 0\\
+0 & \frac{1}{l_2}
 \end{array}\right]}_{g(q) = [g_1(q)\ g_2(q)]}
 \underbrace{\left[\begin{array}{c}
 u_1\\
@@ -210,7 +212,7 @@ u_2
 \label{eq:extendedModel}
 \end{eqnarray}
 
-$q \in Q \subset \mathds{R}^n$ is the state vector and $u \in U \subset \mathds{R}^p$ the input.
+${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \mathds{R}^p}$ the input.
 
 %For later introducing the design of the predictive controller we may write the above system in the following form:
 %\[
@@ -229,14 +231,14 @@ $q \in Q \subset \mathds{R}^n$ is the state vector and $u \in U \subset \mathds{
 %v\cos\theta\\
 %v\sin\theta\\
 %\omega\\
-%\frac{p_3}{p_1}\omega^2 - \frac{p_4}{p_1}v\\
-%-\frac{p_5}{p_2}v\omega - \frac{p_6}{p_2}\omega
+%\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\\
+%-\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega
 %\end{array}\right]+
 %\left[\begin{array}{c}
 %0\\
 %0\\
 %0\\
-%\frac{1}{p_1}\\
+%\frac{1}{l_1}\\
 %0
 %\end{array}\right]u_1+
 %\left[\begin{array}{c}
@@ -244,7 +246,7 @@ $q \in Q \subset \mathds{R}^n$ is the state vector and $u \in U \subset \mathds{
 %0\\
 %0\\
 %0\\
-%\frac{1}{p_2}
+%\frac{1}{l_2}
 %\end{array}\right]u_2
 %\label{eq:extendedModel}
 %\end{eqnarray}
@@ -262,13 +264,13 @@ $q \in Q \subset \mathds{R}^n$ is the state vector and $u \in U \subset \mathds{
 %\right]
 %\end{align*}
 
-The parameters vector $p \in \mathds{R}^6$ can be determined by system identification or based on properties of the unicycle such as mass, moment of inertia with respect to different axes, impedance of motors etc.
+The parameters vector ${l \in \mathds{R}^6}$ can be determined by system identification or based on properties of the unicycle such as mass, moment of inertia with respect to different axes, impedance of motors etc.
 
 %To synthesize a control law that minimizes the quadratic error in position and orientation (in pose) over a time horizon $T$.
 
 \subsection{Optimal predictive control}
 
-The objective is to synthesize a control law that minimizes the quadratic error in position and orientation (i.e. pose) over a time horizon $T$ ahead of the current instant $t$.
+The objective is to synthesize a control law that minimizes the quadratic error in position and orientation (i.e. pose) over a time horizon ahead of the current instant $t$.
 
 Since only error in pose is to be minimized, the system output can be written as follows:
 
@@ -287,7 +289,7 @@ And the error as:
 	e(t) =  h(t) - h_{\text{ref}}(t)
 \]
 
-where $h_{\text{ref}}(t)$ is derived from the trajectory planner output.
+where ${h_{\text{ref}}(t)}$ is derived from the trajectory planner output.
 
 The criterion to be minimized represented by $J$ can be written as:
 
@@ -298,10 +300,10 @@ J = \sum_{i=1}^m J_i
 with
 
 \begin{align*}
-J_i = \int_0^{T} (\hat{e}_i(t+\tau))^2d\tau
+J_i = \int_0^{T_i} (e_i(t+\tau))^2d\tau
 \end{align*}
 
-where $\hat{e}_i(t+\tau)$ represents the prediction error at $t+\tau$ with $0 < \tau \leq T$.
+where ${e_i(t+\tau)}$ represents the prediction error at ${t+\tau}$ with ${0 < \tau \leq T_i}$.
 
 To find the control law that minimizes $J$ is to find $u$ satisfying the equation:
 
@@ -315,7 +317,7 @@ For solving the above equation a expression for the prediction error must be def
 
 \subsection{Predictive error definition}
 
-Using Taylor series, each of the coefficients of $h(t+\tau)$ can be written as bellow:
+Using Taylor series, each of the coefficients of ${h(t+\tau)}$ can be written as bellow:
 
 \begin{align*}
 h_i(t+\tau) = \sum_{k=0}^{\rho_i} 
@@ -368,30 +370,95 @@ L_f^{(0)}h_i & = & h_i\\
 %u = \argmin_u\sum_{i=1}^{m}J_i
 %\end{align}
 
-The second term in the prediction error expression, $h_{\text{ref}}(t+\tau)$, can be analogously written as:
+The second term in the prediction error expression, ${h_{\text{ref}}(t+\tau)}$, 
+can be given by the planner for any $\tau$ as long as ${T_i < T_p - T_c}$.
 
-\begin{eqnarray}
-h_{\text{ref},i}(t+\tau) \simeq \Lambda_i
-\underbrace{\left[\begin{array}{c}
-h_{\text{ref},i}(t)\\
-\dot{h}_{\text{ref},i}(t)\\
-\ddot{h}_{\text{ref},i}(t)\\
-\vdots\\
-h^{({\rho_i})}_{\text{ref},i}(t)
-\end{array}\right]}_{L_{h_{\text{ref},\,i}}}
-\end{eqnarray}
+% \begin{eqnarray}
+% h_{\text{ref},i}(t+\tau) \simeq \Lambda_i
+% \underbrace{\left[\begin{array}{c}
+% h_{\text{ref},i}(t)\\
+% \dot{h}_{\text{ref},i}(t)\\
+% \ddot{h}_{\text{ref},i}(t)\\
+% \vdots\\
+% h^{({\rho_i})}_{\text{ref},i}(t)
+% \end{array}\right]}_{L_{h_{\text{ref},\,i}}}
+% \end{eqnarray}
 
-$L_{h_{\text{ref},\, i}}$ is supposed to be known from the trajectory planner output for any $\rho_i$.
+% $L_{h_{\text{ref},\, i}}$ is supposed to be known from the trajectory planner output for any $\rho_i$.
 
 \subsection{Control law equation}
 
-After some (a lot of) algebraic manipulation we can show that:
+After some algebraic manipulation we can show that:
 
-\[
-\frac{\partial J}{\partial u} = 0 \Rightarrow u = -(D^TD)^{-1}D^TKE
-\]
+\begin{eqnarray*}
+J_i &=& \int_0^{T_i}(h_i - h_{i\,\text{ref}})^2d\tau\\
+&=& \int_0^{T_i}h_i^2d\tau -2\int_0^{T_i}h_ih_{i,\,\text{ref}}d\tau + \int_0^{T_i}h_{i\,\text{ref}}^2d\tau\\
+&=& \int_0^{T_i}L_{h_i}^t\Lambda_i^t\Lambda_iL_{h_i}d\tau - 2\int_0^{T_i}h_{i,\,\text{ref}}\Lambda_iL_{h_i}d\tau\\
+&& + \underbrace{\int_0^{T_i}h_{i,\,\text{ref}}^2d\tau}_{C_i}\\
+&=& L_{h_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{h_i} -\underbrace{2\int_0^{T_i}h_{i,\,\text{ref}}\Lambda_id\tau}_{R_i}L_{h_i} + C_i\\
+&=& L_{h_i}^tK_iL_{h_i} -R_iL_{h_i} + C_i\\
+\frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{\partial L_{h_i}^tK_iL_{h_i}}{\partial u} - \frac{\partial R_iL_{h_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
+&=& \sum_{i=1}^m \left(
+\left[\begin{array}{c}
+L_{g_1}L_f^{(\rho-1)}h_i\\
+\vdots\\
+L_{g_p}L_f^{(\rho-1)}h_i
+\end{array}\right]
+(K^s_iL_{h_i} - R_i^s)\right)\\
+&=& \underbrace{\left[\begin{array}{ccc}
+L_{g_1}L_f^{(\rho-1)}h_1 & \dots & L_{g_1}L_f^{(\rho-1)}h_m\\
+& \ddots &\\
+L_{g_p}L_f^{(\rho-1)}h_1 & \dots & L_{g_p}L_f^{(\rho-1)}h_m
+\end{array}\right]}_{D}\\
+&&\left(\left[\begin{array}{c}
+K_1^sL_{h_1}\\
+\vdots\\
+K_m^sL_{h_m}
+\end{array}\right] -\left[\begin{array}{c}
+R_1^s\\
+\vdots\\
+R_m^s
+\end{array}\right] \right)\\
+&=& D \left(\left[\begin{array}{c}
+K_1^sL_{h_1}\\
+\vdots\\
+K_m^sL_{h_m}
+\end{array}\right]-\underbrace{\left[\begin{array}{c}
+R_1^s\\
+\vdots\\
+R_m^s
+\end{array}\right]}_{R^s} \right) = 0_{p\times1} \Rightarrow\\
+&\Rightarrow & \left[\begin{array}{c}
+K_1^sL_{h_1}\\
+\vdots\\
+K_m^sL_{h_m}
+\end{array}\right]-R^s = 0_{m\times1}\\
+&=& K^{ss}D
+\underbrace{\left[\begin{array}{c}
+u_1\\
+\vdots\\
+u_p
+\end{array}\right]}_{u}
++ K^s
+\underbrace{\left[\begin{array}{c}
+h_1\\
+\vdots\\
+L_f^{\rho_1}h_1\\
+\vdots\\
+h_m\\
+\vdots\\
+L_f^{\rho_m}h_m
+\end{array}\right]}_{L_h} - R^s\\
+&=& K^{ss}Du + K^sL_h-R^s = 0 \Rightarrow\\
+&\Rightarrow& u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_h-R^s)\\
+\end{eqnarray*}
 
-with $D$ the decoupling matrix, $K$ the the gain matrix and $E$ the prediction error matrix defined as bellow:
+% \[
+% \frac{\partial J}{\partial u} = 0 \Rightarrow u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_h-R^s)
+% \]
+
+
+with $D$ the decoupling matrix, $K^{ss}$ and $K^s$ matrices derived from the gain matrices, $K_1,\ \dots,\ K_m$, $L_h$ the prediction output matrix and $R^s$ the future output of reference matrix:
 
 \begin{eqnarray}
 D = 
@@ -403,48 +470,81 @@ L_{g_1}L_f^{\rho_m-1}h_m & \dots & L_{g_p}L_f^{\rho_m-1}h_m
 \end{eqnarray}
 
 \begin{eqnarray}
-E = 
-\left[\begin{array}{c}
-h_1 - h_{\text{ref},\,1}\\
-\vdots\\
-L_f^{(\rho_1)}h_1 - h^{(\rho_1)}_{\text{ref},\,1}\\
-\vdots\\
-h_m - h_{\text{ref},\,m}\\
-\vdots\\
-L_f^{(\rho_m)}h_m - h^{(\rho_m)}_{\text{ref},\,m}
+K^{s} = 
+\left[\begin{array}{ccc}
+K^{s}_1 & & 0\\
+& \ddots &\\
+0 & & K^{s}_m
 \end{array}\right]
 \end{eqnarray}
 
 \begin{eqnarray}
-K = 
+K^{ss} = 
 \left[
 \begin{array}{ccc}
-\Pi^{ss}_1 & & 0\\
+K^{ss}_1 & & 0\\
 & \ddots &\\
-0 & & \Pi^{ss}_m
-\end{array}\right]^{-1}
-\left[\begin{array}{ccc}
-\Pi^{s}_1 & & 0\\
-& \ddots &\\
-0 & & \Pi^{s}_m
+0 & & K^{ss}_m
 \end{array}\right]
 \end{eqnarray}
 
-with $\Pi^{s}_i$ the last line of the matrix $\Pi_i$ and $\Pi^{ss}_i$ the last element of the vector $\Pi^{s}_i$. 
+with $K^{s}_i$ the last line of the matrix $K_i$ and $K^{ss}_i$ the last element of the vector $K^{s}_i$. 
 
-$\Pi_i$ being defined as:
+$K_i$ being defined as:
 
 %& \frac{\tau^{(\rho_i-1)+1}}{((\rho_i-1)+1)(\rho_i-1)!}
 
-\begin{align}
-&\Pi_i = \int^{T_i}_0\Lambda_i^T\Lambda_id\tau\\
-&=  \left[\begin{array}{cccccc}
-T_i & \frac{T_i^2}{2} & \dots & \frac{T_i^{(\rho_i-1)+1}}{((\rho_i-1)+1)(\rho_i-1)!} & \frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!}\\
-\frac{T_i^2}{2} & \frac{T_i^3}{3} & \dots &  \frac{T_i^{((\rho_i-1)+1)+1}}{(((\rho_i-1)+1)+1)(\rho_i-1)!} & \frac{T_i^{(\rho_i+1)+1}}{((\rho_i+1)+1)\rho_i!}\\
-& & \ddots & & \\
-\frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!} & & \dots & \frac{T_i^{(\rho_i+(\rho_i-1))+1}}{((\rho_i+(\rho_i-1))+1)\rho_i!(\rho_i-1)!} & \frac{T_i^{(\rho_i+\rho_i)+1}}{((\rho_i+\rho_i)+1)\rho_i!\rho_i!}
+\begin{equation*}
+K_i = \int^{T_i}_0\Lambda_i^t\Lambda_id\tau  
+\end{equation*}
+
+which gives the following expression for each element of $K_i$:
+
+\begin{equation*}
+K_{i,\,(a,\,b)} = \frac{T_i^{(a+b)+1}}{((a+b)+1)a!b!}
+\end{equation*}
+
+with ${a,\ b \in [0,\ \rho_i] \subset \mathds{Z}}$ the line and column indexes.
+
+\begin{eqnarray}
+L_h = 
+\left[\begin{array}{c}
+h_1\\
+\vdots\\
+L_f^{(\rho_1)}h_1\\
+\vdots\\
+h_m\\
+\vdots\\
+L_f^{(\rho_m)}h_m
 \end{array}\right]
-\end{align}
+\end{eqnarray}
+
+\begin{eqnarray}
+R^s = 
+\left[\begin{array}{c}
+R_1^s\\
+\vdots\\
+R_m^s
+\end{array}\right]
+\end{eqnarray}
+
+${R^s_i}$ being the last element of the column vector $R_i$, where
+
+\begin{equation*}
+R_i = 2\int^{T_i}_0h_{i,\,\text{ref}}\Lambda_id\tau  
+\end{equation*}
+
+
+% \begin{align}
+% \Pi_i = \left[\begin{array}{cccccc}
+% T_i & \frac{T_i^2}{2} & \dots & \frac{T_i^{(\rho_i-1)+1}}{((\rho_i-1)+1)(\rho_i-1)!} & \frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!}\\
+% \frac{T_i^2}{2} & \frac{T_i^3}{3} & \dots &  \frac{T_i^{((\rho_i-1)+1)+1}}{(((\rho_i-1)+1)+1)(\rho_i-1)!} & \frac{T_i^{(\rho_i+1)+1}}{((\rho_i+1)+1)\rho_i!}\\
+% & & \ddots & & \\
+% \frac{T_i^{\rho_i+1}}{(\rho_i+1)\rho_i!} & & \dots & \frac{T_i^{(\rho_i+(\rho_i-1))+1}}{((\rho_i+(\rho_i-1))+1)\rho_i!(\rho_i-1)!} & \frac{T_i^{(\rho_i+\rho_i)+1}}{((\rho_i+\rho_i)+1)\rho_i!\rho_i!}
+% \end{array}\right]
+% \end{align}
+
+\subsection{Finding $u$ for the unicycle case}
 
 The MIMO (Multiple Input Multiple Output) system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
 
@@ -464,21 +564,21 @@ L_{g_1}L_f^{\rho_m-1}h_m & \dots & L_{g_p}L_f^{\rho_m-1}h_m
 
 A way of trying to find a vector $\rho$ for our particular system is by computing $L_{g_i}L_f^kh_j$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
 
-For $\rho = [1\ 1\ 1]$, $L_{g_i}L_f^0h_j = L_{g_i}h_j = 0$ for all $1 \leq i \leq p$, for all $1 \leq j \leq m$.
+For ${\rho = [1\ 1\ 1]}$, ${L_{g_i}L_f^0h_j = L_{g_i}h_j = 0}$ for all ${1 \leq i \leq p}$, for all ${1 \leq j \leq m}$ which does not satisfy the second condition.
 
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_1}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/p_1\ 0]^T = 0\\
-%L_{g_1}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/p_1\ 0]^T = 0\\
-%L_{g_1}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/p_1\ 0]^T = 0
+%L_{g_1}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
+%L_{g_1}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
+%L_{g_1}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 %
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_2}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/p_2]^T = 0\\
-%L_{g_2}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/p_2]^T = 0\\
-%L_{g_2}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/p_2]^T = 0
+%L_{g_2}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
+%L_{g_2}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
+%L_{g_2}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 
@@ -496,8 +596,8 @@ Computing now $L_{g_j}L_fh_j$ we obtain:
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{g_1}L_{f}h_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_1(q) = \cos\theta/p_1\\
-L_{g_1}L_{f}h_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_1(q) = \sin\theta/p_1\\
+L_{g_1}L_{f}h_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_1(q) = \cos\theta/l_1\\
+L_{g_1}L_{f}h_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_1(q) = \sin\theta/l_1\\
 L_{g_1}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
 \end{array}\right.
 \end{eqnarray}
@@ -506,18 +606,18 @@ L_{g_1}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
 \left\lbrace\begin{array}{lcl}
 L_{g_2}L_{f}h_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_2(q) = 0\\
 L_{g_2}L_{f}h_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_2(q) = 0\\
-L_{g_2}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/p_2
+L_{g_2}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/l_2
 \end{array}\right.
 \end{eqnarray}
 
-Which gives the following decoupling matrix:
+which gives the following decoupling matrix:
 
 \begin{eqnarray}
 D = 
 \left[\begin{array}{cc}
-\frac{\cos\theta}{p_1} & 0\\
-\frac{\sin\theta}{p_1} & 0\\
-0 & \frac{1}{p_2}
+\frac{\cos\theta}{l_1} & 0\\
+\frac{\sin\theta}{l_1} & 0\\
+0 & \frac{1}{l_2}
 \end{array}\right]
 \end{eqnarray}
 
@@ -526,102 +626,139 @@ and consequently:
 \begin{eqnarray}
 D^TD = 
 \left[\begin{array}{cc}
-\frac{1}{p_1^2} & 0\\
-0 & \frac{1}{p_2^2}
+\frac{1}{l_1^2} & 0\\
+0 & \frac{1}{l_2^2}
 \end{array}\right]
 \end{eqnarray}
 
-which is non-singular for all $p_1, p_2 \neq 0$.
+which is non-singular for all $l_1, l_2 \neq 0$. Besides, the first condition is also met: $L_gL^{k_i}_fh_i = 0\ \forall\ k_i < \rho_i-1\ $.
+
+Using $\rho = [2\ 2\ 2]$, matrices $K^{s}$, $K^{ss}$ and $L_h$ can be written as bellow:
 
 \begin{eqnarray}
-K =
+K^s =
 \left[\begin{array}{ccccccccc}
-\frac{10}{3T_1^2} & \frac{5}{2T_1} & 1 & 0 & 0 & 0 & 0 & 0 & 0\\
-0 & 0 & 0 & \frac{10}{3T_2^2} & \frac{5}{2T_2} & 1 & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0 & \frac{10}{3T_3^2} & \frac{5}{2T_3} & 1
+\frac{T_1^3}{6} & \frac{T_1^4}{8} & \frac{T_1^5}{20} & 0 & 0 & 0 & 0 & 0 & 0\\
+0 & 0 & 0 & \frac{T_2^3}{6} & \frac{T_2^4}{8} & \frac{T_2^5}{20} & 0 & 0 & 0\\
+0 & 0 & 0 & 0 & 0 & 0 & \frac{T_3^3}{6} & \frac{T_3^4}{8} & \frac{T_3^5}{20}
 \end{array}\right]
 \end{eqnarray}
 
 \begin{eqnarray}
-E =
-\left[\begin{array}{c}
-x - x_{\text{ref}}\\
-v\cos\theta - v_{\text{ref}}\cos\theta_{\text{ref}}\\
-\left(\frac{p_3}{p_1}\omega^2 - \frac{p_4}{p_1}v\right)\cos\theta - v\omega\sin\theta - a_{\text{ref}}\cos{\theta_{\text{ref}}}\\
-y - y_{\text{ref}}\\
-v\sin\theta - v_{\text{ref}}\sin{\theta_{\text{ref}}}\\
-\left(\frac{p_3}{p_1}\omega^2 - \frac{p_4}{p_1}v\right)\sin\theta + v\omega\cos\theta - a_{\text{ref}}\sin{\theta_{\text{ref}}}\\
-\theta - \theta_{\text{ref}}\\
-\omega - \omega_{\text{ref}}\\
--\frac{p_5}{p_2}v\omega - \frac{p_6}{p_2}\omega - \alpha_{\text{ref}}\\
+K^{ss} =
+\left[\begin{array}{ccc}
+\frac{T_1^5}{20} & 0 & 0\\
+0 & \frac{T_2^5}{20} & 0\\
+0 & 0 & \frac{T_3^5}{20}
 \end{array}\right]
 \end{eqnarray}
 
-\[
-u(q, q_{\text{ref}}, a_{\text{ref}}, \alpha_{\text{ref}}, T, p) = -(D^TD)^{-1}D^TKE
-\]
+% \begin{eqnarray}
+% K =
+% \left[\begin{array}{ccccccccc}
+% \frac{10}{3T_1^2} & \frac{5}{2T_1} & 1 & 0 & 0 & 0 & 0 & 0 & 0\\
+% 0 & 0 & 0 & \frac{10}{3T_2^2} & \frac{5}{2T_2} & 1 & 0 & 0 & 0\\
+% 0 & 0 & 0 & 0 & 0 & 0 & \frac{10}{3T_3^2} & \frac{5}{2T_3} & 1
+% \end{array}\right]
+% \end{eqnarray}
 
-\begin{equation}
-\dot{q}(t) = f(q(t), u(t)) \Rightarrow\\
-\left\lbrace\begin{array}{lcl}
-\dot{x} = u_1\cos\theta\\
-\dot{y} = u_1\sin\theta\\
-\dot{\theta} = u_2\cos\theta
-\end{array}\right.
-\end{equation}
+\begin{eqnarray}
+L_h =
+\left[\begin{array}{c}
+x\\
+v\cos\theta\\
+\left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\cos\theta - v\omega\sin\theta\\
+y\\
+v\sin\theta\\
+\left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\sin\theta + v\omega\cos\theta\\
+\theta\\
+\omega\\
+-\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega\\
+\end{array}\right]
+\end{eqnarray}
 
-For the feedback control, a specific method applicable to unicycle-type robots for tracking a reference vehicle with the same kinematics was used~\cite{siciliano2008springer}. The configuration trajectory $t \longmapsto q_b^*(t)$ can be considered as the solution to the robot's kinematic model for the specific control input trajectory $t \longmapsto u_b^*(t)$. Therefore, those trajectories can be used as references ((\ref{eq:refconfig}) and (\ref{eq:refctrl})) in the control law in (\ref{eq:ctrllaw}) that renders the system globally asymptotically stable under certain conditions\footnote{The orientation error between the physical robot and the reference robot is smaller than $\pi$/2, $u_{1,r}$ is a bounded differentiable function whose derivative is bounded and which does not tend to zero as t tends to infinity}.
+% \begin{eqnarray}
+% E =
+% \left[\begin{array}{c}
+% x - x_{\text{ref}}\\
+% v\cos\theta - v_{\text{ref}}\cos\theta_{\text{ref}}\\
+% \left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\cos\theta - v\omega\sin\theta - a_{\text{ref}}\cos{\theta_{\text{ref}}}\\
+% y - y_{\text{ref}}\\
+% v\sin\theta - v_{\text{ref}}\sin{\theta_{\text{ref}}}\\
+% \left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\sin\theta + v\omega\cos\theta - a_{\text{ref}}\sin{\theta_{\text{ref}}}\\
+% \theta - \theta_{\text{ref}}\\
+% \omega - \omega_{\text{ref}}\\
+% -\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega - \alpha_{\text{ref}}\\
+% \end{array}\right]
+% \end{eqnarray}
 
-\begin{equation}\label{eq:refconfig}
-q_b^*(t) = [x_r\ y_r\ \theta_r]^T
-\end{equation}
+% \[
+% u(q, q_{\text{ref}}, a_{\text{ref}}, \alpha_{\text{ref}}, T, p) = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^{s}L_h - R^s)
+% \]
 
-\begin{equation}\label{eq:refctrl}
-u_b^*(t) = [u_{1,r}\ u_{2,r}]^T
-\end{equation}
+% with $T = [T_1\ T_2\ T_3]$.
 
-\begin{equation}\label{eq:ctrllaw}
-\left\lbrace\begin{array}{lcl}
-u_1 = (-k_1|u_{1,r}|(w_1 + w_2w_3) + u_{1,r})\cos^{-1}(\theta-\theta_r)\\
-u_2 = (-k_2u_{1,r}w_2 - k_3|u_{1,r}|w_3)\cos^2(\theta-\theta_r) + u_{2,r}
-\end{array}\right.
-\end{equation}
-with $w_1 = x - x_r$, $w_2 = y - y_r$, $w_3 = \tan(\theta - \theta_r)$.
+% \begin{equation}
+% \dot{q}(t) = f(q(t), u(t)) \Rightarrow\\
+% \left\lbrace\begin{array}{lcl}
+% \dot{x} = u_1\cos\theta\\
+% \dot{y} = u_1\sin\theta\\
+% \dot{\theta} = u_2\cos\theta
+% \end{array}\right.
+% \end{equation}
 
-The gains $k_1$, $k_2$ and $k_3$ were tunned using pole placement based on the linearization of the system and control.
-32
-For simplicity, the observation of the configurations of each robot was considered exact. This is not an issue if we consider that the robot can detect landmarks in its enviromnent whose absolute positions are known in advance and that data fusion and filtering fsrom different sensors can bound the observation error to small values.
+% For the feedback control, a specific method applicable to unicycle-type robots for tracking a reference vehicle with the same kinematics was used~\cite{siciliano2008springer}. The configuration trajectory $t \longmapsto q_b^*(t)$ can be considered as the solution to the robot's kinematic model for the specific control input trajectory $t \longmapsto u_b^*(t)$. Therefore, those trajectories can be used as references ((\ref{eq:refconfig}) and (\ref{eq:refctrl})) in the control law in (\ref{eq:ctrllaw}) that renders the system globally asymptotically stable under certain conditions\footnote{The orientation error between the physical robot and the reference robot is smaller than $\pi$/2, $u_{1,r}$ is a bounded differentiable function whose derivative is bounded and which does not tend to zero as t tends to infinity}.
+
+% \begin{equation}\label{eq:refconfig}
+% q_b^*(t) = [x_r\ y_r\ \theta_r]^T
+% \end{equation}
+
+% \begin{equation}\label{eq:refctrl}
+% u_b^*(t) = [u_{1,r}\ u_{2,r}]^T
+% \end{equation}
+
+% \begin{equation}\label{eq:ctrllaw}
+% \left\lbrace\begin{array}{lcl}
+% u_1 = (-k_1|u_{1,r}|(w_1 + w_2w_3) + u_{1,r})\cos^{-1}(\theta-\theta_r)\\
+% u_2 = (-k_2u_{1,r}w_2 - k_3|u_{1,r}|w_3)\cos^2(\theta-\theta_r) + u_{2,r}
+% \end{array}\right.
+% \end{equation}
+% with $w_1 = x - x_r$, $w_2 = y - y_r$, $w_3 = \tan(\theta - \theta_r)$.
+
+% The gains $k_1$, $k_2$ and $k_3$ were tunned using pole placement based on the linearization of the system and control.
+% 32
+% For simplicity, the observation of the configurations of each robot was considered exact. This is not an issue if we consider that the robot can detect landmarks in its enviromnent whose absolute positions are known in advance and that data fusion and filtering fsrom different sensors can bound the observation error to small values.
 
 
 
 
-\begin{table}[h]
-\caption{An Example of a Table}
-\label{table_example}
-\begin{center}
-\begin{tabular}{|c||c|}
-\hline
-One & Two\\
-\hline
-Three & Four\\
-\hline
-\end{tabular}
-\end{center}
-\end{table}
+% \begin{table}[h]
+% \caption{An Example of a Table}
+% \label{table_example}
+% \begin{center}
+% \begin{tabular}{|c||c|}
+% \hline
+% One & Two\\
+% \hline
+% Three & Four\\
+% \hline
+% \end{tabular}
+% \end{center}
+% \end{table}
 
 
-   \begin{figure}[thpb]
-      \centering
-      \framebox{\parbox{3in}{We suggest that you use a text box to insert a graphic (which is ideally a 300 dpi TIFF or EPS file, with all fonts embedded) because, in an document, this method is somewhat more stable than directly inserting a picture.
-      }}
-      %\includegraphics[scale=1.0]{figurefile}
-      \caption{Inductance of oscillation winding on amorphous
-       magnetic core versus DC bias magnetic field}
-      \label{figurelabel}
-   \end{figure}
+%    \begin{figure}[thpb]
+%       \centering
+%       \framebox{\parbox{3in}{We suggest that you use a text box to insert a graphic (which is ideally a 300 dpi TIFF or EPS file, with all fonts embedded) because, in an document, this method is somewhat more stable than directly inserting a picture.
+%       }}
+%       %\includegraphics[scale=1.0]{figurefile}
+%       \caption{Inductance of oscillation winding on amorphous
+%        magnetic core versus DC bias magnetic field}
+%       \label{figurelabel}
+%    \end{figure}
    
 
-\section{CONCLUSIONS}
+% \section{CONCLUSIONS}
 
 
 \addtolength{\textheight}{-12cm} 
