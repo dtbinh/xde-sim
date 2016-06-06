@@ -441,7 +441,7 @@ namespace aiv
 		Common::KeysOnMapToVec(otherVehicles, _comAIVsSet);
 		_comAIVsSetMutex.unlock();
 
-		double evalTime = _currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
+		_evalTime = _currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
 
 		// --- PLANNING THREAD MANAGEMENT
 
@@ -475,11 +475,11 @@ namespace aiv
 			{
 				// P0 will begin to be executed next
 				++_executingPlanIdx;
-				evalTime = _currentPlanningTime - _firstPlanTimespan;
+				_evalTime = _currentPlanningTime - _firstPlanTimespan;
 
 				// Reset update call counter so evaluation time be corret
-				//_updateCallCntr = 1; // the update for evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
-				// std::cout << "evalTime: " << evalTime << std::endl;
+				//_updateCallCntr = 1; // the update for _evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
+				// std::cout << "_evalTime: " << _evalTime << std::endl;
 				// std::cout << "updatetimestep: " << _updateTimeStep << std::endl;
 				// std::cout << "_currentPlanningTime: " << _currentPlanningTime << std::endl;
 				// std::cout << "_firstPlanTimespan: " << _firstPlanTimespan << std::endl;
@@ -502,7 +502,7 @@ namespace aiv
 				// update solution spline with the auxliar spline find in planning 0;
 				// no need to lock a mutex associated to the auxiliar spline because we are sure there is no ongoing planning
 				
-				_currentPlanningTime = evalTime;
+				_currentPlanningTime = _evalTime;
 				
 				_trajectory = _optTrajectory;
 				_initPoseForFuturePlan = _latestPose;
@@ -536,13 +536,13 @@ namespace aiv
 			}
 
 			// If the robot started to execute the motion
-			else if (_executingPlanIdx >= 0 && evalTime >= _compHorizon)
+			else if (_executingPlanIdx >= 0 && _evalTime >= _compHorizon)
 			{
 				std::cout << std::string(name).substr(0,10) << " pose: \033[1;44m";
 				std::cout << _latestPose.transpose() << "\033[0m\n";
 				++_executingPlanIdx;
 
-				evalTime -= _compHorizon; // "Fix" evalTime
+				_evalTime -= _compHorizon; // "Fix" _evalTime
 
 				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if thread finished ________ " << _executingPlanIdx << std::endl;
 				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
@@ -599,7 +599,7 @@ namespace aiv
 
 			}
 		}
-		else if (_planStage == FINAL && evalTime > _planHorizon)
+		else if (_planStage == FINAL && _evalTime > _planHorizon)
 		{
 			////std::cout << "gone to DONE" << std::endl;
 			_planStage = DONE;
@@ -621,7 +621,7 @@ namespace aiv
 			// for (auto i = 0; i < 20; ++i)
 			// 	std::cout << ctrlpts[i] << ", " << std::endl;
 			// std::cout << "____________" << std::endl;
-			//std::cout << _trajectory(evalTime*_planHorizon, 3) << std::endl;
+			//std::cout << _trajectory(_evalTime*_planHorizon, 3) << std::endl;
 		}
 		else if (_planStage == DONE)
 		{
@@ -632,11 +632,9 @@ namespace aiv
 		else //INTER or FINAL
 		{
 			// just use solSpline to get the nextReferences values
-			//std::cout << "evalTime: " << evalTime << std::endl;
+			//std::cout << "_evalTime: " << _evalTime << std::endl;
 
-			NDerivativesMatrix derivFlat = _trajectory(evalTime, FlatoutputMonocycle::flatDerivDeg);
-
-			Np1DerivativesMatrix derivFlat2 = _trajectory(evalTime, FlatoutputMonocycle::flatDerivDeg+1);
+			Np1DerivativesMatrix derivFlat = _trajectory(_evalTime, FlatoutputMonocycle::flatDerivDeg+1);
 
 			_poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
 
@@ -650,7 +648,7 @@ namespace aiv
 
 			_velocityOutput = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
-			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat2);
+			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 		}
 
 		_currentPlanningTime += _updateTimeStep;

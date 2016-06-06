@@ -39,13 +39,21 @@ namespace aiv
 		// virtual double getMaxLinAccel() const = 0;
 
 		enum PlanStage {INIT, INTER, FINAL, DONE};
+		virtual unsigned getPlanStage() const = 0;
 		
+		virtual double getPlanHorizon() const = 0;
+
 		virtual PlanStage getSharedPlanStage() const = 0;
 
 		virtual double getTargetedLinVelocity() const = 0;
 		virtual const Eigen::Matrix<double, FlatoutputMonocycle::poseDim, 1> & getSharedTargetedPose() const = 0;
 
 		virtual double getSharedRadius() const = 0;
+
+		virtual const Trajectory & getTrajectory() const = 0;
+		virtual const Eigen::Matrix< double, FlatoutputMonocycle::poseDim, 1 > & getTrajectoryTranslation() const = 0;
+		
+		virtual double getEvalTime() const = 0;
 
 		virtual double getLinVelocity() const = 0;
 		virtual double getAngVelocity() const = 0;

@@ -22,6 +22,8 @@ namespace aiv {
 		static const unsigned posIdx = 0;
 		static const unsigned oriIdx = 2;
 		static const unsigned posDim = 2;
+
+
 		/*!
 			\brief
 			Return z given q.
@@ -70,7 +72,34 @@ namespace aiv {
 		}
 
 		template<class T>
+		static Eigen::Matrix< T, poseDim, 1 > flatToPose(const Eigen::Matrix< T, flatDim, flatDerivDeg + 2 > &dFlat)
+		{
+			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1); // THIS IS CRUTIAL FOR THE OPTIMIZATION TO WORK
+			double vx = dFlat(0,1);
+
+			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::poseDim, 1 >() <<
+				dFlat.leftCols(1),
+				atan2(dFlat(1, 1), vx)
+				).finished();
+		}
+
+		template<class T>
 		static Eigen::Matrix< T, veloDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 1 > &dFlat)
+		{
+			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1);
+			double vx = dFlat(0,1);
+
+			T den =vx*vx + dFlat(1, 1)*dFlat(1, 1); //+eps so no /0 + static_cast<T>(std::numeric_limits< float >::epsilon())
+			den = den < static_cast<T>(std::numeric_limits< double >::epsilon()) ? static_cast<T>(std::numeric_limits< double >::epsilon()) : den;
+
+			return (Eigen::Matrix< T, aiv::FlatoutputMonocycle::veloDim, 1>() <<
+				dFlat.block< aiv::FlatoutputMonocycle::flatDim, 1>(0, 1).norm(),
+				(vx*dFlat(1, 2) - dFlat(1, 1)*dFlat(0, 2)) / den
+				).finished();
+		}
+
+		template<class T>
+		static Eigen::Matrix< T, veloDim, 1 > flatToVelocity(const Eigen::Matrix< T, flatDim, flatDerivDeg + 2 > &dFlat)
 		{
 			// double vx = dFlat(0, 1) < 0.0 ? 0.0 : dFlat(0, 1);
 			double vx = dFlat(0,1);

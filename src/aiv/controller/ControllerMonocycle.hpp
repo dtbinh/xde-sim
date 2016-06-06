@@ -13,7 +13,7 @@ namespace aiv {
 		// 
 		double _predictionTime;
 		static const unsigned stateDim = 5;
-		static const unsigned observDim = 5;
+		static const unsigned observDim = 3;
 		static const unsigned outputDim = 2;
 		static const unsigned dMParamDim = 6;
 		typedef Eigen::Matrix< double, stateDim, 1 > StatVector;
@@ -22,12 +22,11 @@ namespace aiv {
 		typedef Eigen::Matrix< double, dMParamDim, 1 > DyModParamVector;
 
 		static const StatVector relativeDegOfNonLinMIMO;
-		static const unsigned relativeDegOfNonLinMIMOSum = 13; // equals to (relativeDegOfNonLinMIMO+1).sum(), but sum() is runtime, I want it at compitation time
+		static const unsigned relativeDegOfNonLinMIMOSum = 9; // equals to (relativeDegOfNonLinMIMO+1).sum(), but sum() is runtime, I want it at compitation time
 
-		Eigen::Matrix<double, 1, 3> _K2;
-		Eigen::Matrix<double, 1, 3> _K22;
-		Eigen::Matrix<double, 1, 2> _K1;
-		Eigen::Matrix< double, observDim, relativeDegOfNonLinMIMOSum > _K;
+		Eigen::Matrix<double, observDim, relativeDegOfNonLinMIMOSum> _Ks;
+		Eigen::Matrix<double, observDim, observDim> _KssInv;
+
 		DyModParamVector _dMParameters;
 		//
 
@@ -37,7 +36,24 @@ namespace aiv {
 		Eigen::Quaternion<double> _auxQuaternion;
 		Eigen::QuaternionBase<Eigen::Quaternion<double> >::Vector3 _coordXB;
 
-		void _NCGPC(double a1_r, double a2_r, double u1_r, double u2_r, double x_r, double y_r, double theta_r, double u, double w, double x, double y, double theta);
+		void _NCGPC(
+			const Trajectory & reference,
+			const Eigen::Vector3d & translation,
+			double refEvalTime,
+			double planHorizon,
+			unsigned planStage,
+			// double a1_r,
+			// double a2_r,
+			// double u1_r,
+			// double u2_r,
+			// double x_r,
+			// double y_r,
+			// double theta_r,
+			double u,
+			double w,
+			double x,
+			double y,
+			double theta);
 
 	public:
 
@@ -47,7 +63,14 @@ namespace aiv {
 		void setOption(std::string optionName, double optionValue);
 		void setOption(std::string optionName, DyModParamVector optionValue);
 		
-		void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double, double, double);
+		void update(
+			Eigen::Displacementd aivCurrPos,
+			Eigen::Twistd aivCurrVel,
+			const Trajectory & reference,
+			const Eigen::Vector3d & translation,
+			double refEvalTime,
+			double planHorizon,
+			unsigned planStage);
 
 		double getLinVelocity()	const	{return _u1;}	// m/s
 		double getAngVelocity()	const	{return _u2;}	// rad/s

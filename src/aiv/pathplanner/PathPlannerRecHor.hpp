@@ -223,6 +223,8 @@ namespace aiv
 		FlatVector _sharedBasePos;
 		double _sharedPlanHor;
 		double _sharedBaseTime;
+
+		double _evalTime;
 		//double nbPointsCloseInTime;
 
 		//double initTimeOfCurrPlan;
@@ -282,6 +284,9 @@ namespace aiv
 		inline void unlockSharedSolMutex() { _sharedSolMutex.unlock(); }
 
 		// getters
+		inline unsigned getPlanStage() const { return _planStage; }
+		inline double getPlanHorizon() const { return _planHorizon; }
+
 		inline double getSharedBaseTime() const { return _sharedBaseTime; }
 		inline PlanStage getSharedPlanStage() const { return _sharedPlanStage; }
 		inline double getSharedPlanHor() const { return _sharedPlanHor; }
@@ -292,6 +297,11 @@ namespace aiv
 
 		inline double getSharedRadius() const { return _sharedRadius; }
 		// inline double getMaxLinAccel() const { return _maxAcceleration(FlatoutputMonocycle::linAccelIdx); }
+
+		inline const Trajectory& getTrajectory() const { return _trajectory; }
+		inline const PoseVector& getTrajectoryTranslation() const { return _initPoseForCurrPlan; }
+
+		inline double getEvalTime() const { return _evalTime; }
 
 		inline double getLinVelocity() const { return _velocityOutput(FlatoutputMonocycle::linSpeedIdx); }
 		inline double getTargetedLinVelocity() const { return _targetedVelocity(FlatoutputMonocycle::linSpeedIdx); }

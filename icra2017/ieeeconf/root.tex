@@ -266,6 +266,8 @@ ${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \math
 
 The parameters vector ${l \in \mathds{R}^6}$ can be determined by system identification or based on properties of the unicycle such as mass, moment of inertia with respect to different axes, impedance of motors etc.
 
+The system above is a non-linear control-affine system. For these kind of systems an asymptotically stabilizing, static, stationary and continue state feedback can be found whenever a Lyapunov function strictly assignable to the system and continue at the origin exists.
+
 %To synthesize a control law that minimizes the quadratic error in position and orientation (in pose) over a time horizon $T$.
 
 \subsection{Optimal predictive control}
@@ -275,7 +277,7 @@ The objective is to synthesize a control law that minimizes the quadratic error 
 Since only error in pose is to be minimized, the system output can be written as follows:
 
 \[
-h = \left[\begin{array}{c}
+y(t) = h(q(t)) = \left[\begin{array}{c}
 x\\
 y\\
 \theta
@@ -283,13 +285,13 @@ y\\
 \right]
 \]
 
-And the error as:
+with ${y \in Y \subset \mathds{R}^m}$. And the error as:
 
 \[
-	e(t) =  h(t) - h_{\text{ref}}(t)
+	e(t) =  y(t) - y_{\text{ref}}(t)
 \]
 
-where ${h_{\text{ref}}(t)}$ is derived from the trajectory planner output.
+where ${y_{\text{ref}}(t)}$ is derived from the planner's output.
 
 The criterion to be minimized represented by $J$ can be written as:
 
@@ -305,55 +307,55 @@ J_i = \int_0^{T_i} (e_i(t+\tau))^2d\tau
 
 where ${e_i(t+\tau)}$ represents the prediction error at ${t+\tau}$ with ${0 < \tau \leq T_i}$.
 
-To find the control law that minimizes $J$ is to find $u$ satisfying the equation:
+In this particular case, to find the control law that minimizes $J$ is to find $u$ satisfying the equation:
 
 \begin{align*}
 \frac{\partial J}{\partial u} = 0_{p\times 1}
 \end{align*}
 
-For solving the above equation a expression for the prediction error must be defined and the criterion rewritten in a matrix form.
+For solving the above equation an expression for the prediction error must be defined and the criterion rewritten in a matrix form.
 
 %Predictive control equation minimizing the position and orientation errors.
 
 \subsection{Predictive error definition}
 
-Using Taylor series, each of the coefficients of ${h(t+\tau)}$ can be written as bellow:
+Using Taylor series, each element of ${y(t+\tau)}$ can be written as bellow:
 
 \begin{align*}
-h_i(t+\tau) = \sum_{k=0}^{\rho_i} 
-h^{(k)}_i(t)\frac{\tau}{k!} + R(\tau^{\rho_i})
+y_i(t+\tau) = \sum_{k=0}^{\rho_i} 
+y^{(k)}_i(t)\frac{\tau}{k!} + \epsilon(\tau^{\rho_i})
 \end{align*}
 
-Rewriting in a matrix form and excluding the remainder term an approximation for the output $h_i$ is given bellow:
+Rewriting in a matrix form and excluding the remainder term an approximation for the output $y_i$ is given bellow:
 
 \begin{eqnarray}
-h_i(t+\tau) \simeq \underbrace{\left[\begin{array}{ccccc}
+y_i(t+\tau) \simeq \underbrace{\left[\begin{array}{ccccc}
 1 & \tau & \frac{\tau^2}{2} & \dots & \frac{\tau^{\rho_i}}{{\rho_i}!}
 \end{array}\right]}_{\Lambda_i}
 \left[\begin{array}{c}
-h_i(t)\\
-\dot{h}_i(t)\\
-\ddot{h}_i(t)\\
+y_i(t)\\
+\dot{y}_i(t)\\
+\ddot{y}_i(t)\\
 \vdots\\
-h^{(\rho_i)}_i(t)
+y^{(\rho_i)}_i(t)
 \end{array}\right]
 \end{eqnarray}
 
 Replacing the first matrix by the more compact notation $\Lambda_i$ and using the standard geometric notation for Lie derivatives the previous can be written as:
 
 \begin{eqnarray}
-h_i(t+\tau) \simeq \Lambda_i L_{h_i}
+y_i(t+\tau) \simeq \Lambda_i L_{y_i}
 \end{eqnarray}
 
 where
 
 \begin{eqnarray*}
-L_{h_i} = \left[\begin{array}{c}
-L_f^{(0)}h_i(t)\\
-L_f^{(1)}h_i(t)\\
+L_{y_i} = \left[\begin{array}{c}
+L_f^{(0)}y_i(t)\\
+L_f^{(1)}y_i(t)\\
 \vdots\\
-L^{({\rho_i}-1)}_fh_i(t)\\
-L^{({\rho_i})}_fh_i(t)+L_gL_{h_i}^{({\rho_i}-1)}h_i(t)u(t)
+L^{({\rho_i}-1)}_fy_i(t)\\
+L^{({\rho_i})}_fy_i(t)+L_gL_{y_i}^{({\rho_i}-1)}y_i(t)u(t)
 \end{array}\right]
 \end{eqnarray*}
 
@@ -361,8 +363,8 @@ L^{({\rho_i})}_fh_i(t)+L_gL_{h_i}^{({\rho_i}-1)}h_i(t)u(t)
 
 \begin{eqnarray*}
 \left\lbrace\begin{array}{lcl}
-L_f^{(k)} h_i & = & L_fL_f^{(k-1)}h_i = \frac{\partial L_f^{\rho-1}h_i}{\partial q}(q)f(q)\\
-L_f^{(0)}h_i & = & h_i\\
+L_f^{(k)} y_i & = & L_fL_f^{(k-1)}y_i = \frac{\partial L_f^{(k-1)}y_i}{\partial q}(q)f(q)\\
+L_f^{(0)}y_i & = & y_i\\
 \end{array}\right.
 \end{eqnarray*}
 
@@ -370,68 +372,69 @@ L_f^{(0)}h_i & = & h_i\\
 %u = \argmin_u\sum_{i=1}^{m}J_i
 %\end{align}
 
-The second term in the prediction error expression, ${h_{\text{ref}}(t+\tau)}$, 
+The second term in the prediction error expression, ${y_{\text{ref}}(t+\tau)}$, 
 can be given by the planner for any $\tau$ as long as ${T_i < T_p - T_c}$.
 
 % \begin{eqnarray}
-% h_{\text{ref},i}(t+\tau) \simeq \Lambda_i
+% y_{\text{ref},i}(t+\tau) \simeq \Lambda_i
 % \underbrace{\left[\begin{array}{c}
-% h_{\text{ref},i}(t)\\
-% \dot{h}_{\text{ref},i}(t)\\
-% \ddot{h}_{\text{ref},i}(t)\\
+% y_{\text{ref},i}(t)\\
+% \dot{y}_{\text{ref},i}(t)\\
+% \ddot{y}_{\text{ref},i}(t)\\
 % \vdots\\
-% h^{({\rho_i})}_{\text{ref},i}(t)
-% \end{array}\right]}_{L_{h_{\text{ref},\,i}}}
+% y^{({\rho_i})}_{\text{ref},i}(t)
+% \end{array}\right]}_{L_{y_{\text{ref},\,i}}}
 % \end{eqnarray}
 
-% $L_{h_{\text{ref},\, i}}$ is supposed to be known from the trajectory planner output for any $\rho_i$.
+% $L_{y_{\text{ref},\, i}}$ is supposed to be known from the trajectory planner output for any $\rho_i$.
 
 \subsection{Control law equation}
 
 After some algebraic manipulation we can show that:
 
 \begin{eqnarray*}
-J_i &=& \int_0^{T_i}(h_i - h_{i\,\text{ref}})^2d\tau\\
-&=& \int_0^{T_i}h_i^2d\tau -2\int_0^{T_i}h_ih_{i,\,\text{ref}}d\tau + \int_0^{T_i}h_{i\,\text{ref}}^2d\tau\\
-&=& \int_0^{T_i}L_{h_i}^t\Lambda_i^t\Lambda_iL_{h_i}d\tau - 2\int_0^{T_i}h_{i,\,\text{ref}}\Lambda_iL_{h_i}d\tau\\
-&& + \underbrace{\int_0^{T_i}h_{i,\,\text{ref}}^2d\tau}_{C_i}\\
-&=& L_{h_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{h_i} -\underbrace{2\int_0^{T_i}h_{i,\,\text{ref}}\Lambda_id\tau}_{R_i}L_{h_i} + C_i\\
-&=& L_{h_i}^tK_iL_{h_i} -R_iL_{h_i} + C_i\\
-\frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{\partial L_{h_i}^tK_iL_{h_i}}{\partial u} - \frac{\partial R_iL_{h_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
+J_i &=& \int_0^{T_i}(y_i - y_{i,\text{ref}})^2d\tau\\
+&=& \int_0^{T_i}y_i^2d\tau -2\int_0^{T_i}y_iy_{i,\text{ref}}d\tau + \int_0^{T_i}y_{i\,\text{ref}}^2d\tau\\
+&=& \int_0^{T_i}L_{y_i}^t\Lambda_i^t\Lambda_iL_{y_i}d\tau - 2\int_0^{T_i}y_{i,\text{ref}}\Lambda_iL_{y_i}d\tau\\
+&& + \underbrace{\int_0^{T_i}y_{i,\text{ref}}^2d\tau}_{C_i}\\
+&=& L_{y_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{y_i} -\underbrace{2\int_0^{T_i}y_{i,\text{ref}}\Lambda_id\tau}_{R_i}L_{y_i} + C_i\\
+&=& L_{y_i}^tK_iL_{y_i} -R_iL_{y_i} + C_i\\
+\frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{\partial L_{y_i}^tK_iL_{y_i}}{\partial u} - \frac{\partial R_iL_{y_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
 &=& \sum_{i=1}^m \left(
 \left[\begin{array}{c}
-L_{g_1}L_f^{(\rho-1)}h_i\\
+L_{g_1}L_f^{(\rho-1)}y_i\\
 \vdots\\
-L_{g_p}L_f^{(\rho-1)}h_i
+L_{g_p}L_f^{(\rho-1)}y_i
 \end{array}\right]
-(K^s_iL_{h_i} - R_i^s)\right)\\
+(K^s_iL_{y_i} - R_i^s)\right)\\
 &=& \underbrace{\left[\begin{array}{ccc}
-L_{g_1}L_f^{(\rho-1)}h_1 & \dots & L_{g_1}L_f^{(\rho-1)}h_m\\
+L_{g_1}L_f^{(\rho-1)}y_1 & \dots & L_{g_1}L_f^{(\rho-1)}y_m\\
 & \ddots &\\
-L_{g_p}L_f^{(\rho-1)}h_1 & \dots & L_{g_p}L_f^{(\rho-1)}h_m
+L_{g_p}L_f^{(\rho-1)}y_1 & \dots & L_{g_p}L_f^{(\rho-1)}y_m
 \end{array}\right]}_{D}\\
 &&\left(\left[\begin{array}{c}
-K_1^sL_{h_1}\\
+K_1^sL_{y_1}\\
 \vdots\\
-K_m^sL_{h_m}
+K_m^sL_{y_m}
 \end{array}\right] -\left[\begin{array}{c}
 R_1^s\\
 \vdots\\
 R_m^s
 \end{array}\right] \right)\\
 &=& D \left(\left[\begin{array}{c}
-K_1^sL_{h_1}\\
+K_1^sL_{y_1}\\
 \vdots\\
-K_m^sL_{h_m}
+K_m^sL_{y_m}
 \end{array}\right]-\underbrace{\left[\begin{array}{c}
 R_1^s\\
 \vdots\\
 R_m^s
 \end{array}\right]}_{R^s} \right) = 0_{p\times1} \Rightarrow\\
+&&\text{Assuming $D^tD$ non-singular:}\\
 &\Rightarrow & \left[\begin{array}{c}
-K_1^sL_{h_1}\\
+K_1^sL_{y_1}\\
 \vdots\\
-K_m^sL_{h_m}
+K_m^sL_{y_m}
 \end{array}\right]-R^s = 0_{m\times1}\\
 &=& K^{ss}D
 \underbrace{\left[\begin{array}{c}
@@ -441,31 +444,31 @@ u_p
 \end{array}\right]}_{u}
 + K^s
 \underbrace{\left[\begin{array}{c}
-h_1\\
+y_1\\
 \vdots\\
-L_f^{\rho_1}h_1\\
+L_f^{(\rho_1)}y_1\\
 \vdots\\
-h_m\\
+y_m\\
 \vdots\\
-L_f^{\rho_m}h_m
-\end{array}\right]}_{L_h} - R^s\\
-&=& K^{ss}Du + K^sL_h-R^s = 0 \Rightarrow\\
-&\Rightarrow& u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_h-R^s)\\
+L_f^{(\rho_m)}y_m
+\end{array}\right]}_{L_y} - R^s\\
+&=& K^{ss}Du + K^sL_y-R^s = 0 \Rightarrow\\
+&\Rightarrow& u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_y-R^s)\\
 \end{eqnarray*}
 
 % \[
-% \frac{\partial J}{\partial u} = 0 \Rightarrow u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_h-R^s)
+% \frac{\partial J}{\partial u} = 0 \Rightarrow u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_y-R^s)
 % \]
 
 
-with $D$ the decoupling matrix, $K^{ss}$ and $K^s$ matrices derived from the gain matrices, $K_1,\ \dots,\ K_m$, $L_h$ the prediction output matrix and $R^s$ the future output of reference matrix:
+with $D$ the decoupling matrix, $K^{ss}$ and $K^s$ matrices derived from the gain matrices, $K_1,\ \dots,\ K_m$, $L_y$ the prediction output matrix and $R^s$ the future output of reference matrix:
 
 \begin{eqnarray}
 D = 
 \left[\begin{array}{ccc}
-L_{g_1}L_f^{\rho_1-1}h_1 & \dots & L_{g_p}L_f^{\rho_1-1}h_1\\
+L_{g_1}L_f^{\rho_1-1}y_1 & \dots & L_{g_p}L_f^{\rho_1-1}y_1\\
 \vdots & \ddots & \vdots\\
-L_{g_1}L_f^{\rho_m-1}h_m & \dots & L_{g_p}L_f^{\rho_m-1}h_m
+L_{g_1}L_f^{\rho_m-1}y_m & \dots & L_{g_p}L_f^{\rho_m-1}y_m
 \end{array}\right]
 \end{eqnarray}
 
@@ -504,18 +507,18 @@ which gives the following expression for each element of $K_i$:
 K_{i,\,(a,\,b)} = \frac{T_i^{(a+b)+1}}{((a+b)+1)a!b!}
 \end{equation*}
 
-with ${a,\ b \in [0,\ \rho_i] \subset \mathds{Z}}$ the line and column indexes.
+with ${a,\ b \in [0,\ \rho_i] \subset \mathds{Z}}$ the row and column indexes.
 
 \begin{eqnarray}
-L_h = 
+L_y = 
 \left[\begin{array}{c}
-h_1\\
+y_1\\
 \vdots\\
-L_f^{(\rho_1)}h_1\\
+L_f^{(\rho_1)}y_1\\
 \vdots\\
-h_m\\
+y_m\\
 \vdots\\
-L_f^{(\rho_m)}h_m
+L_f^{(\rho_m)}y_m
 \end{array}\right]
 \end{eqnarray}
 
@@ -528,11 +531,12 @@ R_m^s
 \end{array}\right]
 \end{eqnarray}
 
-${R^s_i}$ being the last element of the column vector $R_i$, where
+${R^s_i}$ being the last element of the row vector $R_i$, where
 
-\begin{equation*}
-R_i = 2\int^{T_i}_0h_{i,\,\text{ref}}\Lambda_id\tau  
-\end{equation*}
+\begin{equation}
+R_i = 2\int^{T_i}_0y_{i,\text{ref}}\Lambda_id\tau
+\label{eq:obstofref}
+\end{equation}
 
 
 % \begin{align}
@@ -549,64 +553,64 @@ R_i = 2\int^{T_i}_0h_{i,\,\text{ref}}\Lambda_id\tau
 The MIMO (Multiple Input Multiple Output) system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
 
 \begin{itemize}
-\item $L_{gj}L_f^kh_i(x) = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
-\item the product $D^TD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
+\item $L_{g_j}L_f^{(k)}y_i(x) = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
+\item the product $D^tD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
 
 \begin{eqnarray}
 D = 
 \left[\begin{array}{ccc}
-L_{g_1}L_f^{\rho_1-1}h_1 & \dots & L_{g_p}L_f^{\rho_1-1}h_1\\
+L_{g_1}L_f^{(\rho_1-1)}y_1 & \dots & L_{g_p}L_f^{(\rho_1-1)}y_1\\
 \vdots & \ddots & \vdots\\
-L_{g_1}L_f^{\rho_m-1}h_m & \dots & L_{g_p}L_f^{\rho_m-1}h_m
+L_{g_1}L_f^{(\rho_m-1)}y_m & \dots & L_{g_p}L_f^{(\rho_m-1)}y_m
 \end{array}\right]
 \end{eqnarray}
 \end{itemize}
 
-A way of trying to find a vector $\rho$ for our particular system is by computing $L_{g_i}L_f^kh_j$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
+A way of trying to find a vector $\rho$ for our particular system is by computing $L_{g_j}L_f^{(k)}y_i$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
 
-For ${\rho = [1\ 1\ 1]}$, ${L_{g_i}L_f^0h_j = L_{g_i}h_j = 0}$ for all ${1 \leq i \leq p}$, for all ${1 \leq j \leq m}$ which does not satisfy the second condition.
+For ${\rho = [1\ 1\ 1]}$, ${L_{g_j}L_f^{(0)}y_i = L_{g_j}y_i = 0}$ for all ${1 \leq j \leq p}$, for all ${1 \leq i \leq m}$ which does not satisfy the second condition.
 
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_1}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
-%L_{g_1}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
-%L_{g_1}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0
+%L_{g_1}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
+%L_{g_1}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
+%L_{g_1}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 %
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_2}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
-%L_{g_2}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
-%L_{g_2}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0
+%L_{g_2}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
+%L_{g_2}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
+%L_{g_2}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 
-For computing $L_{g_i}L_f^kh_j$ with $\rho = [2\ 2\ 2]$ we need first $L_fh_j$:
+For computing $L_{g_j}L_f^{(k)}y_i$ with $\rho = [2\ 2\ 2]$ we need first $L_fy_i$:
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{f}h_1 & = & [1\ 0\ 0\ 0\ 0\ 0]f(q) = v\cos\theta\\
-L_{f}h_2 & = & [0\ 1\ 0\ 0\ 0\ 0]f(q) = v\sin\theta\\
-L_{f}h_3 & = & [0\ 0\ 1\ 0\ 0\ 0]f(q) = \omega
+L_{f}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0]f(q) = v\cos\theta\\
+L_{f}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0]f(q) = v\sin\theta\\
+L_{f}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0]f(q) = \omega
 \end{array}\right.
 \end{eqnarray}
 
-Computing now $L_{g_j}L_fh_j$ we obtain:
+Computing now $L_{g_j}L_fy_i$ we obtain:
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{g_1}L_{f}h_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_1(q) = \cos\theta/l_1\\
-L_{g_1}L_{f}h_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_1(q) = \sin\theta/l_1\\
-L_{g_1}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
+L_{g_1}L_{f}y_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_1(q) = \cos\theta/l_1\\
+L_{g_1}L_{f}y_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_1(q) = \sin\theta/l_1\\
+L_{g_1}L_{f}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
 \end{array}\right.
 \end{eqnarray}
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{g_2}L_{f}h_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_2(q) = 0\\
-L_{g_2}L_{f}h_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_2(q) = 0\\
-L_{g_2}L_{f}h_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/l_2
+L_{g_2}L_{f}y_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_2(q) = 0\\
+L_{g_2}L_{f}y_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_2(q) = 0\\
+L_{g_2}L_{f}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/l_2
 \end{array}\right.
 \end{eqnarray}
 
@@ -624,16 +628,16 @@ D =
 and consequently:
 
 \begin{eqnarray}
-D^TD = 
+D^tD = 
 \left[\begin{array}{cc}
 \frac{1}{l_1^2} & 0\\
 0 & \frac{1}{l_2^2}
 \end{array}\right]
 \end{eqnarray}
 
-which is non-singular for all $l_1, l_2 \neq 0$. Besides, the first condition is also met: $L_gL^{k_i}_fh_i = 0\ \forall\ k_i < \rho_i-1\ $.
+which is non-singular for all $l_1, l_2 \neq 0$. Besides, the first condition is also met: $L_{g_j}L^{(k_i)}_fy_i = 0\ \forall\ k_i < \rho_i-1\ $.
 
-Using $\rho = [2\ 2\ 2]$, matrices $K^{s}$, $K^{ss}$ and $L_h$ can be written as bellow:
+Using $\rho = [2\ 2\ 2]$, matrices $K^{s}$, $K^{ss}$ and $L_y$ can be written as bellow:
 
 \begin{eqnarray}
 K^s =
@@ -663,7 +667,7 @@ K^{ss} =
 % \end{eqnarray}
 
 \begin{eqnarray}
-L_h =
+L_y =
 \left[\begin{array}{c}
 x\\
 v\cos\theta\\
@@ -676,6 +680,19 @@ v\sin\theta\\
 -\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega\\
 \end{array}\right]
 \end{eqnarray}
+
+$R^s$ can be found (numerically or analytically) from planner's output according with the folling expression:
+
+\begin{eqnarray}
+R^s =
+\left[\begin{array}{c}
+\int_0^{T_1}x_{\text{ref}}(t+\tau)\tau^2d\tau\\
+\int_0^{T_2}y_{\text{ref}}(t+\tau)\tau^2d\tau\\
+\int_0^{T_3}\theta_{\text{ref}}(t+\tau)\tau^2d\tau
+\end{array}\right]
+\end{eqnarray}
+
+
 
 % \begin{eqnarray}
 % E =
@@ -693,7 +710,7 @@ v\sin\theta\\
 % \end{eqnarray}
 
 % \[
-% u(q, q_{\text{ref}}, a_{\text{ref}}, \alpha_{\text{ref}}, T, p) = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^{s}L_h - R^s)
+% u(q, q_{\text{ref}}, a_{\text{ref}}, \alpha_{\text{ref}}, T, p) = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^{s}L_y - R^s)
 % \]
 
 % with $T = [T_1\ T_2\ T_3]$.

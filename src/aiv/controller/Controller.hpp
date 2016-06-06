@@ -5,6 +5,7 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Lgsm>
+#include "aiv/pathplanner/Trajectory.hpp"
 
 namespace aiv {
 
@@ -13,11 +14,18 @@ namespace aiv {
 
 	public:
 		Controller(std::string name);
-		virtual void update(Eigen::Displacementd, Eigen::Twistd, double, double, double, double, double, double, double) = 0;
+		virtual void update(
+			Eigen::Displacementd aivCurrPos,
+			Eigen::Twistd aivCurrVel,
+			const Trajectory & reference,
+			const Eigen::Vector3d & translation,
+			double refEvalTime,
+			double planHorizon,
+			unsigned planStage) = 0;
 		std::string getName();
 
 	protected:
-		std::string   name;
+		std::string name;
 
 	};
 
