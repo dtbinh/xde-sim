@@ -140,9 +140,15 @@ class Robots:
     def realThetaTS(self):
         return self.realTabl[:,4]
     def xErrTS(self):
-        return self.realTabl[:,2] - self.plTabl[:,1]
+        # return self.realTabl[:,2] - self.plTabl[:,1]
+        # return self.realTabl[:,2] - np.concatenate((np.array([self.realTabl[0,2]]), np.roll(self.plTabl[:,1], 1)[1:]))
+        # Rolling planned vector for accounting for simulation step time times velocity
+        return self.realTabl[:,2] - np.concatenate((np.roll(self.plTabl[:,1], -1)[:-1], np.array([self.realTabl[-1,2]])))
     def yErrTS(self):
-        return self.realTabl[:,3] - self.plTabl[:,2]
+        # return self.realTabl[:,3] - self.plTabl[:,2]
+        # return self.realTabl[:,3] - np.concatenate((np.array([self.realTabl[0,3]]), np.roll(self.plTabl[:,2], 1)[1:]))
+        # Rolling planned vector for accounting for simulation step time times velocity
+        return self.realTabl[:,3] - np.concatenate((np.roll(self.plTabl[:,2], -1)[:-1], np.array([self.realTabl[-1,3]])))
     def posErrTS(self):
         return np.array([np.sqrt(ex**2+ey**2) for ex, ey in zip(self.xErrTS(), self.yErrTS())])
     def thetaErrTS(self):
@@ -318,6 +324,9 @@ for sRSInfo in simulInfo[0:nbOfRobots]:
     axArrayErrPose[0].grid()
     axArrayErrPose[1].grid()
 
+    axArrayErrPose[0].set_ylim([-0.015, 0.015])
+    axArrayErrPose[1].set_ylim([-0.1, 0.1])
+
     axArrayErrPose[0].plot(simTime, sRSInfo.posErrTS(), 'b', label=r'$\|[x_{err}\ y_{err}]^T\|$')
 
     axArrayErrPose[1].plot(simTime, sRSInfo.thetaErrTS(), 'b', label=r'$\theta_{err}$')
@@ -436,9 +445,9 @@ for t, index in zip(timeRange, range(len(timeRange))):
     [sRSInfo.updatePlot(fig, t) for sRSInfo in simulInfo]
 
     ax.relim()
-    # ax.autoscale_view(True, True, True)
-    ax.set_ylim([-10, 10])
-    ax.set_xlim([-10, 10])
+    ax.autoscale_view(True, True, True)
+    # ax.set_ylim([-10, 10])
+    # ax.set_xlim([-10, 10])
     fig.canvas.draw()
 
     # if t == timeRange[-1]:

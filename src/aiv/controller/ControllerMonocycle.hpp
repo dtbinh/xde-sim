@@ -42,13 +42,13 @@ namespace aiv {
 			double refEvalTime,
 			double planHorizon,
 			unsigned planStage,
-			// double a1_r,
-			// double a2_r,
-			// double u1_r,
-			// double u2_r,
-			// double x_r,
-			// double y_r,
-			// double theta_r,
+			double a1_r,
+			double a2_r,
+			double u1_r,
+			double u2_r,
+			double x_r,
+			double y_r,
+			double theta_r,
 			double u,
 			double w,
 			double x,
@@ -70,7 +70,14 @@ namespace aiv {
 			const Eigen::Vector3d & translation,
 			double refEvalTime,
 			double planHorizon,
-			unsigned planStage);
+			unsigned planStage,
+			double a1_r,
+			double a2_r,
+			double u1_r,
+			double u2_r,
+			double x_r,
+			double y_r,
+			double theta_r);
 
 		double getLinVelocity()	const	{return _u1;}	// m/s
 		double getAngVelocity()	const	{return _u2;}	// rad/s

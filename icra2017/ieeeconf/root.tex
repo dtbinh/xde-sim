@@ -302,11 +302,11 @@ J = \sum_{i=1}^m J_i
 with
 
 \begin{align*}
-J_i = \int_0^{T_i} (e_i(t+\tau))^2d\tau
+J_i = \frac{1}{2}\int_0^{T_i} (e_i(t+\tau))^2d\tau
 \end{align*}
 
 where ${e_i(t+\tau)}$ represents the prediction error at ${t+\tau}$ with ${0 < \tau \leq T_i}$.
-
+cd 
 In this particular case, to find the control law that minimizes $J$ is to find $u$ satisfying the equation:
 
 \begin{align*}
@@ -323,7 +323,7 @@ Using Taylor series, each element of ${y(t+\tau)}$ can be written as bellow:
 
 \begin{align*}
 y_i(t+\tau) = \sum_{k=0}^{\rho_i} 
-y^{(k)}_i(t)\frac{\tau}{k!} + \epsilon(\tau^{\rho_i})
+y^{(k)}_i(t)\frac{\tau^k}{k!} + \epsilon(\tau^{\rho_i})
 \end{align*}
 
 Rewriting in a matrix form and excluding the remainder term an approximation for the output $y_i$ is given bellow:
@@ -393,13 +393,13 @@ can be given by the planner for any $\tau$ as long as ${T_i < T_p - T_c}$.
 After some algebraic manipulation we can show that:
 
 \begin{eqnarray*}
-J_i &=& \int_0^{T_i}(y_i - y_{i,\text{ref}})^2d\tau\\
-&=& \int_0^{T_i}y_i^2d\tau -2\int_0^{T_i}y_iy_{i,\text{ref}}d\tau + \int_0^{T_i}y_{i\,\text{ref}}^2d\tau\\
-&=& \int_0^{T_i}L_{y_i}^t\Lambda_i^t\Lambda_iL_{y_i}d\tau - 2\int_0^{T_i}y_{i,\text{ref}}\Lambda_iL_{y_i}d\tau\\
-&& + \underbrace{\int_0^{T_i}y_{i,\text{ref}}^2d\tau}_{C_i}\\
-&=& L_{y_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{y_i} -\underbrace{2\int_0^{T_i}y_{i,\text{ref}}\Lambda_id\tau}_{R_i}L_{y_i} + C_i\\
-&=& L_{y_i}^tK_iL_{y_i} -R_iL_{y_i} + C_i\\
-\frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{\partial L_{y_i}^tK_iL_{y_i}}{\partial u} - \frac{\partial R_iL_{y_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
+J_i &=& \frac{1}{2}\int_0^{T_i}(y_i - y_{i,\text{ref}})^2d\tau\\
+&=& \frac{1}{2}\int_0^{T_i}y_i^2d\tau -\int_0^{T_i}y_iy_{i,\text{ref}}d\tau + \frac{1}{2}\int_0^{T_i}y_{i\,\text{ref}}^2d\tau\\
+&=& \frac{1}{2}\int_0^{T_i}L_{y_i}^t\Lambda_i^t\Lambda_iL_{y_i}d\tau - \int_0^{T_i}y_{i,\text{ref}}\Lambda_iL_{y_i}d\tau\\
+&& + \underbrace{\frac{1}{2}\int_0^{T_i}y_{i,\text{ref}}^2d\tau}_{C_i}\\
+&=& \frac{1}{2}L_{y_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{y_i} -\underbrace{\int_0^{T_i}y_{i,\text{ref}}\Lambda_id\tau}_{R_i}L_{y_i} + C_i\\
+&=& \frac{1}{2}L_{y_i}^tK_iL_{y_i} -R_iL_{y_i} + C_i\\
+\frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{1}{2}\frac{\partial L_{y_i}^tK_iL_{y_i}}{\partial u} - \frac{\partial R_iL_{y_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
 &=& \sum_{i=1}^m \left(
 \left[\begin{array}{c}
 L_{g_1}L_f^{(\rho-1)}y_i\\
@@ -534,7 +534,7 @@ R_m^s
 ${R^s_i}$ being the last element of the row vector $R_i$, where
 
 \begin{equation}
-R_i = 2\int^{T_i}_0y_{i,\text{ref}}\Lambda_id\tau
+R_i = \int^{T_i}_0y_{i,\text{ref}}\Lambda_id\tau
 \label{eq:obstofref}
 \end{equation}
 
@@ -550,10 +550,10 @@ R_i = 2\int^{T_i}_0y_{i,\text{ref}}\Lambda_id\tau
 
 \subsection{Finding $u$ for the unicycle case}
 
-The MIMO (Multiple Input Multiple Output) system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
+The MIMO (Multiple Input Multiple Output) control-affine system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
 
 \begin{itemize}
-\item $L_{g_j}L_f^{(k)}y_i(x) = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
+\item $L_{g_j}L_f^{(k)}y_i = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
 \item the product $D^tD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
 
 \begin{eqnarray}
@@ -564,6 +564,7 @@ L_{g_1}L_f^{(\rho_1-1)}y_1 & \dots & L_{g_p}L_f^{(\rho_1-1)}y_1\\
 L_{g_1}L_f^{(\rho_m-1)}y_m & \dots & L_{g_p}L_f^{(\rho_m-1)}y_m
 \end{array}\right]
 \end{eqnarray}
+
 \end{itemize}
 
 A way of trying to find a vector $\rho$ for our particular system is by computing $L_{g_j}L_f^{(k)}y_i$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
@@ -685,7 +686,7 @@ $R^s$ can be found (numerically or analytically) from planner's output according
 
 \begin{eqnarray}
 R^s =
-\left[\begin{array}{c}
+\frac{1}{2}\left[\begin{array}{c}
 \int_0^{T_1}x_{\text{ref}}(t+\tau)\tau^2d\tau\\
 \int_0^{T_2}y_{\text{ref}}(t+\tau)\tau^2d\tau\\
 \int_0^{T_3}\theta_{\text{ref}}(t+\tau)\tau^2d\tau

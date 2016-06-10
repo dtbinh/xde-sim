@@ -135,14 +135,14 @@ namespace aiv {
 				it->second->getPathPlanner()->getTrajectoryTranslation(),
 				it->second->getPathPlanner()->getEvalTime(),
 				it->second->getPathPlanner()->getPlanHorizon(),
-				it->second->getPathPlanner()->getPlanStage());
-				// it->second->getPathPlanner()->getXPosition(),
-				// it->second->getPathPlanner()->getYPosition(),
-				// it->second->getPathPlanner()->getOrientation(),
-				// it->second->getPathPlanner()->getLinVelocity(),
-				// it->second->getPathPlanner()->getAngVelocity(),
-				// it->second->getPathPlanner()->getLinAccel(),
-				// it->second->getPathPlanner()->getAngAccel()
+				it->second->getPathPlanner()->getPlanStage(),
+				it->second->getPathPlanner()->getXPosition(),
+				it->second->getPathPlanner()->getYPosition(),
+				it->second->getPathPlanner()->getOrientation(),
+				it->second->getPathPlanner()->getLinVelocity(),
+				it->second->getPathPlanner()->getAngVelocity(),
+				it->second->getPathPlanner()->getLinAccel(),
+				it->second->getPathPlanner()->getAngAccel());
 
 			//std::cout << "after controller update [" << it->first << "]" << std::endl;
 

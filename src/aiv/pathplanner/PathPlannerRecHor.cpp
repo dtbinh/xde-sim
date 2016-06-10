@@ -101,6 +101,7 @@ namespace aiv
 		_targetedPose = targetedPose;
 		_sharedTargetedPose = targetedPose;
 		_targetedFlat = FlatoutputMonocycle::poseToFlat(_targetedPose);
+		_wayPt = _targetedFlat;
 		_targetedVelocity = targetedVelocity;
 		
 		_poseOutput = initPose;
@@ -647,6 +648,7 @@ namespace aiv
 				// Common::wrapToPi(_poseOutput(FlatoutputMonocycle::oriIdx, 0) + _initPoseForCurrPlan(FlatoutputMonocycle::oriIdx, 0));
 
 			_velocityOutput = FlatoutputMonocycle::flatToVelocity(derivFlat);
+			// max( min( _u1, _maxU1 ), -1*_maxU1 );
 
 			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 		}
@@ -863,6 +865,8 @@ namespace aiv
 		
 		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
 		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+		std::cout << FG_B_L_YELLOW << wayPtTheta << RESET << std::endl;
 
 		FlatVector forbSpacToWayPt = _wayPt - forbiddenSpaces[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
@@ -1229,7 +1233,7 @@ namespace aiv
 				{
 					// get two angular variations (positive if clockwise, negative otherwise) and distance for avoiding this forbiddenSpace
 					_avoidanceInfo[*fsIt] = _getAngularVariationAndDistForAvoidance(*fsIt, forbiddenSpaces);
-					std::cout << *fsIt << ": " << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << ", " << _avoidanceInfo[*fsIt][2] << std::endl;
+					// std::cout << *fsIt << ": " << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << ", " << _avoidanceInfo[*fsIt][2] << std::endl;
 					// [theta left, theta right, distance]
 				}
 				++clIt;
@@ -1237,7 +1241,7 @@ namespace aiv
 			else // this cluster can be ignored
 			{
 				forbiddenSpacesClusters.erase(clIt);
-				std::cout << this->name << "::sorted\033[1;36m";
+				std::cout << this->name << "::remaining\033[1;36m";
 				Common::printNestedContainer(forbiddenSpacesClusters);
 				std::cout << "\033[0m" << std::endl;
 			}
@@ -1263,29 +1267,68 @@ namespace aiv
 			// Am I inside a forbiddenSpace? In this case return a way point to scape from the obstacle center
 			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 			{
+				std::cout << FG_B_L_MAGENTA << *fsIt << ": " << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << _avoidanceInfo[*fsIt][2] << RESET << std::endl;
 				if (_avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
 				{
 					//return previousWayPoint
-					FlatVector outOfForbSpac;
-					outOfForbSpac << _avoidanceInfo[*fsIt][0], _avoidanceInfo[*fsIt][1];
-					FlatVector robotToWayPt = _wayPt - _latestFlat;
-					double robotToWayPtDist = robotToWayPt.norm();
-					double weight = std::min(abs(_avoidanceInfo[*fsIt][2])/_robotObstacleSafetyDist, 1.);
-					_wayPt = weight*(outOfForbSpac*robotToWayPtDist + _latestFlat) + (1-weight)*(_wayPt);
+					// FlatVector outOfForbSpac;
+					// outOfForbSpac << _avoidanceInfo[*fsIt][0], _avoidanceInfo[*fsIt][1];
+					// FlatVector robotToWayPt = _wayPt - _latestFlat;
+					// double robotToWayPtDist = robotToWayPt.norm();
+					// double weight = std::min(abs(_avoidanceInfo[*fsIt][2])/_robotObstacleSafetyDist, 1.);
+					// _wayPt = weight*(outOfForbSpac*robotToWayPtDist + _latestFlat) + (1-weight)*(_wayPt);
 					return;
 				}
 			}
 
-			// Sort forbidden spaces according to angular variation
-			std::sort (clIt->begin(), clIt->end(), comp);//, *this);
+			if (clIt->size() > 1)
+			{
+				// Sort forbidden spaces according to angular variation
+				comp.clockwise();
+				std::sort (clIt->begin(), clIt->end(), comp);//, *this);
+
+				std::string firstForbSpace(clIt->front());
+
+				// Sort forbidden spaces according to angular variation
+				comp.antiClockwise();
+				std::sort (clIt->begin(), clIt->end(), comp);//, *this);
+
+				std::string lastForbSpace(clIt->back());
+
+				clIt->clear();
+				clIt->insert(clIt->end(), firstForbSpace);
+				clIt->insert(clIt->end(), lastForbSpace);
+			}
 
 		}
 			// Save minimum absolute angular variontion
 			// cluster.minAbsAngVar = minAbsAngVar(cluster)
+		
+		std::cout << this->name << "::not sorted\033[1;36m";
+		Common::printNestedContainer(forbiddenSpacesClusters);
+		std::cout << "\033[0m" << std::endl;
 
-		// Sort clusters according to abs ang variation
 		std::sort (forbiddenSpacesClusters.begin(), forbiddenSpacesClusters.end(), comp);//, *this);
+		
+		// if (forbiddenSpacesClusters.size() > 1)
+		// {
 
+		// 	// Sort forbidden spaces according to angular variation
+		// 	comp.clockwise();
+		// 	std::sort (forbiddenSpacesClusters.begin(), forbiddenSpacesClusters.end(), comp);//, *this);
+
+		// 	VecStr firstCluster(forbiddenSpacesClusters.front());
+
+		// 	// Sort forbidden spaces according to angular variation
+		// 	comp.antiClockwise();
+		// 	std::sort (forbiddenSpacesClusters.begin(), forbiddenSpacesClusters.end(), comp);//, *this);
+
+		// 	VecStr lastCluster(forbiddenSpacesClusters.back());
+
+		// 	forbiddenSpacesClusters.clear();
+		// 	forbiddenSpacesClusters.insert(forbiddenSpacesClusters.end(), firstCluster);
+		// 	forbiddenSpacesClusters.insert(forbiddenSpacesClusters.end(), lastCluster);
+		// }
 		std::cout << this->name << "::sorted\033[1;36m";
 		Common::printNestedContainer(forbiddenSpacesClusters);
 		std::cout << "\033[0m" << std::endl;
@@ -1294,75 +1337,117 @@ namespace aiv
 		// The first cluster in the list is a first guess for the cluster which will give the right direction to the new waypoint (based on the angular variation that gave the minimum absolute angular variation). But it has to respect a condition: do not suggest a direction that goes towards another clusters that is closer to the robot than the first cluster. In case it fails, check the following clusters
 		clIt = forbiddenSpacesClusters.begin();
 		//VecVecStr::iterator clIt;
-		// for (clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
-		// {
-		// 	VecStr possibleBlockingClusters;
 
-		// 	VecVecStr subForbiddenSpacesClusters(forbiddenSpacesClusters.begin(), clIt-1);
-		// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.end(), VecVecStr(clIt+1, forbiddenSpacesClusters.end()));
+		if (forbiddenSpacesClusters.size() > 1)
+		{
+			for (clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
+			{
+				std::cout << this->name << "::clIt\033[1;36m";
+				Common::printNestedContainer(*clIt);
+				std::cout << "\033[0m" << std::endl;
 
-		// 	for (VecVecStr::iterator othClIt = subForbiddenSpacesClusters.begin(); othClIt != subforbiddenSpacesClusters.end(); ++othClIt)
-		// 	{
-		// 		double cf0 = _avoidanceInfo[clIt->front()][0];
-		// 		double cf1 = _avoidanceInfo[clIt->front()][1];
-		// 		double cb0 = _avoidanceInfo[clIt->back()][0];
-		// 		double cb1 = _avoidanceInfo[clIt->back()][1];
-		// 		double of0 = _avoidanceInfo[othClIt->front()][0];
-		// 		double of1 = _avoidanceInfo[othClIt->front()][1];
-		// 		double ob0 = _avoidanceInfo[othClIt->back()][0];
-		// 		double ob1 = _avoidanceInfo[othClIt->back()][1];
+				std::cout << "1" << std::endl;
+				VecVecStr possibleBlockingClusters;
+				std::cout << "2" << std::endl;
+				// VecVecStr subForbiddenSpacesClusters(forbiddenSpacesClusters);
+				std::cout << "3" << std::endl;
+				// subForbiddenSpacesClusters.erase(clIt);
 
-		// 		// cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation
-		// 		double dTheta = abs(min(cf0, cf1)) < abs(max(cb0, cb1)) ? min(cf0, cf1) else max(cb0, cb1);
-		// 		if (dTheta < max(ob0, ob1) && dTheta < min(of0, of1))
-		// 		{
-		// 			possibleBlockingClusters.push_back(*othClIt);
-		// 		}
-		// 	}
+				// std::cout << this->name << "::subCluster\033[1;36m";
+				// Common::printNestedContainer(subForbiddenSpacesClusters);
+				// std::cout << "\033[0m" << std::endl;
 
-		// 	if (!possibleBlockingClusters.empty())
-		// 	{
-		// 		//
-		// 		double myMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
-		// 		std::string myFSName = clIt->front();
+				std::cout << "4" << std::endl;
+				// if (clIt == forbiddenSpacesClusters.begin())
+				// {
+				// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.begin(), VecVecStr(clIt+1, forbiddenSpacesClusters.end()));
+				// }
+				// else if (clIt == forbiddenSpacesClusters.end())
+				// {
+				// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.begin(), VecVecStr(forbiddenSpacesClusters.begin(), clIt-1));
+				// }
+				// else
+				// {
+				// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.begin(), VecVecStr(forbiddenSpacesClusters.begin(), clIt-1));
+				// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.end(), VecVecStr(clIt+1, forbiddenSpacesClusters.end()));
+				// }
 
-		// 		for (VecStr::iterator fsIt = clIt->begin()+1; fsIt != clIt->end(); ++fsIt)
-		// 		{
-		// 			newMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
-		// 			if (myMinAbsAvg > newMinAbsAvg)
-		// 			{
-		// 				myMinAbsAvg = newMinAbsAvg;
-		// 				myFSName = *fsIt;
-		// 			}
-		// 		}
+				for (VecVecStr::iterator othClIt = clIt+1; othClIt != forbiddenSpacesClusters.end(); ++othClIt)
+				{
+					std::cout << clIt->front() << clIt->back() << othClIt->front() << othClIt->back() << std::endl;
+					std::cout << "5" << std::endl;
+					double cf0 = _avoidanceInfo[clIt->front()][0];
+					// double cf1 = _avoidanceInfo[clIt->front()][1];
+					// double cb0 = _avoidanceInfo[clIt->back()][0];
+					double cb1 = _avoidanceInfo[clIt->back()][1];
+					double of0 = _avoidanceInfo[othClIt->front()][0];
+					// double of1 = _avoidanceInfo[othClIt->front()][1];
+					// double ob0 = _avoidanceInfo[othClIt->back()][0];
+					double ob1 = _avoidanceInfo[othClIt->back()][1];
 
-		// 		bool foundIt = false;
-		// 		for (VecVecStr::iterator othClIt = possibleBlockingClusters.begin(); othClIt != possibleBlockingClusters.end(); ++othClIt)
-		// 		{
-		// 			//
-		// 			double othMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
-		// 			std::string othFSName = othClIt->front();
+					std::cout << "6" << std::endl;
 
-		// 			for (VecStr::iterator fsIt = othClIt->begin()+1; fsIt != othClIt->end(); ++fsIt)
-		// 			{
-		// 				newMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
-		// 				if (othMinAbsAvg > newMinAbsAvg)
-		// 				{
-		// 					othMinAbsAvg = newMinAbsAvg;
-		// 					othFSName = *fsIt;
-		// 				}
-		// 			}
-		// 			if (_avoidanceInfo[othFSName][2] < _avoidanceInfo[myFSName][2])
-		// 			{
-		// 				foundIt = true;
-		// 				break;
-		// 			}
-		// 		}
-		// 		//
-		// 		if (foundIt) continue;
-		// 	}	
-		// 	break;
-		// }
+					// cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation
+					double dTheta = abs(cf0) < abs(cb1) ? cf0 : cb1;
+					std::cout << dTheta << std::endl;
+					std::cout << ob1 << std::endl;
+					std::cout << of0 << std::endl;
+					if (dTheta < ob1 && dTheta > of0)
+					{
+
+						possibleBlockingClusters.push_back(*othClIt);
+					}
+				}
+				std::cout << this->name << "::possibleBlockingClusters\033[1;36m";
+				Common::printNestedContainer(possibleBlockingClusters);
+				std::cout << "\033[0m" << std::endl;
+				if (!possibleBlockingClusters.empty())
+				{
+					//
+					double myMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
+					std::string myFSName = clIt->front();
+
+					double newMinAbsAvg;
+
+					for (VecStr::iterator fsIt = clIt->begin()+1; fsIt != clIt->end(); ++fsIt)
+					{
+						newMinAbsAvg = abs((_avoidanceInfo[clIt->front()][0]+_avoidanceInfo[clIt->front()][1])/2.);
+						if (myMinAbsAvg > newMinAbsAvg)
+						{
+							myMinAbsAvg = newMinAbsAvg;
+							myFSName = *fsIt;
+						}
+					}
+					
+					//
+					bool foundIt = false;
+					for (VecVecStr::iterator othClIt = possibleBlockingClusters.begin(); othClIt != possibleBlockingClusters.end(); ++othClIt)
+					{
+						//
+						double othMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
+						std::string othFSName = othClIt->front();
+
+						for (VecStr::iterator fsIt = othClIt->begin()+1; fsIt != othClIt->end(); ++fsIt)
+						{
+							newMinAbsAvg = abs((_avoidanceInfo[othClIt->front()][0]+_avoidanceInfo[othClIt->front()][1])/2.);
+							if (othMinAbsAvg > newMinAbsAvg)
+							{
+								othMinAbsAvg = newMinAbsAvg;
+								othFSName = *fsIt;
+							}
+						}
+						if (_avoidanceInfo[othFSName][2] < _avoidanceInfo[myFSName][2])
+						{
+							foundIt = true;
+							break;
+						}
+					}
+					//
+					if (foundIt) continue;
+				}	
+				break;
+			}
+		}
 
 		FlatVector robotToWayPt = _wayPt - _latestFlat;
 		double robotToWayPtDist = robotToWayPt.norm();
@@ -1555,8 +1640,8 @@ namespace aiv
 		}
 
 		// IF LAST STEP LET US COMBINE CURVE WITH ANOTHER ONE THAT SMOOTHS THE ARRIVAL
-		//if (_planLastPlan)
-		if (false)
+		if (_planLastPlan)
+		//if (false)
 		{
 			FlatVector fromGoalDirec;
 			fromGoalDirec<< cos(_targetedPose.tail<1>()(0,0) - M_PI),
@@ -1607,7 +1692,7 @@ namespace aiv
 			// toGoalCurve = toGoalCurve - toGoalCurve.rightCols<1>().replicate(1, _optTrajectory.nParam());	
 			std::cout << "fromGoalCurve\n" << finalFromGoalCurve << std::endl;
 
-			double magicNumber = 1.5; //FIXME no magic numbers, at least no hard coded
+			double magicNumber = 1.2; //FIXME no magic numbers, at least no hard coded
 			double p;
 
 			for (auto i=0; i < _optTrajectory.nParam(); ++i)

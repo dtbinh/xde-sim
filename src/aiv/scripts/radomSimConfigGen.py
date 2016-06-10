@@ -79,7 +79,7 @@ def add_cmdline_options(parser):
 
 	parser.add_option("-m", "--optmethod", action="store", type="string", dest="optimizer", default='SLSQP')
 
-	parser.add_option('-x', '--xtol', dest='xtol', default=1E-6, action='store', type='float', help='optimization tolerance for cost function')
+	parser.add_option('-x', '--xtol', dest='xtol', default=1E-12, action='store', type='float', help='optimization tolerance for cost function')
 	parser.add_option('-e', '--eqtol', dest='eqtol', default=1E-4, action='store', type='float', help='optimization tolerance for equations constraints')
 	parser.add_option('-q', '--ineqtol', dest='ineqtol', default=1E-6, action='store', type='float', help='optimization tolerance for inequations constraints')
 
