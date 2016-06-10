@@ -21,7 +21,14 @@ namespace aiv {
 			const Eigen::Vector3d & translation,
 			double refEvalTime,
 			double planHorizon,
-			unsigned planStage) = 0;
+			unsigned planStage,
+			double a1_r,
+			double a2_r,
+			double u1_r,
+			double u2_r,
+			double x_r,
+			double y_r,
+			double theta_r) = 0;
 		std::string getName();
 
 	protected:

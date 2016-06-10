@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (MiKTeX 2.9 64-bit) (preloaded format=pdflatex 2015.11.20)  6 JUN 2016 15:44
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (MiKTeX 2.9 64-bit) (preloaded format=pdflatex 2015.11.20)  7 JUN 2016 17:15
 entering extended mode
 **root.tex
 (root.tex
@@ -420,6 +420,20 @@ LaTeX Warning: Citation `MendesFilho2015' on page 1 undefined on input line 85.
 
 ]
 
+LaTeX Warning: Reference `step1' on page 2 undefined on input line 147.
+
+
+LaTeX Warning: Reference `step2' on page 2 undefined on input line 147.
+
+
+LaTeX Warning: Reference `step1' on page 2 undefined on input line 147.
+
+
+Underfull \hbox (badness 1874) in paragraph at lines 147--148
+\OT1/ptm/m/n/10 com-puted dur-ing [] by solv-ing a sec-ond con-strained
+ []
+
+
 LaTeX Warning: Citation `Defoort2009' on page 2 undefined on input line 153.
 
 
@@ -438,6 +452,11 @@ Underfull \hbox (badness 4492) in paragraph at lines 160--161
 [2
 
 ]
+
+LaTeX Warning: Reference `eq:extendedModel' on page 3 undefined on input line 1
+84.
+
+
 Overfull \hbox (4.87183pt too wide) in alignment at lines 186--213
  [][][] []
  []
@@ -447,10 +466,14 @@ LaTeX Font Info:    Try loading font information for U+dsrom on input line 215.
 (C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\dstroke\udsrom.fd
 File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
 )
+Overfull \hbox (0.88303pt too wide) in alignment at lines 395--457
+ [][][] []
+ []
+
 [3
 
 ]
-Overfull \vbox (29.38063pt too high) has occurred while \output is active []
+Overfull \vbox (37.18192pt too high) has occurred while \output is active []
 
 
 Underfull \hbox (badness 1424) in paragraph at lines 464--465
@@ -516,16 +539,19 @@ Package rerunfilecheck Info: File `ouput.out' has not changed.
 
 LaTeX Warning: There were undefined references.
 
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 808.
  ) 
 Here is how much of TeX's memory you used:
  7321 strings out of 493673
  112126 string characters out of 3143950
- 223705 words of memory out of 3000000
+ 224542 words of memory out of 3000000
  10583 multiletter control sequences out of 15000+200000
  41068 words of font info for 87 fonts, out of 3000000 for 9000
  1025 hyphenation exceptions out of 8191
- 42i,21n,40p,838b,404s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 42i,21n,40p,838b,405s stack positions out of 5000i,500n,10000p,200000b,50000s
 {C:/Program Files/MiKTeX 2.9/fonts/enc/dvips/fontname/8r.enc}<C:/Program File
 s/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Program Files/MiKTeX
  2.9/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Program Files/MiKTeX 2.9/fon
@@ -546,9 +572,9 @@ a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw/times/utmb8a.pfb><C:/Program
  Files/MiKTeX 2.9/fonts/type1/urw/times/utmbi8a.pfb><C:/Program Files/MiKTeX 2.
 9/fonts/type1/urw/times/utmr8a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw
 /times/utmri8a.pfb>
-Output written on ouput.pdf (5 pages, 239560 bytes).
+Output written on ouput.pdf (5 pages, 239127 bytes).
 PDF statistics:
- 176 PDF objects out of 1000 (max. 8388607)
+ 172 PDF objects out of 1000 (max. 8388607)
  35 named destinations out of 1000 (max. 500000)
  65 words of extra memory for PDF output out of 10000 (max. 10000000)
 

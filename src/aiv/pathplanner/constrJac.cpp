@@ -39,6 +39,22 @@ qJacMatrix qJac(const double t, const double Tp, const int span, const double *X
 				std::cout << "ERROR, unknow Jacobian for knots span equals to " << span << std::endl;
 			}
 		}
+		else if (spld == 4)
+		{
+			switch (span)
+			{
+			case 0:
+				break;
+			case 1:
+				break;
+			case 2:
+				break;
+			case 3:
+				break;
+			default:
+				std::cout << "ERROR, unknow Jacobian for knots span equals to " << span << std::endl;
+			}
+		}
 		else
 		{
 			std::cout << "ERROR, unknow Jacobian for spld equals to " << spld << std::endl;

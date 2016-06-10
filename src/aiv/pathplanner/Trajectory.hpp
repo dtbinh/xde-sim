@@ -41,6 +41,8 @@ namespace aiv {
 		Eigen::Matrix<double, dim, Eigen::Dynamic> getCtrlPts() const { return _trajecSpl.ctrls(); };
 		Eigen::Matrix<double, 1, Eigen::Dynamic> getKnots() const { return _trajecSpl.knots(); };
 
+		int getSpan(double t) const;
+
 		int nParam() const { return _nCtrlPts; };
 
 		Trajectory();

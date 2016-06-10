@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <root>
 	<simspeed>100.0</simspeed>
-	<timestep unit="s">0.01</timestep>
-	<timeoffset unit="s">1.0</timeoffset>
+	<timestep unit="s">0.005</timestep>
+	<timeoffset unit="s">0.6</timeoffset>
 	<aivs>
 		<aiv>
 			<frame>
@@ -53,20 +53,20 @@
 				<material>rubber</material>
 			</rightbackfreewheel>
 			<track>0.19664</track>
-			<detectionradius>6.0</detectionradius>
+			<detectionradius>16.0</detectionradius>
 			<initpose>
-				<x unit="m">5.656854</x>
-				<y unit="m">-5.656854</y>
-				<theta unit="rad">2.35619449</theta>
+				<x unit="m">0.0</x>
+				<y unit="m">0.0</y>
+				<theta unit="rad">0.0</theta>
 			</initpose>
 			<initvelo>
 				<linear unit="mps">0.0</linear>
 				<angular unit="radps">0.0</angular>
 			</initvelo>
 			<goalpose>
-				<x unit="m">-5.656854</x>
-				<y unit="m">5.656854</y>
-				<theta unit="rad">2.35619449</theta>
+				<x unit="m">12.</x>
+				<y unit="m">0.</y>
+				<theta unit="rad">0.0</theta>
 			</goalpose>
 			<goalvelo>
 				<linear unit="mps">0.0</linear>
@@ -94,11 +94,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">-4.8304</x>
-				<y unit="m">-1.3429</y>
+				<x unit="m">1.0983</x>
+				<y unit="m">2.0116</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.6729</radius>
+			<radius unit="m">0.3788</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -106,11 +106,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">-6.153</x>
-				<y unit="m">-3.5706</y>
+				<x unit="m">-1.247</x>
+				<y unit="m">0.4837</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.6809</radius>
+			<radius unit="m">0.3496</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -118,11 +118,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">3.1487</x>
-				<y unit="m">-2.063</y>
+				<x unit="m">2.8877</x>
+				<y unit="m">-1.5086</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.7721</radius>
+			<radius unit="m">0.8791</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -130,11 +130,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">1.7295</x>
-				<y unit="m">-1.4133</y>
+				<x unit="m">0.0547</x>
+				<y unit="m">5.3414</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.5955</radius>
+			<radius unit="m">0.784</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -142,11 +142,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">4.5583</x>
-				<y unit="m">-0.0204</y>
+				<x unit="m">-1.9934</x>
+				<y unit="m">3.7412</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.7505</radius>
+			<radius unit="m">0.504</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -154,11 +154,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">-6.0906</x>
-				<y unit="m">-0.4299</y>
+				<x unit="m">4.215</x>
+				<y unit="m">2.4132</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.3587</radius>
+			<radius unit="m">0.5612</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -166,11 +166,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">-4.6231</x>
-				<y unit="m">-3.6288</y>
+				<x unit="m">0.8235</x>
+				<y unit="m">-4.747</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.4404</radius>
+			<radius unit="m">0.5652</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -178,11 +178,11 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">0.749</x>
-				<y unit="m">-5.9163</y>
+				<x unit="m">0.4182</x>
+				<y unit="m">-2.8712</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.3407</radius>
+			<radius unit="m">0.8669</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
@@ -193,7 +193,7 @@
 		<planninghorizon unit="s">1.2</planninghorizon>
 		<waitforthread>false</waitforthread>
 		<sampling>14</sampling>
-		<interknots>5</interknots>
+		<interknots>6</interknots>
 		<terminationdist unit="m">0.5</terminationdist>
 		<interrobotsafetydist unit="m">0.1</interrobotsafetydist>
 		<conflictfreepathdeviation unit="m">5.0</conflictfreepathdeviation>
@@ -204,8 +204,8 @@
 				<inter>100</inter>
 				<last>100</last>
 			</maxiteration>
-			<xtolerance>1e-06</xtolerance>
-			<ftolerance>1e-06</ftolerance>
+			<xtolerance>1e-12</xtolerance>
+			<ftolerance>1e-12</ftolerance>
 			<eqtolerance>0.0001</eqtolerance>
 			<ineqtolerance>1e-06</ineqtolerance>
 		</optimizer>
@@ -215,6 +215,6 @@
 			<u1>2.0</u1>
 			<u2>18.0</u2>
 		</threshold>
-		<predictionhorizon>0.6</predictionhorizon>
+		<predictionhorizon>0.4</predictionhorizon>
 	</controller>
 </root>
