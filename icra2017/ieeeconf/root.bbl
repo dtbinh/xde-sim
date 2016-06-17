@@ -27,4 +27,14 @@ J.~M. {Mendes Filho} and E.~Lucet, ``Multi-robot motion planning: a modified
   \url{http://robotics.fel.cvut.cz/demur15/wp-content/uploads/2015/09/demur15-filho.pdf}
 \BIBentrySTDinterwordspacing
 
+\bibitem{de2006dynamic}
+C.~De~La~Cruz and R.~Carelli, ``Dynamic modeling and centralized formation
+  control of mobile robots,'' in \emph{IEEE Industrial Electronics, IECON
+  2006-32nd Annual Conference on}.\hskip 1em plus 0.5em minus 0.4em\relax IEEE,
+  2006, pp. 3880--3885.
+
+\bibitem{Krid2016}
+M.~Krid, F.~Benamar, and R.~Lenain, ``{A new explicit dynamic path tracking
+  controller using General- ized Predictive Control},'' pp. 1--10, 2016.
+
 \end{thebibliography}

@@ -41,6 +41,7 @@
 #define RESET "\033[0m"
 
 #define BG_L_RED "\033[101m"
+#define BG_L_GREEN "\033[102m"
 
 namespace Common
 {

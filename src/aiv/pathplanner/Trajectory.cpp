@@ -237,16 +237,16 @@ namespace aiv {
 		{
 			knots.segment(derivDeg, nIntervNonNull + 1) = Eigen::Array< double, 1, Eigen::Dynamic >::LinSpaced(nIntervNonNull + 1, initT, finalT);
 		}
-		std::cout << BG_L_RED << knots << RESET << std::endl;
+		// std::cout << BG_L_RED << knots << RESET << std::endl;
 		return knots;
 	}
 
 	int Trajectory::getSpan(const double t) const
 	{
 		int ret = 0;
-		while (ret <= _nCtrlPts - 1 &&  t >= _knots(0,ret))
+		while (ret <= int(_nCtrlPts) - 1 &&  t >= _knots(0,ret))
 			ret++;
-		return ret - 1;
+		return ret - 1 - (_nIntervNonNull-1);
 	}
 
 	Trajectory::~Trajectory(){}

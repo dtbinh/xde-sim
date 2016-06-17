@@ -72,7 +72,7 @@ This paper analyzes the real-time implementation of an algorithm for collision-f
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{INTRODUCTION}
+\section{Introduction}
 
 % Context
 
@@ -84,7 +84,9 @@ For efficiently solving the motion planning problem, different constraints must 
 
 In~\cite{MendesFilho2015}, a Distributed Receding Horizon Motion Planning is presented. It is intended for planning the motion of a team of nonholonomic mobile robots, in a partially known environment occupied by static obstacles, being efficient with respect to the travel time (amount of time to go from initial to goal configuration). However, only kinematic validation of that approach was done and its applicability in a more realistic scenario remained to be tested.
 
-This work builds directly on that approach and aims to analyze that motion planning method in a realistic scenario. By means of a physics engine that can simulate rigid body dynamics (including collision detection), the aproach is tested, evaluated and improved. The improvements are meant to take effects such as inertia and sliding motion into account and overcome possible deviations between the executed and planned motion.
+This work builds directly on that approach and aims to analyze that motion planning method in a realistic scenario. By means of a physics engine that can simulate rigid body dynamics (including collision detection), the aproach is tested, evaluated and improved. The improvements are meant to
+% take effects such as inertia and sliding motion into account and
+overcome possible deviations between the executed and planned motion.
 
 Related work (...)
 % TODO
@@ -129,13 +131,13 @@ Related work (...)
 % impossibility of bringing the robots to a precise goal state and the limited
 % geometric representation of obstacles.
 
-This paper outline is as follows. The second section gives an overview of the Distributed Receding Horizon Motion Planning. It shows how this approach manages to find motion plans that respect geometric and kinematics cosntraints while minimizing the travel time of each robot in the team. The third section proposes a simple change on the optimization problem uderlying the motion planning for providing better plans with respect to the system dynamics. It also proposes a feedback control that asymptotically stabilizes the tracking error. The forth section is dedicated to the dynamic simulation aspects and the results of using the proposed motion planning in that realistic scenario.   (...)
+This paper outline is as follows. The second section gives an overview of the Distributed Receding Horizon Motion Planning. It shows how this approach manages to find motion plans that respect geometric and kinematics cosntraints while minimizing the travel time of each robot in the team. The third section proposes a simple change on the optimization problem uderlying the motion planning for providing better plans with respect to the system dynamics. It also proposes a predictive feedback control that asymptotically stabilizes the tracking error. The forth section is dedicated to the dynamic simulation aspects and the results of using the proposed motion planning in that realistic scenario.
 % TODO
 Finally, in last section we present our conclusions and perspectives.
 
 %The third section explains how the a simple change on the optimization problem uderlying the motion planning plus the addition of a feedback controller can provide a  realistic simulation. First a direct modification on the optimization problem uderlying the motion planning to take accelerations limits into account thus providing better plans with respect to the system dynamics.
 
-\section{DITRIBUTED RECIDING HORIZON MOTION PLANNING}
+\section{Distributed receding horizon motion planning}
 
 As a team of robots evolves in their work enviroment they progressively perceive new obstacles in their way to their goal configuration. Thus, try to plan for the whole motion from initial to goal configurations is not a satisfying approach. Planning locally and replanning is more suitable for taking new information into account as it comes.
 
@@ -143,15 +145,14 @@ In the Distributed Reciding Horizon approach for motion planning, each robot in 
 here a receding horizon planning problem.
 
 For each receding horizon planning problem, the following steps are performed:
-\paragraph*{Step 1}\label{step1} Each robot in the team computes it own intended solution trajectory (denoted $(\hat{q}_b(t), \hat{u}_b(t))$ with $q_b$ the configuration vector a robot $b$ and $u_b$ its input vector) by solving a constrained optimization problem that takes geometric and kinematics constraints into account. Coupling constraints, that is, constraints that involve solving a conflict between two robots such as collision or loss of communication, are ignored in this step.
-\paragraph*{Step 2}\label{step2} Robots involved in a potential conflict (risk of collision, lost of communication) update their trajectories computed during \nameref{step1} by solving a second constrained optimization problem that additionally takes into account constraints for avoiding the conflict. This is done by using the intended trajectories of other robots computed in the previous step as an estimate of those robots' final trajectories. If a robot is not involved in any conflict, \nameref{step2} is not executed and its final solution trajectory is identical to the one estimated in \nameref{step1}.
+\paragraph*{Step 1}\label{step1} Each robot in the team computes it own intended solution trajectory (denoted $(\hat{q}_b(t), \hat{u}_b(t))$ with $q_b$ the configuration vector a robot $b$ and $u_b$ its input vector) by solving a constrained optimization problem that takes geometric and kinematic constraints into account. Coupling constraints, that is, constraints that involve solving a conflict between two robots such as collision or loss of communication, are ignored at this step.
+\paragraph*{Step 2}\label{step2} Robots involved in a potential conflict (risk of collision, lost of communication) update their trajectories computed during \nameref{step1} by solving a second constrained optimization problem that additionally takes into account geometric constraints for avoiding the conflict. This is done by using the intended trajectories of other robots computed in the previous step as an estimate of those robots' final trajectories. If a robot is not involved in any conflict, \nameref{step2} is not executed and its final solution trajectory is identical to the one estimated in \nameref{step1}.
 
-All robots in the team use the same $T_p$ and $T_c$ for assuring that their intended trajectories begin at the same time and are valide for the same time horizon. However, this is not necessary condition.
+Robots may not use the same $T_p$ and $T_c$ but in these cases a way of considering other robots intended trajectories even though they are not valid for the same time-horizon has to be provided.
 
-For each of these steps and for each robot in the team, one constrained optimization problem is resolved. The cost function to be minimized in those optimization problems is the geodesic distance of a robot's current configuration to its goal configuration. This assures that the robots are driven towards their goal.
+For each of these steps and for each robot in the team, one constrained optimization problem is resolved. The cost function to be minimized in those optimization problems is the geodesic distance of a robot's current position to its goal position. This assures that the robots are driven towards their goal.
 
-This two step scheme is explained in details in~\cite{Defoort2009} where constrained optimization problems associated to the receding horizon 
-optimization problem are formulated.
+% This two step scheme is explained in details in~\cite{Defoort2009} where constrained optimization problems associated to the receding horizon optimization problem are formulated containing .
 
 However, when a robot arrives closer to its goal the receding horizon planning scheme does not produce the desired effect. For instance, near the goal, a plan for reaching it can possibly take less time than the $T_p$ planning horizon. 
 
@@ -159,64 +160,82 @@ In~\cite{MendesFilho2015} a termination procedure for reaching the goal is propo
 
 Figure~\ref{fig:recedinghor} illustrates how plans would be generated through time by the receding horizon scheme with termination plan.
 
-%\begin{figure}[thpb]
-%	\centering
-%	\includegraphics[width=\linewidth]{./images/MotionPlanning.pdf}
-%	\caption{Receding horizon scheme with termination plan. The timespan $T_f$ represents the duration of the plan for reaching the goal configuration.}
-%	\label{fig:recedinghor}
-%\end{figure}
+\begin{figure}[thpb]
+	\centering
+	\includegraphics[width=\linewidth]{./images/MotionPlanning.pdf}
+	\caption{Receding horizon scheme with termination plan. The timespan $T_f$ represents the duration of the plan for reaching the goal configuration.}
+	\label{fig:recedinghor}
+\end{figure}
 
-Although, the plans generated with this approach are not necessarily appropriated for 
+% Although, the plans generated with this approach are not necessarily appropriated for 
+
 
 % For evaluting whether or not \nameref{step2} must be performed, each robot must be able to compute a conflict list. This list identifies, for example, robots with whom the robot creating the list may collide in the next planning step. In order to do that the robots must know each other positions.
 
+The plans generated with this approach are feasable regarding kinematics but not necessarely regarding the dynamics of the robots.
+
+For that including constraints related to acceleration in the optimization problems and a predictive control are proposed in the next section.
+
+% \mbox{}
+% \clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Dynamics}
+
+\subsection{Adding acceleration constraints}
+
+\subsection{Predictive Control}
+
+\subsubsection{Extended Unicycle Model}
 
 \mbox{}
 
+To find a predictive control law an extended model of the mobile robot which integrates its dynamics is needed. We can derive from \cite{de2006dynamic} the following dynamic model:
 
-\clearpage
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Predictive control}
-
-\subsection{Extended Model}
-
-For finding a predictive control law an extended model which integrates the dynamics of the unicycle is needed. The model bellow in equation \ref{eq:extendedModel} can be used for that purpose:
-
-\begin{eqnarray}
+\begin{equation}
 \underbrace{\left[\begin{array}{c}
 \dot{x}\\
 \dot{y}\\
-\dot{\theta}\\
+\dot{\psi}\\
 \dot{v}\\
 \dot{\omega}
 \end{array}\right]}_{\dot{q}} =
 \underbrace{\left[\begin{array}{c}
-v\cos\theta\\
-v\sin\theta\\
+v\cos\psi\\
+v\sin\psi\\
 \omega\\
-\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\\
--\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega
-\end{array}\right]}_{f(q)}+
+\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\\
+-\frac{\theta_5}{\theta_2}v\omega - \frac{\theta_6}{\theta_2}\omega
+\end{array}\right]}_{f_a(q)}+
 \underbrace{\left[\begin{array}{cc}
 0 & 0\\
 0 & 0\\
 0 & 0\\
-\frac{1}{l_1} & 0\\
-0 & \frac{1}{l_2}
-\end{array}\right]}_{g(q) = [g_1(q)\ g_2(q)]}
+\frac{1}{\theta_1} & 0\\
+0 & \frac{1}{\theta_2}
+\end{array}\right]}_{f_b = [f_{b,1}\ f_{b,2}]}
 \underbrace{\left[\begin{array}{c}
 u_1\\
 u_2
 \end{array}\right]}_{u}
 \label{eq:extendedModel}
+\end{equation}
+
+where ${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \mathds{R}^p}$ the input. The parameters vector ${\theta \in \mathds{R}^6}$ characterizing the dynamics of the robot can be determined by system identification or based on properties of the unicycle such as mass, moment of inertia, impedance of motors using the equations provided in \cite{de2006dynamic}. For our particular, simulated case an identification algorithm was used based on the minimization of error in velocities followed by minimization of error in position.
+
+The above equations represent a non-linear control-affine system respecting the following form:
+
+\begin{eqnarray}
+\dot{q} &=& f(q, u)\nonumber\\
+&=& f_a(q) + \sum_{j=1}^pf_{b,j}u_j
+\label{eq:controlaffine}
 \end{eqnarray}
 
-${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \mathds{R}^p}$ the input.
+For these kind of systems an asymptotically stabilizing, static, stationary and continue state feedback can be found whenever a Lyapunov function strictly assignable to the system and continue at the origin exists.
 
 %For later introducing the design of the predictive controller we may write the above system in the following form:
 %\[
-%\dot{q} = f(q) + \sum_{j=1}^pg_j(q)u_j
+%\dot{q} = f(q) + \sum_{j=1}^pf_{b,j}(q)u_j
 %\]
 %which gives:
 %
@@ -224,21 +243,21 @@ ${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \math
 %\left[\begin{array}{c}
 %\dot{x}\\
 %\dot{y}\\
-%\dot{\theta}\\
+%\dot{\psi}\\
 %\dot{v}\\
 %\dot{\omega}
 %\end{array}\right] = \left[\begin{array}{c}
-%v\cos\theta\\
-%v\sin\theta\\
+%v\cos\psi\\
+%v\sin\psi\\
 %\omega\\
-%\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\\
-%-\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega
+%\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\\
+%-\frac{\theta_5}{\theta_2}v\omega - \frac{\theta_6}{\theta_2}\omega
 %\end{array}\right]+
 %\left[\begin{array}{c}
 %0\\
 %0\\
 %0\\
-%\frac{1}{l_1}\\
+%\frac{1}{\theta_1}\\
 %0
 %\end{array}\right]u_1+
 %\left[\begin{array}{c}
@@ -246,7 +265,7 @@ ${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \math
 %0\\
 %0\\
 %0\\
-%\frac{1}{l_2}
+%\frac{1}{\theta_2}
 %\end{array}\right]u_2
 %\label{eq:extendedModel}
 %\end{eqnarray}
@@ -257,20 +276,20 @@ ${q \in Q \subset \mathds{R}^n}$ is the state vector and ${u \in U \subset \math
 %q = \left[\begin{array}{c}
 %x\\
 %y\\
-%\theta\\
+%\psi\\
 %v\\
 %\omega
 %\end{array}
 %\right]
 %\end{align*}
 
-The parameters vector ${l \in \mathds{R}^6}$ can be determined by system identification or based on properties of the unicycle such as mass, moment of inertia with respect to different axes, impedance of motors etc.
 
-The system above is a non-linear control-affine system. For these kind of systems an asymptotically stabilizing, static, stationary and continue state feedback can be found whenever a Lyapunov function strictly assignable to the system and continue at the origin exists.
 
 %To synthesize a control law that minimizes the quadratic error in position and orientation (in pose) over a time horizon $T$.
 
-\subsection{Optimal predictive control}
+\subsubsection{Optimal predictive control}
+
+\mbox{}
 
 The objective is to synthesize a control law that minimizes the quadratic error in position and orientation (i.e. pose) over a time horizon ahead of the current instant $t$.
 
@@ -280,9 +299,10 @@ Since only error in pose is to be minimized, the system output can be written as
 y(t) = h(q(t)) = \left[\begin{array}{c}
 x\\
 y\\
-\theta
+\psi
 \end{array}
 \right]
+\label{eq:observer}
 \]
 
 with ${y \in Y \subset \mathds{R}^m}$. And the error as:
@@ -305,8 +325,7 @@ with
 J_i = \frac{1}{2}\int_0^{T_i} (e_i(t+\tau))^2d\tau
 \end{align*}
 
-where ${e_i(t+\tau)}$ represents the prediction error at ${t+\tau}$ with ${0 < \tau \leq T_i}$.
-cd 
+where $T_i$ is the prediction horizon and ${e_i(t+\tau)}$ represents the prediction error at ${t+\tau}$ with ${0 < \tau \leq T_i}$.
 In this particular case, to find the control law that minimizes $J$ is to find $u$ satisfying the equation:
 
 \begin{align*}
@@ -317,16 +336,46 @@ For solving the above equation an expression for the prediction error must be de
 
 %Predictive control equation minimizing the position and orientation errors.
 
-\subsection{Predictive error definition}
+\subsubsection{Predictive error definition}
 
-Using Taylor series, each element of ${y(t+\tau)}$ can be written as bellow:
+\mbox{}
 
-\begin{align*}
+Similarly to what is done in \cite{Krid2016} the $i$th element of ${y(t+\tau)}$ can be written as bellow using Taylor series:
+
+\begin{equation*}
 y_i(t+\tau) = \sum_{k=0}^{\rho_i} 
 y^{(k)}_i(t)\frac{\tau^k}{k!} + \epsilon(\tau^{\rho_i})
-\end{align*}
+\end{equation*}
 
-Rewriting in a matrix form and excluding the remainder term an approximation for the output $y_i$ is given bellow:
+As explained in \cite{Krid2016} the vector $\rho = [\rho_1\ \dots\ \rho_m]$ is the relative degrees of a non-linear MIMO system (Multiple Input Multiple Output). It is a vector compose by possibly different values of relative degrees $\rho_i$ for each output $y_i$. $\rho_i$ is the least number of derivatives required to make explicit in the expression of $y_i$ at least one component of the input vector $u$.
+
+Furthermore, a non-linear control-affine MIMO system (equation \ref{eq:controlaffine}) has a relative degree vector $\rho = [\rho_1\ \dots\ \rho_m]$ around $q^0$ if:
+
+\begin{enumerate}
+\item\label{it:cond1} $L_{f_{b,j}}L_{f_a}^{(k)}y_i = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
+\item\label{it:cond2} the product $D^tD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
+
+\begin{eqnarray}
+D = 
+\left[\begin{array}{ccc}
+L_{f_{b,1}}L_{f_a}^{(\rho_1-1)}y_1 & \dots & L_{f_{b,p}}L_{f_a}^{(\rho_1-1)}y_1\\
+\vdots & \ddots & \vdots\\
+L_{f_{b,1}}L_{f_a}^{(\rho_m-1)}y_m & \dots & L_{f_{b,p}}L_{f_a}^{(\rho_m-1)}y_m
+\end{array}\right]
+\end{eqnarray}
+
+\end{enumerate}
+
+Here we use the standard geometric notiation for Lie derivaties sumurized bellow:
+
+\begin{eqnarray*}
+\left\lbrace\begin{array}{lcl}
+L_{f_a}^{(0)}y_i & = & y_i\\
+L_{f_a}^{(k)} y_i & = & L_fL_{f_a}^{(k-1)}y_i = \frac{\partial L_{f_a}^{(k-1)}y_i}{\partial q}f = y^{(k)}_i\\
+\end{array}\right.
+\end{eqnarray*}
+
+Rewriting the expression for $y_i(t+\tau)$ in a matrix form and excluding the remainder term we obtain the following approximation:
 
 \begin{eqnarray}
 y_i(t+\tau) \simeq \underbrace{\left[\begin{array}{ccccc}
@@ -341,7 +390,8 @@ y^{(\rho_i)}_i(t)
 \end{array}\right]
 \end{eqnarray}
 
-Replacing the first matrix by the more compact notation $\Lambda_i$ and using the standard geometric notation for Lie derivatives the previous can be written as:
+
+Replacing the first matrix by the more compact notation $\Lambda_i$ and using Lie derivatives the previous can be written as:
 
 \begin{eqnarray}
 y_i(t+\tau) \simeq \Lambda_i L_{y_i}
@@ -349,31 +399,70 @@ y_i(t+\tau) \simeq \Lambda_i L_{y_i}
 
 where
 
+% \begin{eqnarray*}
+% \frac{dy_i}{dt} &\equiv& L_fh_i(q)\\
+% &=& \frac{\partial h_i}{\partial q}f = \frac{\partial h_i}{\partial q}
+% \left[\begin{array}{c}
+% f_1\\
+% \vdots\\
+% f_n \end{array}\right]\\
+% &=& \frac{\partial h_i}{\partial q}
+% \left[\begin{array}{c}
+% f_{a,1} + f_{b,1}u\\
+% \vdots\\
+% f_{a,n} + f_{b,n}u\end{array}\right]\\
+% &=& \frac{\partial h_i}{\partial q_1}f_{a,1} +\frac{\partial h_i}{\partial q_1}f_{b,1}u + \dots + \frac{\partial h_i}{\partial q_1}f_{a,n} +\frac{\partial h_i}{\partial q_1}f_{b,n}u\\
+% &=& \frac{\partial h_i}{\partial q_1}f_{a,1} + \dots + \frac{\partial h_i}{\partial q_1}f_{a,n} + \frac{\partial h_i}{\partial q_1}f_{b,1}u + \dots +\frac{\partial h_i}{\partial q_1}f_{b,n}u\\
+% &=& L_{f_a}h_i(q) + L_{f_b}h_i(q)u
+% \end{eqnarray*}
+
+% From equation \ref{eq:extendedModel} and \ref{eq:observer} we know that $L_{f_b}h_i(q)u = 0\ \forall\ 1 \leq i \leq m$.
+
+% Generalizing the abover for the $k$th derivative of $y$ we obtain:
+
+% \begin{eqnarray*}
+% y_i^{k} &=& L_{f_a}^{k}h_i(q) + L_{f_a}^{k}h_i(q)u\\
+% &=& \frac{\partial h_i}{\partial q}f = \frac{\partial h_i}{\partial q}
+% \left[\begin{array}{c}
+% f_1\\
+% \vdots\\
+% f_n \end{array}\right]\\
+% &=& \frac{\partial h_i}{\partial q}
+% \left[\begin{array}{c}
+% f_{a,1} + f_{b,1}u\\
+% \vdots\\
+% f_{a,n} + f_{b,n}u\end{array}\right]\\
+% &=& \frac{\partial h_i}{\partial q_1}f_{a,1} +\frac{\partial h_i}{\partial q_1}f_{b,1}u + \dots + \frac{\partial h_i}{\partial q_1}f_{a,n} +\frac{\partial h_i}{\partial q_1}f_{b,n}u\\
+% &=& \frac{\partial h_i}{\partial q_1}f_{a,1} + \dots + \frac{\partial h_i}{\partial q_1}f_{a,n} + \frac{\partial h_i}{\partial q_1}f_{b,1}u + \dots +\frac{\partial h_i}{\partial q_1}f_{b,n}u\\
+% &=& L_{f_a}h_i(q) + L_{f_b}h_i(q)u
+% \end{eqnarray*}
+
+
 \begin{eqnarray*}
-L_{y_i} = \left[\begin{array}{c}
-L_f^{(0)}y_i(t)\\
-L_f^{(1)}y_i(t)\\
+L_{y_i} &=& \left[\begin{array}{c}
+L_{f_a}^{(0)}y_i(t)\\
+L_{f_a}^{(1)}y_i(t)\\
 \vdots\\
 L^{({\rho_i}-1)}_fy_i(t)\\
-L^{({\rho_i})}_fy_i(t)+L_gL_{y_i}^{({\rho_i}-1)}y_i(t)u(t)
+L^{({\rho_i})}_fy_i(t)
+\end{array}\right]\\
+&&\text{Assuming \ref{it:cond1}:}\\
+&=& \left[\begin{array}{c}
+L_{f_a}^{(0)}y_i(t)\\
+L_{f_a}^{(1)}y_i(t)\\
+\vdots\\
+L^{({\rho_i}-1)}_{f_a}y_i(t)\\
+L^{({\rho_i})}_{f_a}y_i(t)+L_{f_{b}}(L_{f_a}^{({\rho_i}-1)}y_i(t))u(t)
 \end{array}\right]
 \end{eqnarray*}
 
-%and, inductively:
-
-\begin{eqnarray*}
-\left\lbrace\begin{array}{lcl}
-L_f^{(k)} y_i & = & L_fL_f^{(k-1)}y_i = \frac{\partial L_f^{(k-1)}y_i}{\partial q}(q)f(q)\\
-L_f^{(0)}y_i & = & y_i\\
-\end{array}\right.
-\end{eqnarray*}
 
 %\begin{align}
 %u = \argmin_u\sum_{i=1}^{m}J_i
 %\end{align}
 
 The second term in the prediction error expression, ${y_{\text{ref}}(t+\tau)}$, 
-can be given by the planner for any $\tau$ as long as ${T_i < T_p - T_c}$.
+can be given by the planner for any ${\tau\ |\ 0 < \tau \leq T_i}$ as long as ${T_i \leq T_p - T_c}$. This is because $y_{\text{ref}}(t + T_p - T_c)$ is the further in time the planner can output a valid reference trajectory for any given $t$.
 
 % \begin{eqnarray}
 % y_{\text{ref},i}(t+\tau) \simeq \Lambda_i
@@ -388,7 +477,9 @@ can be given by the planner for any $\tau$ as long as ${T_i < T_p - T_c}$.
 
 % $L_{y_{\text{ref},\, i}}$ is supposed to be known from the trajectory planner output for any $\rho_i$.
 
-\subsection{Control law equation}
+\subsubsection{Control law equation}
+
+\mbox{}
 
 After some algebraic manipulation we can show that:
 
@@ -398,19 +489,22 @@ J_i &=& \frac{1}{2}\int_0^{T_i}(y_i - y_{i,\text{ref}})^2d\tau\\
 &=& \frac{1}{2}\int_0^{T_i}L_{y_i}^t\Lambda_i^t\Lambda_iL_{y_i}d\tau - \int_0^{T_i}y_{i,\text{ref}}\Lambda_iL_{y_i}d\tau\\
 && + \underbrace{\frac{1}{2}\int_0^{T_i}y_{i,\text{ref}}^2d\tau}_{C_i}\\
 &=& \frac{1}{2}L_{y_i}^t\underbrace{\int_0^{T_i}\Lambda_i^t\Lambda_id\tau}_{K_i} L_{y_i} -\underbrace{\int_0^{T_i}y_{i,\text{ref}}\Lambda_id\tau}_{R_i}L_{y_i} + C_i\\
-&=& \frac{1}{2}L_{y_i}^tK_iL_{y_i} -R_iL_{y_i} + C_i\\
+&=& \frac{1}{2}L_{y_i}^tK_iL_{y_i} -R_iL_{y_i} + C_i
+\end{eqnarray*}
+
+\begin{eqnarray*}
 \frac{\partial J}{\partial u} &=& \sum_{i=1}^m \left(\frac{1}{2}\frac{\partial L_{y_i}^tK_iL_{y_i}}{\partial u} - \frac{\partial R_iL_{y_i}}{\partial u} + \cancelto{0}{\frac{\partial C_i}{\partial u}}\right)\\
 &=& \sum_{i=1}^m \left(
 \left[\begin{array}{c}
-L_{g_1}L_f^{(\rho-1)}y_i\\
+L_{f_{b,1}}L_{f_a}^{(\rho-1)}y_i\\
 \vdots\\
-L_{g_p}L_f^{(\rho-1)}y_i
+L_{f_{b,p}}L_{f_a}^{(\rho-1)}y_i
 \end{array}\right]
 (K^s_iL_{y_i} - R_i^s)\right)\\
 &=& \underbrace{\left[\begin{array}{ccc}
-L_{g_1}L_f^{(\rho-1)}y_1 & \dots & L_{g_1}L_f^{(\rho-1)}y_m\\
+L_{f_{b,1}}L_{f_a}^{(\rho-1)}y_1 & \dots & L_{f_{b,1}}L_{f_a}^{(\rho-1)}y_m\\
 & \ddots &\\
-L_{g_p}L_f^{(\rho-1)}y_1 & \dots & L_{g_p}L_f^{(\rho-1)}y_m
+L_{f_{b,p}}L_{f_a}^{(\rho-1)}y_1 & \dots & L_{f_{b,p}}L_{f_a}^{(\rho-1)}y_m
 \end{array}\right]}_{D}\\
 &&\left(\left[\begin{array}{c}
 K_1^sL_{y_1}\\
@@ -430,7 +524,7 @@ R_1^s\\
 \vdots\\
 R_m^s
 \end{array}\right]}_{R^s} \right) = 0_{p\times1} \Rightarrow\\
-&&\text{Assuming $D^tD$ non-singular:}\\
+&&\text{Assuming \ref{it:cond2}:}\\
 &\Rightarrow & \left[\begin{array}{c}
 K_1^sL_{y_1}\\
 \vdots\\
@@ -446,11 +540,11 @@ u_p
 \underbrace{\left[\begin{array}{c}
 y_1\\
 \vdots\\
-L_f^{(\rho_1)}y_1\\
+L_{f_a}^{(\rho_1)}y_1\\
 \vdots\\
 y_m\\
 \vdots\\
-L_f^{(\rho_m)}y_m
+L_{f_a}^{(\rho_m)}y_m
 \end{array}\right]}_{L_y} - R^s\\
 &=& K^{ss}Du + K^sL_y-R^s = 0 \Rightarrow\\
 &\Rightarrow& u = -(D^tD)^{-1}D^t(K^{ss})^{-1}(K^sL_y-R^s)\\
@@ -466,9 +560,9 @@ with $D$ the decoupling matrix, $K^{ss}$ and $K^s$ matrices derived from the gai
 \begin{eqnarray}
 D = 
 \left[\begin{array}{ccc}
-L_{g_1}L_f^{\rho_1-1}y_1 & \dots & L_{g_p}L_f^{\rho_1-1}y_1\\
+L_{f_{b,1}}L_{f_a}^{\rho_1-1}y_1 & \dots & L_{f_{b,p}}L_{f_a}^{\rho_1-1}y_1\\
 \vdots & \ddots & \vdots\\
-L_{g_1}L_f^{\rho_m-1}y_m & \dots & L_{g_p}L_f^{\rho_m-1}y_m
+L_{f_{b,1}}L_{f_a}^{\rho_m-1}y_m & \dots & L_{f_{b,p}}L_{f_a}^{\rho_m-1}y_m
 \end{array}\right]
 \end{eqnarray}
 
@@ -514,11 +608,11 @@ L_y =
 \left[\begin{array}{c}
 y_1\\
 \vdots\\
-L_f^{(\rho_1)}y_1\\
+L_{f_a}^{(\rho_1)}y_1\\
 \vdots\\
 y_m\\
 \vdots\\
-L_f^{(\rho_m)}y_m
+L_{f_a}^{(\rho_m)}y_m
 \end{array}\right]
 \end{eqnarray}
 
@@ -548,70 +642,72 @@ R_i = \int^{T_i}_0y_{i,\text{ref}}\Lambda_id\tau
 % \end{array}\right]
 % \end{align}
 
-\subsection{Finding $u$ for the unicycle case}
+\subsubsection{Finding $u$ for the unicycle case}
 
-The MIMO (Multiple Input Multiple Output) control-affine system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
+\mbox{}
 
-\begin{itemize}
-\item $L_{g_j}L_f^{(k)}y_i = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
-\item the product $D^tD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
+% The MIMO (Multiple Input Multiple Output) control-affine system has relative degree vector $\rho = [\rho_1(t) \dots \rho_m(t)]$ for all $q$ in the neighborhood of $q^0$ if:
 
-\begin{eqnarray}
-D = 
-\left[\begin{array}{ccc}
-L_{g_1}L_f^{(\rho_1-1)}y_1 & \dots & L_{g_p}L_f^{(\rho_1-1)}y_1\\
-\vdots & \ddots & \vdots\\
-L_{g_1}L_f^{(\rho_m-1)}y_m & \dots & L_{g_p}L_f^{(\rho_m-1)}y_m
-\end{array}\right]
-\end{eqnarray}
+% \begin{itemize}
+% \item $L_{f_{b,j}}L_{f_a}^{(k)}y_i = 0$ for all $1 \leq j \leq p$, for all $k < \rho_i-1$, for all $1 \leq i \leq m$ and for all $q$ in the neighborhood of $q^0$
+% \item the product $D^tD$ is non-singular, $D$ being the decoupling matrix of dimension $m \times p$, given by:
 
-\end{itemize}
+% \begin{eqnarray}
+% D = 
+% \left[\begin{array}{ccc}
+% L_{f_{b,1}}L_{f_a}^{(\rho_1-1)}y_1 & \dots & L_{f_{b,p}}L_{f_a}^{(\rho_1-1)}y_1\\
+% \vdots & \ddots & \vdots\\
+% L_{f_{b,1}}L_{f_a}^{(\rho_m-1)}y_m & \dots & L_{f_{b,p}}L_{f_a}^{(\rho_m-1)}y_m
+% \end{array}\right]
+% \end{eqnarray}
 
-A way of trying to find a vector $\rho$ for our particular system is by computing $L_{g_j}L_f^{(k)}y_i$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
+% \end{itemize}
 
-For ${\rho = [1\ 1\ 1]}$, ${L_{g_j}L_f^{(0)}y_i = L_{g_j}y_i = 0}$ for all ${1 \leq j \leq p}$, for all ${1 \leq i \leq m}$ which does not satisfy the second condition.
+A way of trying to find a vector $\rho$ for our particular system is by computing $L_{f_{b,j}}L_{f_a}^{(k)}y_i$ for $k$ beginning at $0$ and incrementing it until the conditions above are satisfied.
+
+For ${\rho = [1\ 1\ 1]}$, ${L_{f_{b,j}}L_{f_a}^{(0)}y_i = L_{f_{b,j}}y_i = 0}$ for all ${1 \leq j \leq p}$, for all ${1 \leq i \leq m}$ which does not satisfy the second condition.
 
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_1}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
-%L_{g_1}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0\\
-%L_{g_1}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/l_1\ 0]^T = 0
+%L_{f_{b,1}}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/\theta_1\ 0]^T = 0\\
+%L_{f_{b,1}}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 1/\theta_1\ 0]^T = 0\\
+%L_{f_{b,1}}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 1/\theta_1\ 0]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 %
 %\begin{eqnarray}
 %\left\lbrace\begin{array}{lcl}
-%L_{g_2}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
-%L_{g_2}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0\\
-%L_{g_2}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/l_2]^T = 0
+%L_{g_2}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/\theta_2]^T = 0\\
+%L_{g_2}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/\theta_2]^T = 0\\
+%L_{g_2}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0][0\ 0\ 0\ 0\ 1/\theta_2]^T = 0
 %\end{array}\right.
 %\end{eqnarray}
 
-For computing $L_{g_j}L_f^{(k)}y_i$ with $\rho = [2\ 2\ 2]$ we need first $L_fy_i$:
+For computing $L_{f_{b,j}}L_{f_a}^{(k)}y_i$ with $\rho = [2\ 2\ 2]$ we need first $L_{f_a}y_i$:
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{f}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0]f(q) = v\cos\theta\\
-L_{f}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0]f(q) = v\sin\theta\\
-L_{f}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0]f(q) = \omega
+L_{f_a}y_1 & = & [1\ 0\ 0\ 0\ 0\ 0]f(q) = v\cos\psi\\
+L_{f_a}y_2 & = & [0\ 1\ 0\ 0\ 0\ 0]f(q) = v\sin\psi\\
+L_{f_a}y_3 & = & [0\ 0\ 1\ 0\ 0\ 0]f(q) = \omega
 \end{array}\right.
 \end{eqnarray}
 
-Computing now $L_{g_j}L_fy_i$ we obtain:
+Computing now $L_{f_{b,j}}L_fy_i$ we obtain:
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{g_1}L_{f}y_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_1(q) = \cos\theta/l_1\\
-L_{g_1}L_{f}y_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_1(q) = \sin\theta/l_1\\
-L_{g_1}L_{f}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
+L_{f_{b,1}}L_{f_a}y_1 & = & [0\ 0\ -v\sin\psi\ \cos\psi\ 0\ 0]g_1(q) = \cos\psi/\theta_1\\
+L_{f_{b,1}}L_{f_a}y_2 & = & [0\ 0\ v\cos\psi\ \sin\psi\ 0\ 0]g_1(q) = \sin\psi/\theta_1\\
+L_{f_{b,1}}L_{f_a}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_1(q) = 0
 \end{array}\right.
 \end{eqnarray}
 
 \begin{eqnarray}
 \left\lbrace\begin{array}{lcl}
-L_{g_2}L_{f}y_1 & = & [0\ 0\ -v\sin\theta\ \cos\theta\ 0\ 0]g_2(q) = 0\\
-L_{g_2}L_{f}y_2 & = & [0\ 0\ v\cos\theta\ \sin\theta\ 0\ 0]g_2(q) = 0\\
-L_{g_2}L_{f}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/l_2
+L_{g_2}L_{f_a}y_1 & = & [0\ 0\ -v\sin\psi\ \cos\psi\ 0\ 0]g_2(q) = 0\\
+L_{g_2}L_{f_a}y_2 & = & [0\ 0\ v\cos\psi\ \sin\psi\ 0\ 0]g_2(q) = 0\\
+L_{g_2}L_{f_a}y_3 & = & [0\ 0\ 0\ 0\ 0\ 1]g_2(q) = 1/\theta_2
 \end{array}\right.
 \end{eqnarray}
 
@@ -620,9 +716,9 @@ which gives the following decoupling matrix:
 \begin{eqnarray}
 D = 
 \left[\begin{array}{cc}
-\frac{\cos\theta}{l_1} & 0\\
-\frac{\sin\theta}{l_1} & 0\\
-0 & \frac{1}{l_2}
+\frac{\cos\psi}{\theta_1} & 0\\
+\frac{\sin\psi}{\theta_1} & 0\\
+0 & \frac{1}{\theta_2}
 \end{array}\right]
 \end{eqnarray}
 
@@ -631,12 +727,12 @@ and consequently:
 \begin{eqnarray}
 D^tD = 
 \left[\begin{array}{cc}
-\frac{1}{l_1^2} & 0\\
-0 & \frac{1}{l_2^2}
+\frac{1}{\theta_1^2} & 0\\
+0 & \frac{1}{\theta_2^2}
 \end{array}\right]
 \end{eqnarray}
 
-which is non-singular for all $l_1, l_2 \neq 0$. Besides, the first condition is also met: $L_{g_j}L^{(k_i)}_fy_i = 0\ \forall\ k_i < \rho_i-1\ $.
+which is non-singular for all $\theta_1, \theta_2 \neq 0$. Besides, the first condition is also met: $L_{f_{b,j}}L^{(k_i)}_{f_a}y_i = 0\ \forall\ k_i < \rho_i-1\ $.
 
 Using $\rho = [2\ 2\ 2]$, matrices $K^{s}$, $K^{ss}$ and $L_y$ can be written as bellow:
 
@@ -671,25 +767,25 @@ K^{ss} =
 L_y =
 \left[\begin{array}{c}
 x\\
-v\cos\theta\\
-\left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\cos\theta - v\omega\sin\theta\\
+v\cos\psi\\
+\left(\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\right)\cos\psi - v\omega\sin\psi\\
 y\\
-v\sin\theta\\
-\left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\sin\theta + v\omega\cos\theta\\
-\theta\\
+v\sin\psi\\
+\left(\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\right)\sin\psi + v\omega\cos\psi\\
+\psi\\
 \omega\\
--\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega\\
+-\frac{\theta_5}{\theta_2}v\omega - \frac{\theta_6}{\theta_2}\omega\\
 \end{array}\right]
 \end{eqnarray}
 
-$R^s$ can be found (numerically or analytically) from planner's output according with the folling expression:
+$R^s$ can be found (numerically or analytically) from the planner's output according with the folling expression:
 
 \begin{eqnarray}
 R^s =
 \frac{1}{2}\left[\begin{array}{c}
 \int_0^{T_1}x_{\text{ref}}(t+\tau)\tau^2d\tau\\
 \int_0^{T_2}y_{\text{ref}}(t+\tau)\tau^2d\tau\\
-\int_0^{T_3}\theta_{\text{ref}}(t+\tau)\tau^2d\tau
+\int_0^{T_3}\psi_{\text{ref}}(t+\tau)\tau^2d\tau
 \end{array}\right]
 \end{eqnarray}
 
@@ -699,14 +795,14 @@ R^s =
 % E =
 % \left[\begin{array}{c}
 % x - x_{\text{ref}}\\
-% v\cos\theta - v_{\text{ref}}\cos\theta_{\text{ref}}\\
-% \left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\cos\theta - v\omega\sin\theta - a_{\text{ref}}\cos{\theta_{\text{ref}}}\\
+% v\cos\psi - v_{\text{ref}}\cos\psi_{\text{ref}}\\
+% \left(\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\right)\cos\psi - v\omega\sin\psi - a_{\text{ref}}\cos{\psi_{\text{ref}}}\\
 % y - y_{\text{ref}}\\
-% v\sin\theta - v_{\text{ref}}\sin{\theta_{\text{ref}}}\\
-% \left(\frac{l_3}{l_1}\omega^2 - \frac{l_4}{l_1}v\right)\sin\theta + v\omega\cos\theta - a_{\text{ref}}\sin{\theta_{\text{ref}}}\\
-% \theta - \theta_{\text{ref}}\\
+% v\sin\psi - v_{\text{ref}}\sin{\psi_{\text{ref}}}\\
+% \left(\frac{\theta_3}{\theta_1}\omega^2 - \frac{\theta_4}{\theta_1}v\right)\sin\psi + v\omega\cos\psi - a_{\text{ref}}\sin{\psi_{\text{ref}}}\\
+% \psi - \psi_{\text{ref}}\\
 % \omega - \omega_{\text{ref}}\\
-% -\frac{l_5}{l_2}v\omega - \frac{l_6}{l_2}\omega - \alpha_{\text{ref}}\\
+% -\frac{\theta_5}{\theta_2}v\omega - \frac{\theta_6}{\theta_2}\omega - \alpha_{\text{ref}}\\
 % \end{array}\right]
 % \end{eqnarray}
 
@@ -719,16 +815,16 @@ R^s =
 % \begin{equation}
 % \dot{q}(t) = f(q(t), u(t)) \Rightarrow\\
 % \left\lbrace\begin{array}{lcl}
-% \dot{x} = u_1\cos\theta\\
-% \dot{y} = u_1\sin\theta\\
-% \dot{\theta} = u_2\cos\theta
+% \dot{x} = u_1\cos\psi\\
+% \dot{y} = u_1\sin\psi\\
+% \dot{\psi} = u_2\cos\psi
 % \end{array}\right.
 % \end{equation}
 
 % For the feedback control, a specific method applicable to unicycle-type robots for tracking a reference vehicle with the same kinematics was used~\cite{siciliano2008springer}. The configuration trajectory $t \longmapsto q_b^*(t)$ can be considered as the solution to the robot's kinematic model for the specific control input trajectory $t \longmapsto u_b^*(t)$. Therefore, those trajectories can be used as references ((\ref{eq:refconfig}) and (\ref{eq:refctrl})) in the control law in (\ref{eq:ctrllaw}) that renders the system globally asymptotically stable under certain conditions\footnote{The orientation error between the physical robot and the reference robot is smaller than $\pi$/2, $u_{1,r}$ is a bounded differentiable function whose derivative is bounded and which does not tend to zero as t tends to infinity}.
 
 % \begin{equation}\label{eq:refconfig}
-% q_b^*(t) = [x_r\ y_r\ \theta_r]^T
+% q_b^*(t) = [x_r\ y_r\ \psi_r]^T
 % \end{equation}
 
 % \begin{equation}\label{eq:refctrl}
@@ -737,11 +833,11 @@ R^s =
 
 % \begin{equation}\label{eq:ctrllaw}
 % \left\lbrace\begin{array}{lcl}
-% u_1 = (-k_1|u_{1,r}|(w_1 + w_2w_3) + u_{1,r})\cos^{-1}(\theta-\theta_r)\\
-% u_2 = (-k_2u_{1,r}w_2 - k_3|u_{1,r}|w_3)\cos^2(\theta-\theta_r) + u_{2,r}
+% u_1 = (-k_1|u_{1,r}|(w_1 + w_2w_3) + u_{1,r})\cos^{-1}(\psi-\psi_r)\\
+% u_2 = (-k_2u_{1,r}w_2 - k_3|u_{1,r}|w_3)\cos^2(\psi-\psi_r) + u_{2,r}
 % \end{array}\right.
 % \end{equation}
-% with $w_1 = x - x_r$, $w_2 = y - y_r$, $w_3 = \tan(\theta - \theta_r)$.
+% with $w_1 = x - x_r$, $w_2 = y - y_r$, $w_3 = \tan(\psi - \psi_r)$.
 
 % The gains $k_1$, $k_2$ and $k_3$ were tunned using pole placement based on the linearization of the system and control.
 % 32
@@ -804,6 +900,6 @@ R^s =
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \bibliographystyle{IEEEtran}
-\bibliography{ref}
+\bibliography{root}
 
 \end{document}

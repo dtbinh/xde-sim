@@ -107,63 +107,10 @@ namespace aiv
 			_u2 = 0.0;
 			return;
 		}
-		else if (planStage == 1)
-		// else if (planStage == 1 || planStage == 2)
+		// else if (planStage == 1)
+		else if (planStage == 1 || planStage == 2)
 		{
 
-			// if (planStage == 2 && _predictionTime > planHorizon - refEvalTime)
-			// {
-			// 	_predictionTime = planHorizon - refEvalTime;
-
-			// 	//update Gain Matrix
-			// 	_KssInv << 20./std::pow(_predictionTime, 5), 0, 0,
-			// 					   0, 20./std::pow(_predictionTime, 5), 0,
-			// 					   0, 0, 20./std::pow(_predictionTime, 5);
-
-			// 	_Ks <<
-			// 		std::pow(_predictionTime, 3)/6.,std::pow(_predictionTime, 4)/8.,
-			// 		std::pow(_predictionTime, 5)/20.,0,
-			// 		0,0,
-			// 		0,0,
-			// 		0,0,
-			// 		0,0,
-			// 		std::pow(_predictionTime,3)/6.,std::pow(_predictionTime,4)/8.,
-			// 		std::pow(_predictionTime,5)/20.,0,
-			// 		0,0,
-			// 		0,0,
-			// 		0,0,
-			// 		0,0,
-			// 		std::pow(_predictionTime, 3)/6.,std::pow(_predictionTime, 4)/8.,
-			// 		std::pow(_predictionTime, 5)/20.;
-			// }
-
-			double integrationTimeStep = 0.001; //in seconds, may differ from 1/double(samplesNumber)*_predictionTime
-
-			int samplesNumber = int(_predictionTime/integrationTimeStep);
-
-			Rs = Eigen::Vector3d::Zero();
-			Eigen::Vector3d previousF = Eigen::Vector3d::Zero();
-
-			for (int i=1; i<=samplesNumber; ++i)
-			{
-				double tau = double(i)/samplesNumber * _predictionTime;
-
-				Eigen::Matrix<double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg+1> derivFlat =
-					reference(refEvalTime+tau, FlatoutputMonocycle::flatDerivDeg);
-
-				Eigen::Vector3d poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
-				poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
-					poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
-					translation.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
-
-				Rs += (poseOutput*tau*tau + previousF)/4. * _predictionTime/samplesNumber;
-
-				previousF = poseOutput*tau*tau;
-			}
-		}
-		// else if (planStage == 3)
-		else if (planStage == 3 || planStage == 2)
-		{
 			if (planStage == 2 && _predictionTime > planHorizon - refEvalTime)
 			{
 				_predictionTime = planHorizon - refEvalTime;
@@ -189,10 +136,66 @@ namespace aiv
 					std::pow(_predictionTime, 3)/6.,std::pow(_predictionTime, 4)/8.,
 					std::pow(_predictionTime, 5)/20.;
 			}
-			else
-				_predictionTime = 0.5;
 
-			//update Gain Matrix
+			double integrationTimeStep = 0.001; //in seconds, may differ from 1/double(samplesNumber)*_predictionTime
+
+			int samplesNumber = int(_predictionTime/integrationTimeStep);
+
+			Rs = Eigen::Vector3d::Zero();
+			Eigen::Vector3d previousF = Eigen::Vector3d::Zero();
+
+			for (int i=1; i<=samplesNumber; ++i)
+			{
+				double tau = double(i)/samplesNumber * _predictionTime;
+
+				Eigen::Matrix<double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg+1> derivFlat =
+					reference(refEvalTime+tau, FlatoutputMonocycle::flatDerivDeg);
+
+				Eigen::Vector3d poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
+				poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
+					poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
+					translation.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+
+				Rs += (poseOutput*tau*tau + previousF)/4. * _predictionTime/samplesNumber;
+
+				previousF = poseOutput*tau*tau;
+			}
+		}
+		else if (planStage == 3)
+		// else if (planStage == 3 || planStage == 2)
+		{
+			// if (planStage == 2 && _predictionTime > planHorizon - refEvalTime)
+			// {
+			// 	_predictionTime = planHorizon - refEvalTime;
+
+			// 	//update Gain Matrix
+			// 	_KssInv << 20./std::pow(_predictionTime, 5), 0, 0,
+			// 					   0, 20./std::pow(_predictionTime, 5), 0,
+			// 					   0, 0, 20./std::pow(_predictionTime, 5);
+
+			// 	_Ks <<
+			// 		std::pow(_predictionTime, 3)/6.,std::pow(_predictionTime, 4)/8.,
+			// 		std::pow(_predictionTime, 5)/20.,0,
+			// 		0,0,
+			// 		0,0,
+			// 		0,0,
+			// 		0,0,
+			// 		std::pow(_predictionTime,3)/6.,std::pow(_predictionTime,4)/8.,
+			// 		std::pow(_predictionTime,5)/20.,0,
+			// 		0,0,
+			// 		0,0,
+			// 		0,0,
+			// 		0,0,
+			// 		std::pow(_predictionTime, 3)/6.,std::pow(_predictionTime, 4)/8.,
+			// 		std::pow(_predictionTime, 5)/20.;
+			// }
+			// else
+			// 	_predictionTime = 0.5;
+
+			_predictionTime = 0.5;
+			// TODO no magic number
+
+			// update Gain Matrix
 			_KssInv << 20./std::pow(_predictionTime, 5), 0, 0,
 							   0, 20./std::pow(_predictionTime, 5), 0,
 							   0, 0, 20./std::pow(_predictionTime, 5);
@@ -311,11 +314,14 @@ namespace aiv
 
 
 		_u1 = cntrlOut(0,0);
-		_u2 = cntrlOut(1,0) + signedDist; //TODO no hardcoded constant, put on config.xml
+		_u2 = cntrlOut(1,0); //+ signedDist; //TODO no hardcoded constant, put on config.xml
 
 		// limiting output
 		_u1 = max( min( _u1, _maxU1 ), -1*_maxU1 );
 		_u2 = max( min( _u2, _maxU2 ), -1*_maxU2 );
+
+		// _u1 = max( min( _u1, 100*u1_ref ), -1*100*u1_ref );
+		// _u2 = max( min( _u2, 100*u2_ref ), -1*100*u2_ref );
 	}
 
 	void ControllerMonocycle::update(

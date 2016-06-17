@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <root>
-	<simspeed>1.0</simspeed>
-	<timestep unit="s">0.005</timestep>
-	<timeoffset unit="s">0.8</timeoffset>
+	<simspeed>100.0</simspeed>
+	<timestep unit="s">0.01</timestep>
+	<timeoffset unit="s">1.0</timeoffset>
 	<aivs>
 		<aiv>
 			<frame>
@@ -53,27 +53,27 @@
 				<material>rubber</material>
 			</rightbackfreewheel>
 			<track>0.19664</track>
-			<detectionradius>5.0</detectionradius>
+			<detectionradius>6.0</detectionradius>
 			<initpose>
-				<x unit="m">0.0</x>
-				<y unit="m">0.0</y>
-				<theta unit="rad">0.0</theta>
+				<x unit="m">-5</x>
+				<y unit="m">-5</y>
+				<theta unit="rad">0.78</theta>
 			</initpose>
 			<initvelo>
 				<linear unit="mps">0.0</linear>
 				<angular unit="radps">0.0</angular>
 			</initvelo>
 			<goalpose>
-				<x unit="m">12.</x>
-				<y unit="m">0.</y>
-				<theta unit="rad">0.0</theta>
+				<x unit="m">5</x>
+				<y unit="m">5</y>
+				<theta unit="rad">0.78</theta>
 			</goalpose>
 			<goalvelo>
 				<linear unit="mps">0.0</linear>
 				<angular unit="radps">0.0</angular>
 			</goalvelo>
 			<maxvelo>
-				<linear unit="mps">1.5</linear>
+				<linear unit="mps">1.0</linear>
 				<angular unit="radps">8.0</angular>
 			</maxvelo>
 			<maxacc>
@@ -94,16 +94,15 @@
 		<circular>
 			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
 			<cmposition>
-				<x unit="m">7.</x>
-				<y unit="m">0.0</y>
+				<x unit="m">0</x>
+				<y unit="m">-0.157</y>
 				<z unit="m">0.3</z>
 			</cmposition>
-			<radius unit="m">0.8791</radius>
+			<radius unit="m">1.0</radius>
 			<mass>55.0</mass>
 			<material>rubber</material>
 			<color>xde/BlackOpaque</color>
 		</circular>
-
 	</obstacles>
 	<mpmethod type="receding horizon with termination">
 		<comphorizon unit="s">0.3</comphorizon>
@@ -114,24 +113,24 @@
 		<terminationdist unit="m">0.5</terminationdist>
 		<interrobotsafetydist unit="m">0.1</interrobotsafetydist>
 		<conflictfreepathdeviation unit="m">5.0</conflictfreepathdeviation>
-		<numderivativefactor>1.0</numderivativefactor>
+		<numderivativefactor>10000</numderivativefactor>
 		<optimizer type="SLSQP">
 			<maxiteration>
 				<first>100</first>
 				<inter>100</inter>
 				<last>100</last>
 			</maxiteration>
-			<xtolerance>1e-12</xtolerance>
-			<ftolerance>1e-12</ftolerance>
+			<xtolerance>1e-09</xtolerance>
+			<ftolerance>0.0</ftolerance>
 			<eqtolerance>0.0001</eqtolerance>
-			<ineqtolerance>1e-06</ineqtolerance>
+			<ineqtolerance>0.0001</ineqtolerance>
 		</optimizer>
 	</mpmethod>
 	<controller type="NCGPC">
 		<threshold>
-			<u1>2.0</u1>
+			<u1>3.0</u1>
 			<u2>18.0</u2>
 		</threshold>
-		<predictionhorizon>0.5</predictionhorizon>
+		<predictionhorizon>0.3</predictionhorizon>
 	</controller>
 </root>

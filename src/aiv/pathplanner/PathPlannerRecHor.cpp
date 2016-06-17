@@ -3,7 +3,7 @@
 #include "aiv/pathplanner/ImaginaryForbiddenSpace.hpp"
 #include "aiv/robot/AIV.hpp"
 
-//#include "aiv/pathplanner/constrJac.hpp"
+#include "aiv/pathplanner/constrJac.hpp"
 //#include "aiv/pathplanner/eq_cons_jac.hpp"
 #include <omp.h>
 #include <boost/foreach.hpp>
@@ -219,6 +219,270 @@ namespace aiv
 		}
 	}
 
+	void PathPlannerRecHor::update(
+			MapObst detectedObst,
+			MapAIV otherVehicles,
+			const Displacementd & currentPose,
+			const Twistd & currentVelo,
+			const double myRadius) //const Displacementd & realPose, const Twistd &realVelocity)
+	{
+		// double tic = Common::getRealTime();
+		
+		if(_detectedObstaclesMutex.try_lock())
+		{
+			_detectedObstacles = detectedObst;
+			_detectedObstaclesMutex.unlock();
+		}
+		if(_knownRobotsMutex.try_lock())
+		{
+			_knownRobots = otherVehicles;
+			_currentPose = currentPose;
+			_currentVelo = currentVelo;
+			// Getting robot's orientation projected in the ground plane (unless the aiv is flying this is the correct orientation)
+			// 1. get the quaternion part of the displacement
+			Quaternion<double> q = Quaternion<double>(_currentPose.qw(), _currentPose.qx(), _currentPose.qy(), _currentPose.qz());
+			// 2. rotation of UnityX by the quaternion q (i.e. x of the robot frame wrt the absolute frame, i.e. robot's direction)
+			_currentDirec = q._transformVector(Vector3d::UnitX());
+			_knownRobotsMutex.unlock();
+		}
+		if(_radiusMutex.try_lock())
+		{
+			_radius = myRadius;
+			_radiusMutex.unlock();
+		}
+		if(_comAIVsSetMutex.try_lock())
+		{
+			Common::KeysOnMapToVec(otherVehicles, _comAIVsSet);
+			_comAIVsSetMutex.unlock();
+		}
+		
+		// if(_currentInfoMutex.try_lock())
+		// {
+		// 	
+
+		
+		// 	_currentInfoMutex.unlock();
+		// }
+
+		// TODO Instead of communicating with everybody a comunication structure should be done
+
+		_evalTime = _currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
+
+		// --- PLANNING THREAD MANAGEMENT
+
+		if (_planStage != DONE && _planStage != FINAL)
+		{
+
+			// First update call
+			if (_currentPlanningTime >= _firstPlanTimespan - _compHorizon && !_spawnP0)
+			// WHY WAIT? Why not start P0 at _currentPlanningTime=0, because "runtime error R6025 - pure virtual function call"
+			// was happening https://support.microsoft.com/en-us/kb/125749
+			{
+				// _timeOffset = ;
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" ________ " << _executingPlanIdx << std::endl;
+				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Spawn the first plan thread ________ " << _executingPlanIdx << std::endl;
+
+				//_conflictEval();
+
+				_planOngoingMutex.lock();
+				
+				_baseTime = 0.0 + _timeOffset;
+				
+				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				_spawnP0 = true;
+			}
+
+			// If no plan is been executed yet but the fistPlanTimespan is over
+			// Using  _currentPlanningTime - _firstPlanTimespan > 1e-14 instead of _currentPlanningTime > _firstPlanTimespan beacause num error 3.33067e-016
+			else if (_executingPlanIdx == -1 && _currentPlanningTime - _firstPlanTimespan > 1e-14) // Time so robot touch the floor
+			{
+				// P0 will begin to be executed next
+				++_executingPlanIdx;
+				_evalTime = _currentPlanningTime - _firstPlanTimespan;
+
+				// Reset update call counter so evaluation time be corret
+				//_updateCallCntr = 1; // the update for _evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
+				// std::cout << "_evalTime: " << _evalTime << std::endl;
+				// std::cout << "updatetimestep: " << _updateTimeStep << std::endl;
+				// std::cout << "_currentPlanningTime: " << _currentPlanningTime << std::endl;
+				// std::cout << "_firstPlanTimespan: " << _firstPlanTimespan << std::endl;
+
+				// std::cout << "firstPlanTimespan " <<  firstPlanTimespan << std::endl;
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" ________ " << _executingPlanIdx << std::endl;
+				
+				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
+				{
+					if (_waitForThread)
+						_planThread.join();
+					else
+						_planThread.interrupt();
+					_planOngoingMutex.lock();
+				}
+				// else
+					// std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
+				// Now we are sure that there is no ongoing planning!
+
+				// update solution spline with the auxliar spline find in planning 0;
+				// no need to lock a mutex associated to the auxiliar spline because we are sure there is no ongoing planning
+				
+				_currentPlanningTime = _evalTime;
+				
+				_trajectory = _optTrajectory;
+				_initPoseForFuturePlan = _latestPose;
+				
+				// after the end of a planning thread we are to not be in the INIT stage
+				// if at the end of a planning thread _planLastPlan is true the next plan to be executed shall be the last
+				_planStage = _planLastPlan ? FINAL : INTER;
+
+				if (_planStage == FINAL) // No more planning threads
+				{
+					_planHorizon = _optPlanHorizon;
+					_planOngoingMutex.unlock();
+					//opt_log << "update: !!!!! Now goint to execute last plan !!!!!" << std::endl;
+				}
+				else
+				{
+					// plan next section!
+					//this->initTimeOfCurrPlan = currentPlanningTime;
+					// std::cout << "conflictEval 1" << std::endl;
+					// _conflictEval();
+					// std::cout << "conflictEval 2" << std::endl;
+					_baseTime = _currentPlanningTime + _compHorizon + _timeOffset;;
+					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
+					// std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
+					//opt_log << "update: _______ (C2) Spawn the second plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
+				}
+
+				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S2] ________ " << _executingPlanIdx << std::endl;
+
+			}
+
+			// If the robot started to execute the motion
+			else if (_executingPlanIdx >= 0 && _evalTime >= _compHorizon)
+			{
+				// std::cout << std::string(name).substr(0,10) << " pose: \033[1;44m";
+				// std::cout << _latestPose.transpose() << "\033[0m\n";
+				++_executingPlanIdx;
+
+				_evalTime -= _compHorizon; // "Fix" _evalTime
+
+				std::cout << "_______ " << std::string(name).substr(0,10) <<" ________ " << _executingPlanIdx << std::endl;
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if thread finished ________ " << _executingPlanIdx << std::endl;
+				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
+				{
+					if (_waitForThread == true)
+						_planThread.join();
+					else
+						_planThread.interrupt();
+					_planOngoingMutex.lock();
+				}
+				// else
+					// std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
+				// Now we are sure that there is no ongoing planning!
+
+				// update solution spline with the auxliar spline;
+				// no need to lock a mutex associated to the auxiliar spline because we are sure there is no ongoing planning
+
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S1] ________ " << _executingPlanIdx << std::endl;
+
+				_trajectory = _optTrajectory;
+				_initPoseForCurrPlan = _initPoseForFuturePlan; // update base pose
+				_initPoseForFuturePlan = _latestPose; // get latest position found by the plan that just ended (will be the next base pos)
+
+				// if at the end of a planning thread _planLastPlan is true the next plan to be executed shall be the last
+				_planStage = _planLastPlan ? FINAL : _planStage;
+
+
+				if (_planStage == FINAL)
+				{
+					_planHorizon = _optPlanHorizon;
+
+					_sharedSolMutex.lock();
+					
+					_sharedBasePos = _targetedFlat;
+					_sharedRadius = _radius;
+					_sharedTargetedPose = _targetedPose;
+					_sharedPlanStage = DONE;
+					
+					_sharedSolMutex.unlock();
+
+					_planOngoingMutex.unlock();
+					//opt_log << "update: !!!!! Now goint to execute last plan !!!!!" << std::endl;
+				}
+				else
+				{
+					// _conflictEval();
+					_baseTime = _currentPlanningTime + _compHorizon + _timeOffset;;
+					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
+					// std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
+				}
+
+				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
+				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S2] ________ " << _executingPlanIdx << std::endl;
+
+			}
+		}
+		else if (_planStage == FINAL && _evalTime > _planHorizon)
+		{
+			// std::cout << "gone to DONE" << std::endl;
+			_planStage = DONE;
+			_poseOutput = _targetedPose;
+			_velocityOutput = _targetedVelocity;
+			_accelOutput = AccelVector::Zero();
+		}
+
+		// --- APPARENT UPDATE
+
+		if (_planStage == INIT)
+		{
+			// do nothing
+			// double ctrlpts[20];
+			// for (auto i = 0; i < 20; ++i)
+			// 	ctrlpts[i] = -1;
+			// _trajectory.getParameters(ctrlpts);
+			// std::cout << "____________" << std::endl;
+			// for (auto i = 0; i < 20; ++i)
+				// std::cout << ctrlpts[i] << ", " << std::endl;
+			// std::cout << "____________" << std::endl;
+			// std::cout << _trajectory(_evalTime*_planHorizon, 3) << std::endl;
+		}
+		else if (_planStage == DONE)
+		{
+			std::cout << "Planning is over!" << std::endl;
+			std::cout << "Last step planning horizon: " << _planHorizon << std::endl;
+			// boost::this_thread::sleep(boost::posix_time::milliseconds(20));
+		}
+		else //INTER or FINAL
+		{
+			// just use solSpline to get the nextReferences values
+			// std::cout << "_evalTime: " << _evalTime << std::endl;
+
+			Np1DerivativesMatrix derivFlat = _trajectory(_evalTime, FlatoutputMonocycle::flatDerivDeg+1);
+
+			_poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
+
+			_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
+				// _rotMat2WRef * _poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
+				_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
+				_initPoseForCurrPlan.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
+
+			// _poseOutput(FlatoutputMonocycle::oriIdx, 0) =
+				// Common::wrapToPi(_poseOutput(FlatoutputMonocycle::oriIdx, 0) + _initPoseForCurrPlan(FlatoutputMonocycle::oriIdx, 0));
+
+			_velocityOutput = FlatoutputMonocycle::flatToVelocity(derivFlat);
+			// max( min( _u1, _maxU1 ), -1*_maxU1 );
+
+			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat);
+		}
+
+		_currentPlanningTime += _updateTimeStep;
+		// std::cout << "planner elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
+		return;
+	}
+
 	void PathPlannerRecHor::_conflictEval()
 	{
 		// Clear conflicts robots maps
@@ -233,6 +497,9 @@ namespace aiv
 
 		// Vector2d othPosition;
 
+		_knownRobotsMutex.lock();
+		_comAIVsSetMutex.lock();
+		_radiusMutex.lock();
 		for (MapAIV::iterator it = _knownRobots.begin(); it != _knownRobots.end(); ++it)
 		{
 			
@@ -270,7 +537,7 @@ namespace aiv
 				if (dInterRobot <= dSecutiry + _sharedPlanHor*maxAbsRelVel + _radius + it->second->getRad())
 				{
 					_collisionAIVs[it->first] = it->second;
-					std::cout << FG_B_L_CYAN << "=========== " << it->first << " was added" <<  "===========" << RESET << std::endl;
+					// std::cout << FG_B_L_CYAN << "=========== " << it->first << " was added" <<  "===========" << RESET << std::endl;
 
 					conflictual = true;
 				}
@@ -300,14 +567,14 @@ namespace aiv
 					othPosition = mIEarly ? othTraj(_sharedBaseTime - othBaseTime) + othPosition : othPosition;
 					myPosition = mILate ? _sharedTraj(othBaseTime - _sharedBaseTime) + myPosition : myPosition;
 					
-					std::cout << FG_B_L_CYAN << "=========== D_TIME " << _sharedBaseTime - othBaseTime << RESET << std::endl;
-					std::cout << FG_B_L_CYAN << "=========== POS " << myPosition.transpose() << " ||| " << othPosition.transpose() << RESET << std::endl;
+					// std::cout << FG_B_L_CYAN << "=========== D_TIME " << _sharedBaseTime - othBaseTime << RESET << std::endl;
+					// std::cout << FG_B_L_CYAN << "=========== POS " << myPosition.transpose() << " ||| " << othPosition.transpose() << RESET << std::endl;
 
 					double dInterRobot = (myPosition - othPosition).norm();
 
 					double maxAbsRelVel = _maxVelocity[FlatoutputMonocycle::linAccelIdx] + it->second->getPathPlanner()->getMaxLinVelocity();
 
-					std::cout << FG_B_L_CYAN << "=========== Dist|planHor|maxabsvel|sec " << dInterRobot << " ||| " << _sharedPlanHor << " ||| " << maxAbsRelVel <<  " ||| " << dSecutiry <<RESET << std::endl;
+					// std::cout << FG_B_L_CYAN << "=========== Dist|planHor|maxabsvel|sec " << dInterRobot << " ||| " << _sharedPlanHor << " ||| " << maxAbsRelVel <<  " ||| " << dSecutiry <<RESET << std::endl;
 
 					bool conflictual = false;
 					
@@ -315,15 +582,15 @@ namespace aiv
 					{
 						conflictual = true;
 						_collisionAIVs[it->first] = it->second;
-						std::cout << FG_B_L_CYAN << "=========== " << it->first << " was added" <<  "===========" << RESET << std::endl;
+						// std::cout << FG_B_L_CYAN << "=========== " << it->first << " was added" <<  "===========" << RESET << std::endl;
 					}
 
-					std::cout << FG_B_L_MAGENTA << "My pose: " << RESET << myPosition.transpose() << std::endl;
-					std::cout << FG_B_L_MAGENTA << "Other pose: " << RESET << othPosition.transpose() << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "My pose: " << RESET << myPosition.transpose() << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "Other pose: " << RESET << othPosition.transpose() << std::endl;
 
-					std::cout << FG_B_L_MAGENTA << "Dist inter robots: " << RESET << dInterRobot << std::endl;
-					std::cout << FG_B_L_MAGENTA << "Secuirty dist: " << RESET << dSecutiry << std::endl;
-					std::cout << FG_B_L_MAGENTA << "MaxLinXplanHor: " << RESET << maxAbsRelVel*_planHorizon << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "Dist inter robots: " << RESET << dInterRobot << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "Secuirty dist: " << RESET << dSecutiry << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "MaxLinXplanHor: " << RESET << maxAbsRelVel*_planHorizon << std::endl;
 
 					if (_comAIVsSet.find(it->first) != _comAIVsSet.end() &&
 						dInterRobot + maxAbsRelVel*_planHorizon >= minComRange)
@@ -406,258 +673,15 @@ namespace aiv
 				}
 				else
 				{
-					std::cout << FG_B_L_MAGENTA << "TEMPORALY APART: " << RESET << _sharedBaseTime << ", " << othBaseTime << std::endl;
+					// std::cout << FG_B_L_MAGENTA << "TEMPORALY APART: " << RESET << _sharedBaseTime << ", " << othBaseTime << std::endl;
 				}
 			}
 		}
-	}
-
-	void PathPlannerRecHor::update(
-			MapObst detectedObst,
-			MapAIV otherVehicles,
-			const Displacementd & currentPose,
-			const Twistd & currentVelo,
-			const double myRadius) //const Displacementd & realPose, const Twistd &realVelocity)
-	{
-		// double tic = Common::getRealTime();
-		
-		_detectedObstacles = detectedObst;
-
-		_knownRobotsMutex.lock();
-		_knownRobots = otherVehicles;
 		_knownRobotsMutex.unlock();
-		
-		_currentPose = currentPose;
-		_currentVelo = currentVelo;
-		_radius = myRadius;
-
-		// Getting robot's orientation projected in the ground plane (unless the aiv is flying this is the correct orientation)
-		// 1. get the quaternion part of the displacement
-		Quaternion<double> q = Quaternion<double>(_currentPose.qw(), _currentPose.qx(), _currentPose.qy(), _currentPose.qz());
-		// 2. rotation of UnityX by the quaternion q (i.e. x of the robot frame wrt the absolute frame, i.e. robot's direction)
-		_currentDirec = q._transformVector(Vector3d::UnitX());
-
-		// TODO Instead of communicating with everybody a comunication structure should be done
-		_comAIVsSetMutex.lock();
-		Common::KeysOnMapToVec(otherVehicles, _comAIVsSet);
 		_comAIVsSetMutex.unlock();
+		_radiusMutex.unlock();
 
-		_evalTime = _currentPlanningTime - (std::max(_executingPlanIdx, 0)*_compHorizon);
-
-		// --- PLANNING THREAD MANAGEMENT
-
-		if (_planStage != DONE && _planStage != FINAL)
-		{
-
-			// First update call
-			if (_currentPlanningTime >= _firstPlanTimespan - _compHorizon && !_spawnP0)
-			// WHY WAIT? Why not start P0 at _currentPlanningTime=0, because "runtime error R6025 - pure virtual function call"
-			// was happening https://support.microsoft.com/en-us/kb/125749
-			{
-				// _timeOffset = ;
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" First update call ________ " << _executingPlanIdx << std::endl;
-				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Spawn the first plan thread ________ " << _executingPlanIdx << std::endl;
-
-				//_conflictEval();
-
-				_planOngoingMutex.lock();
-				
-				_baseTime = 0.0 + _timeOffset;
-				
-				_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do P0
-				//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C1) Spawn the first plan thread!!! ________ " << _executingPlanIdx << std::endl;
-				_spawnP0 = true;
-			}
-
-			// If no plan is been executed yet but the fistPlanTimespan is over
-			// Using  _currentPlanningTime - _firstPlanTimespan > 1e-14 instead of _currentPlanningTime > _firstPlanTimespan beacause num error 3.33067e-016
-			else if (_executingPlanIdx == -1 && _currentPlanningTime - _firstPlanTimespan > 1e-14) // Time so robot touch the floor
-			{
-				// P0 will begin to be executed next
-				++_executingPlanIdx;
-				_evalTime = _currentPlanningTime - _firstPlanTimespan;
-
-				// Reset update call counter so evaluation time be corret
-				//_updateCallCntr = 1; // the update for _evalTime zero will be done next, during this same "update" call. Thus counter should be 1 for the next call.
-				// std::cout << "_evalTime: " << _evalTime << std::endl;
-				// std::cout << "updatetimestep: " << _updateTimeStep << std::endl;
-				// std::cout << "_currentPlanningTime: " << _currentPlanningTime << std::endl;
-				// std::cout << "_firstPlanTimespan: " << _firstPlanTimespan << std::endl;
-
-				////std::cout << "firstPlanTimespan " <<  firstPlanTimespan << std::endl;
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if fist thread finished ________ " << _executingPlanIdx << std::endl;
-				
-				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
-				{
-					if (_waitForThread)
-						_planThread.join();
-					else
-						_planThread.interrupt();
-					_planOngoingMutex.lock();
-				}
-				// else
-					// std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
-				// Now we are sure that there is no ongoing planning!
-
-				// update solution spline with the auxliar spline find in planning 0;
-				// no need to lock a mutex associated to the auxiliar spline because we are sure there is no ongoing planning
-				
-				_currentPlanningTime = _evalTime;
-				
-				_trajectory = _optTrajectory;
-				_initPoseForFuturePlan = _latestPose;
-				
-				// after the end of a planning thread we are to not be in the INIT stage
-				// if at the end of a planning thread _planLastPlan is true the next plan to be executed shall be the last
-				_planStage = _planLastPlan ? FINAL : INTER;
-
-				if (_planStage == FINAL) // No more planning threads
-				{
-					_planHorizon = _optPlanHorizon;
-					_planOngoingMutex.unlock();
-					//opt_log << "update: !!!!! Now goint to execute last plan !!!!!" << std::endl;
-				}
-				else
-				{
-					// plan next section!
-					//this->initTimeOfCurrPlan = currentPlanningTime;
-					// std::cout << "conflictEval 1" << std::endl;
-					// _conflictEval();
-					// std::cout << "conflictEval 2" << std::endl;
-					_baseTime = _currentPlanningTime + _compHorizon + _timeOffset;;
-					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C2) Spawn the second plan thread!!! ________ " << _executingPlanIdx << std::endl;
-					//opt_log << "update: _______ (C2) Spawn the second plan thread!!! ________ " << this->ongoingPlanIdx << std::endl;
-				}
-
-				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S2] ________ " << _executingPlanIdx << std::endl;
-
-			}
-
-			// If the robot started to execute the motion
-			else if (_executingPlanIdx >= 0 && _evalTime >= _compHorizon)
-			{
-				std::cout << std::string(name).substr(0,10) << " pose: \033[1;44m";
-				std::cout << _latestPose.transpose() << "\033[0m\n";
-				++_executingPlanIdx;
-
-				_evalTime -= _compHorizon; // "Fix" _evalTime
-
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" Check if thread finished ________ " << _executingPlanIdx << std::endl;
-				if (!_planOngoingMutex.try_lock()) // We are supposed to get this lock
-				{
-					if (_waitForThread == true)
-						_planThread.join();
-					else
-						_planThread.interrupt();
-					_planOngoingMutex.lock();
-				}
-				// else
-					// std::cout << "_______ " << std::string(name).substr(0,10) <<" Got the mutex ________ " << _executingPlanIdx << std::endl;
-				// Now we are sure that there is no ongoing planning!
-
-				// update solution spline with the auxliar spline;
-				// no need to lock a mutex associated to the auxiliar spline because we are sure there is no ongoing planning
-
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S1] ________ " << _executingPlanIdx << std::endl;
-
-				_trajectory = _optTrajectory;
-				_initPoseForCurrPlan = _initPoseForFuturePlan; // update base pose
-				_initPoseForFuturePlan = _latestPose; // get latest position found by the plan that just ended (will be the next base pos)
-
-				// if at the end of a planning thread _planLastPlan is true the next plan to be executed shall be the last
-				_planStage = _planLastPlan ? FINAL : _planStage;
-
-
-				if (_planStage == FINAL)
-				{
-					_planHorizon = _optPlanHorizon;
-
-					_sharedSolMutex.lock();
-					
-					_sharedBasePos = _targetedFlat;
-					_sharedRadius = _radius;
-					_sharedTargetedPose = _targetedPose;
-					_sharedPlanStage = DONE;
-					
-					_sharedSolMutex.unlock();
-
-					_planOngoingMutex.unlock();
-					//opt_log << "update: !!!!! Now goint to execute last plan !!!!!" << std::endl;
-				}
-				else
-				{
-					// _conflictEval();
-					_baseTime = _currentPlanningTime + _compHorizon + _timeOffset;;
-					_planThread = boost::thread(&PathPlannerRecHor::_plan, this); // Do PX with X in (1, 2, ..., indefined_finit_value)
-					//std::cout << "_______ " << std::string(name).substr(0,10) <<" (C3) Spawn new plan thread!!! ________ " << _executingPlanIdx << std::endl;
-				}
-
-				// std::cout << "_______ PlanStage { INIT, INTER, FINAL, DONE }: " << _planStage << std::endl; 
-				// std::cout << "_______ " << std::string(name).substr(0,10) <<" [S2] ________ " << _executingPlanIdx << std::endl;
-
-			}
-		}
-		else if (_planStage == FINAL && _evalTime > _planHorizon)
-		{
-			////std::cout << "gone to DONE" << std::endl;
-			_planStage = DONE;
-			_poseOutput = _targetedPose;
-			_velocityOutput = _targetedVelocity;
-			_accelOutput = AccelVector::Zero();
-		}
-
-		// --- APPARENT UPDATE
-
-		if (_planStage == INIT)
-		{
-			// do nothing
-			// double ctrlpts[20];
-			// for (auto i = 0; i < 20; ++i)
-			// 	ctrlpts[i] = -1;
-			// _trajectory.getParameters(ctrlpts);
-			// std::cout << "____________" << std::endl;
-			// for (auto i = 0; i < 20; ++i)
-			// 	std::cout << ctrlpts[i] << ", " << std::endl;
-			// std::cout << "____________" << std::endl;
-			//std::cout << _trajectory(_evalTime*_planHorizon, 3) << std::endl;
-		}
-		else if (_planStage == DONE)
-		{
-			std::cout << "Planning is over!" << std::endl;
-			std::cout << "Last step planning horizon: " << _planHorizon << std::endl;
-			// boost::this_thread::sleep(boost::posix_time::milliseconds(20));
-		}
-		else //INTER or FINAL
-		{
-			// just use solSpline to get the nextReferences values
-			//std::cout << "_evalTime: " << _evalTime << std::endl;
-
-			Np1DerivativesMatrix derivFlat = _trajectory(_evalTime, FlatoutputMonocycle::flatDerivDeg+1);
-
-			_poseOutput = FlatoutputMonocycle::flatToPose(derivFlat);
-
-			_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) =
-				// _rotMat2WRef * _poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
-				_poseOutput.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0) +
-				_initPoseForCurrPlan.block<FlatoutputMonocycle::posDim, 1>(FlatoutputMonocycle::posIdx, 0);
-
-			// _poseOutput(FlatoutputMonocycle::oriIdx, 0) =
-				// Common::wrapToPi(_poseOutput(FlatoutputMonocycle::oriIdx, 0) + _initPoseForCurrPlan(FlatoutputMonocycle::oriIdx, 0));
-
-			_velocityOutput = FlatoutputMonocycle::flatToVelocity(derivFlat);
-			// max( min( _u1, _maxU1 ), -1*_maxU1 );
-
-			_accelOutput = FlatoutputMonocycle::flatToAcceleration(derivFlat);
-		}
-
-		_currentPlanningTime += _updateTimeStep;
-		// std::cout << "planner elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
-		return;
 	}
-
 	bool PathPlannerRecHor::_isAnyForbSpacInRobotsWayToTarget(MapObst forbiddenSpaces)
 	{
 		FlatVector robotToTarget = _targetedFlat - _latestFlat;
@@ -668,21 +692,25 @@ namespace aiv
 		for(std::map<std::string, Obstacle* >::iterator it=forbiddenSpaces.begin();it != forbiddenSpaces.end(); ++it )
 		{
 			FlatVector forbSpacToRobot;
-			FlatVector forbSpacToWayPt;
+			FlatVector forbSpacToTarget;
 			double segmentNormTarg;
 			double discriminantTarg;
 			double determinantP1P2Targ;
 			double rad;
 
-			rad = it->second->getRad() + _radius + _robotObstacleSafetyDist;
+			_radiusMutex.lock();
+			double radius = _radius;
+			_radiusMutex.unlock();
+
+			rad = it->second->getRad() + radius + _robotObstacleSafetyDist;
 
 			forbSpacToRobot = _latestFlat - it->second->getCurrentPosition().getTranslation().block<2,1>(0,0);
 			
-			forbSpacToWayPt = _wayPt - it->second->getCurrentPosition().getTranslation().block<2,1>(0,0);
+			forbSpacToTarget = _targetedFlat - it->second->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
-			segmentNormTarg = (forbSpacToWayPt - forbSpacToRobot).norm();
+			segmentNormTarg = (forbSpacToTarget - forbSpacToRobot).norm();
 
-			determinantP1P2Targ = forbSpacToRobot(0,0)*forbSpacToWayPt(1,0) - forbSpacToWayPt(0,0)*forbSpacToRobot(1,0);
+			determinantP1P2Targ = forbSpacToRobot(0,0)*forbSpacToTarget(1,0) - forbSpacToTarget(0,0)*forbSpacToRobot(1,0);
 
 			discriminantTarg = rad*rad * segmentNormTarg*segmentNormTarg - determinantP1P2Targ*determinantP1P2Targ;
 
@@ -693,11 +721,15 @@ namespace aiv
 
 				double signed_r2o_proj_on_tdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0)) - targetTheta);
 
-				if (signed_r2o_proj_on_tdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
+				if (signed_r2o_proj_on_tdir <= radius)
 				{
 					continue;
 				}
-				else return true;
+				else
+				{
+					std::cout << FG_B_L_CYAN << it->first << " is in the way to target" << RESET << std::endl;
+					return true;
+				}
 			}
 		}
 		return false;
@@ -780,6 +812,7 @@ namespace aiv
 		double otherLinVel = otherVelocity.block<2, 1>(3, 0).norm(); // sqrt(vx^2 + vy^2) linear speed in the robot plane xy
 		// double otherAngVel = otherVelocity.topRows(3).z(); // rotation around z of the robot frame
 
+		_currentInfoMutex.lock();
 		double myLinVel = _currentVelo.block<2, 1>(3, 0).norm();
 		// double myAngVel = _currentVelo.topRows(3).z();
 
@@ -788,12 +821,17 @@ namespace aiv
 
 		double deltaP0x = _currentPose.x() - otherPose.x();
 		double deltaP0y = _currentPose.y() - otherPose.y();
+		_currentInfoMutex.unlock();
 
 		double a = deltaVx*deltaVx + deltaVy*deltaVy;
 
 		double b = 2*deltaP0x*deltaVx + 2*deltaP0y*deltaVy;
 
-		double c = deltaP0x*deltaP0x + deltaP0y*deltaP0y - pow(_radius + _knownRobots[othRobName]->getRad() + _interRobotSafetyDist, 2);
+		_radiusMutex.lock();
+		double radius = _radius;
+		_radiusMutex.unlock();
+
+		double c = deltaP0x*deltaP0x + deltaP0y*deltaP0y - pow(radius + _knownRobots[othRobName]->getRad() + _interRobotSafetyDist, 2);
 
 		double discriminant = b*b - 4*a*c;
 
@@ -834,7 +872,7 @@ namespace aiv
 				//(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*_knownRobots[othRobName]->getRad();
 
 			Common::CArray3d ret;
-			ret[2] = _knownRobots[othRobName]->getRad() * std::min(1., _radius*Common::finvsqrt(deltaP0x*deltaP0x + deltaP0x*deltaP0x));
+			ret[2] = _knownRobots[othRobName]->getRad() * std::min(1., radius*Common::finvsqrt(deltaP0x*deltaP0x + deltaP0x*deltaP0x));
 			// ret[2] = 0.01;
 			ret[0] = forbiddenSpaceCentroid(0,0);
 			ret[1] = forbiddenSpaceCentroid(1,0);
@@ -852,8 +890,12 @@ namespace aiv
 
 	bool PathPlannerRecHor::_isForbSpaceInRobotsWay(const std::string& fsName, MapObst forbiddenSpaces)
 	{
-		// std::cout << "_isForbSpaceInRobotsWay:: " << fsName << std::endl;	
-		double rad = forbiddenSpaces[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
+		// std::cout << "_isForbSpaceInRobotsWay:: " << fsName << std::endl;
+		_radiusMutex.lock();
+		double radius = _radius;
+		_radiusMutex.unlock();
+		
+		double rad = forbiddenSpaces[fsName]->getRad() + radius + _robotObstacleSafetyDist;
 
 		FlatVector robotToForbSpac = forbiddenSpaces[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
 
@@ -866,7 +908,7 @@ namespace aiv
 		FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
 		double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
 
-		std::cout << FG_B_L_YELLOW << wayPtTheta << RESET << std::endl;
+		// std::cout << FG_B_L_YELLOW << wayPtTheta << RESET << std::endl;
 
 		FlatVector forbSpacToWayPt = _wayPt - forbiddenSpaces[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0);
 
@@ -893,7 +935,8 @@ namespace aiv
 			//robotToForbSpacDist
 			double signed_r2o_proj_on_wdir = robotToForbSpacDist * cos(atan2(robotToForbSpac(1,0), robotToForbSpac(0,0))-wayPtTheta);
 
-			if (signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
+			// if (signed_r2o_proj_on_wdir <= _maxVelocity.block<FlatoutputMonocycle::veloDim, 1>(FlatoutputMonocycle::linSpeedIdx, 0)(0,0)*_compHorizon)
+			if (signed_r2o_proj_on_wdir <= radius*2)
 			{
 				// std::cout << fsName << ": not in the way because projection in robots way is less than computation distance" << std::endl;
 				return false;
@@ -916,7 +959,9 @@ namespace aiv
 
 		FlatVector robotToForbSpac = forbiddenSpaces[fsName]->getCurrentPosition().getTranslation().block<2,1>(0,0) - _latestFlat;
 
+		_radiusMutex.lock();
 		double rad = forbiddenSpaces[fsName]->getRad() + _radius + _robotObstacleSafetyDist;
+		_radiusMutex.unlock();
 
 		// sovling second degree eq for finding angular variations for passing by the "left" and "right" of this forbidden space
 
@@ -997,6 +1042,7 @@ namespace aiv
 
 		// update known obstacles
 		//self._known_obst_idxs += [i[0] for i in idx_list if i[0] not in self._known_obst_idxs]
+		_detectedObstaclesMutex.lock();
 		for(MapObst::iterator it=_detectedObstacles.begin(); it != _detectedObstacles.end(); ++it)
 		{
 			if (std::find(_knownObstacles.begin(), _knownObstacles.end(), *it) == _knownObstacles.end())
@@ -1004,6 +1050,7 @@ namespace aiv
 				_knownObstacles[it->first] = it->second;
 			}
 		}
+		_detectedObstaclesMutex.unlock();
 
 		MapObst forbiddenSpaces(_knownObstacles);
 		// VecStr aux;
@@ -1012,6 +1059,7 @@ namespace aiv
 
 		// std::cout << FG_B_L_BLUE << "_knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
 
+		// _knownRobotsMutex.lock();
 		// if (!_knownRobots.empty())
 		// {
 		// 	// std::cout << FG_B_L_BLUE << "[2] _knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
@@ -1051,20 +1099,25 @@ namespace aiv
 		// 			forbiddenSpaces[otherRobot->first] = new ImaginaryForbiddenSpace(otherRobot->first, collInfo[2], (FlatVector() << collInfo[0], collInfo[1]).finished());
 		// 			forbiddenSpaces[otherRobot->first+"_2"] = new ImaginaryForbiddenSpace(otherRobot->first+"_2", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
 		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*1.5*collInfo[2]);
-		// 			// forbiddenSpaces[otherRobot->first+"_3"] = new ImaginaryForbiddenSpace(otherRobot->first+"_3", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
-		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*2.5*_knownRobots[otherRobot->first]->getRad());
+		// 			forbiddenSpaces[otherRobot->first+"_3"] = new ImaginaryForbiddenSpace(otherRobot->first+"_3", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 				(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*2.5*_knownRobots[otherRobot->first]->getRad());
 		// 			// forbiddenSpaces[otherRobot->first+"_4"] = new ImaginaryForbiddenSpace(otherRobot->first+"_4", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
 		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*3.5*_knownRobots[otherRobot->first]->getRad());
 		// 			// forbiddenSpaces[otherRobot->first+"_5"] = new ImaginaryForbiddenSpace(otherRobot->first+"_5", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
 		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*4.5*_knownRobots[otherRobot->first]->getRad());
 		// 			// forbiddenSpaces[otherRobot->first+"_6"] = new ImaginaryForbiddenSpace(otherRobot->first+"_6", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
 		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*5.5*_knownRobots[otherRobot->first]->getRad());
+		// 			// forbiddenSpaces[otherRobot->first+"_7"] = new ImaginaryForbiddenSpace(otherRobot->first+"_7", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*6.5*_knownRobots[otherRobot->first]->getRad());
+		// 			// forbiddenSpaces[otherRobot->first+"_8"] = new ImaginaryForbiddenSpace(otherRobot->first+"_8", collInfo[2]/2., (FlatVector() << collInfo[0], collInfo[1]).finished()+
+		// 			// 	(FlatVector() << otherDirec.x(), otherDirec.y()).finished()*7.5*_knownRobots[otherRobot->first]->getRad());
 		// 			// std::cout << "*************AFTER fon[] = new\n";
 		// 		}
 		// 	}
-		// 	std::cout << FG_B_L_BLUE << "[3] _knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
-
+		// 	// std::cout << FG_B_L_BLUE << "[3] _knownRobots.empty() = " << RESET << _knownRobots.empty() << std::endl;
 		// }
+		// _knownRobotsMutex.unlock();
+
 
 		// Check if there is somthing to be avoided
 		if (forbiddenSpaces.empty())
@@ -1086,17 +1139,17 @@ namespace aiv
 		// Iterate over forbidden spaces vector
 		for (MapObst::iterator fsIt = forbiddenSpaces.begin(); fsIt != forbiddenSpaces.end(); ++fsIt)
 		{
-			std::cout << fsIt->first << std::endl;
-			Common::printNestedContainer(forbiddenSpacesClusters);
-			std::cout << std::endl;
+			// std::cout << fsIt->first << std::endl;
+			// Common::printNestedContainer(forbiddenSpacesClusters);
+			// std::cout << std::endl;
 			// is fsIt in any cluster in forbiddenSpacesClusters?
 			//
 			bool foundIt = false;
 			for (VecVecStr::iterator clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 			{
 				// std::cout << "searching for " << fsIt->first << " in ";
-				Common::printNestedContainer(*clIt);
-				std::cout << std::endl;
+				// Common::printNestedContainer(*clIt);
+				// std::cout << std::endl;
 				// if (clIt->find(fsIt->first) != clIt->end())
 				if (std::find(clIt->begin(), clIt->end(), fsIt->first) != clIt->end())
 				{
@@ -1173,7 +1226,11 @@ namespace aiv
 					double dist =  candidIt->second->distToAIV(forbiddenSpaces[forbSpacName]->getCurrentPosition().getTranslation().block<2,1>(0,0), forbiddenSpaces[forbSpacName]->getRad());
 					// std::cout << 
 					// std::cout << candidIt->first << " " << candidIt->second->getRad() << " " << dist << std::endl;
+					
+					_radiusMutex.lock();
 					bool tooClose = dist < 2.*_robotObstacleSafetyDist + _radius*2;
+					_radiusMutex.unlock();
+
 					// std::cout << candidIt->first << " *************AFTER [5]\n";
 					// std::cout << "Is " << candidIt->first << " too close to " << forbSpacName << "? [dist=" << dist << "]" << std::endl;
 					if (tooClose)
@@ -1197,9 +1254,9 @@ namespace aiv
 			}
 		}
 
-		std::cout << this->name << "::fbClusters\033[1;36m";
-		Common::printNestedContainer(forbiddenSpacesClusters);
-		std::cout << "\033[0m" << std::endl;
+		// std::cout << this->name << "::fbClusters\033[1;36m";
+		// Common::printNestedContainer(forbiddenSpacesClusters);
+		// std::cout << "\033[0m" << std::endl;
 		// std::cout << "*************AFTER [6]\n";
 
 		// Some clusters can be ignored, let's remove them. For the remaining clusters, let's find the information about avoiding each of their forbidden spaces
@@ -1220,6 +1277,7 @@ namespace aiv
 				if (test) std::cout << "YES\n";
 				else std::cout << "NO\n";
 				if (test)
+
 				{
 					inTheWay = true;
 					break;
@@ -1241,9 +1299,9 @@ namespace aiv
 			else // this cluster can be ignored
 			{
 				forbiddenSpacesClusters.erase(clIt);
-				std::cout << this->name << "::remaining\033[1;36m";
-				Common::printNestedContainer(forbiddenSpacesClusters);
-				std::cout << "\033[0m" << std::endl;
+				// std::cout << this->name << "::remaining\033[1;36m";
+				// Common::printNestedContainer(forbiddenSpacesClusters);
+				// std::cout << "\033[0m" << std::endl;
 			}
 		}
 
@@ -1252,6 +1310,12 @@ namespace aiv
 		{
 
 			_wayPt = _targetedFlat;
+			FlatVector robotToWayPt = _wayPt - _latestFlat;
+			double robotToWayPtDist = robotToWayPt.norm();
+			FlatVector wayPtDirec = robotToWayPt/robotToWayPtDist;
+			double wayPtTheta = atan2(wayPtDirec(1,0), wayPtDirec(0,0));
+
+			// std::cout << "final theta: " << wayPtTheta << std::endl;
 			return;
 		}
 
@@ -1267,7 +1331,7 @@ namespace aiv
 			// Am I inside a forbiddenSpace? In this case return a way point to scape from the obstacle center
 			for (VecStr::iterator fsIt = clIt->begin(); fsIt != clIt->end(); ++fsIt)
 			{
-				std::cout << FG_B_L_MAGENTA << *fsIt << ": " << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << _avoidanceInfo[*fsIt][2] << RESET << std::endl;
+				// std::cout << FG_B_L_MAGENTA << *fsIt << ": " << _avoidanceInfo[*fsIt][0] << ", " << _avoidanceInfo[*fsIt][1] << _avoidanceInfo[*fsIt][2] << RESET << std::endl;
 				if (_avoidanceInfo[*fsIt][2] < 0.0) //inside the obstacle
 				{
 					//return previousWayPoint
@@ -1342,22 +1406,22 @@ namespace aiv
 		{
 			for (clIt = forbiddenSpacesClusters.begin(); clIt != forbiddenSpacesClusters.end(); ++clIt)
 			{
-				std::cout << this->name << "::clIt\033[1;36m";
-				Common::printNestedContainer(*clIt);
-				std::cout << "\033[0m" << std::endl;
+				// std::cout << this->name << "::clIt\033[1;36m";
+				// Common::printNestedContainer(*clIt);
+				// std::cout << "\033[0m" << std::endl;
 
-				std::cout << "1" << std::endl;
+				// std::cout << "1" << std::endl;
 				VecVecStr possibleBlockingClusters;
-				std::cout << "2" << std::endl;
+				// std::cout << "2" << std::endl;
 				// VecVecStr subForbiddenSpacesClusters(forbiddenSpacesClusters);
-				std::cout << "3" << std::endl;
+				// std::cout <<s "3" << std::endl;
 				// subForbiddenSpacesClusters.erase(clIt);
 
 				// std::cout << this->name << "::subCluster\033[1;36m";
 				// Common::printNestedContainer(subForbiddenSpacesClusters);
 				// std::cout << "\033[0m" << std::endl;
 
-				std::cout << "4" << std::endl;
+				// std::cout << "4" << std::endl;
 				// if (clIt == forbiddenSpacesClusters.begin())
 				// {
 				// 	subForbiddenSpacesClusters.insert(subForbiddenSpacesClusters.begin(), VecVecStr(clIt+1, forbiddenSpacesClusters.end()));
@@ -1374,8 +1438,8 @@ namespace aiv
 
 				for (VecVecStr::iterator othClIt = clIt+1; othClIt != forbiddenSpacesClusters.end(); ++othClIt)
 				{
-					std::cout << clIt->front() << clIt->back() << othClIt->front() << othClIt->back() << std::endl;
-					std::cout << "5" << std::endl;
+					// std::cout << clIt->front() << clIt->back() << othClIt->front() << othClIt->back() << std::endl;
+					// std::cout << "5" << std::endl;
 					double cf0 = _avoidanceInfo[clIt->front()][0];
 					// double cf1 = _avoidanceInfo[clIt->front()][1];
 					// double cb0 = _avoidanceInfo[clIt->back()][0];
@@ -1385,13 +1449,13 @@ namespace aiv
 					// double ob0 = _avoidanceInfo[othClIt->back()][0];
 					double ob1 = _avoidanceInfo[othClIt->back()][1];
 
-					std::cout << "6" << std::endl;
+					// std::cout << "6" << std::endl;
 
 					// cluster's angular variation that gave the min abs ang var is between otherCluster's min and max angular variation
 					double dTheta = abs(cf0) < abs(cb1) ? cf0 : cb1;
-					std::cout << dTheta << std::endl;
-					std::cout << ob1 << std::endl;
-					std::cout << of0 << std::endl;
+					// std::cout << dTheta << std::endl;
+					// std::cout << ob1 << std::endl;
+					// std::cout << of0 << std::endl;
 					if (dTheta < ob1 && dTheta > of0)
 					{
 
@@ -1459,17 +1523,18 @@ namespace aiv
 		double b0 = _avoidanceInfo[clIt->back()][0];
 		double b1 = _avoidanceInfo[clIt->back()][1];
 
-		std::cout << "wayTheta: " << wayPtTheta << std::endl;
-		std::cout << "all ang var: " << f0 << ", " << f1 << ", " << b0 << ", " << b1 << std::endl;
+		// std::cout << "wayTheta: " << wayPtTheta << std::endl;
+		// std::cout << "all ang var: " << f0 << ", " << f1 << ", " << b0 << ", " << b1 << std::endl;
 
 		double dTheta = abs(std::min(f0, f1)) < abs(std::max(b0, b1)) ? std::min(f0, f1) : std::max(b0, b1);
-		std::cout << "delta Theta: " << dTheta << std::endl;
+		// std::cout << "delta Theta: " << dTheta << std::endl;
 
-		double eps = dTheta < 0.0 ? -0.03 : +0.03;
+		double eps = dTheta < 0.0 ? -0.01 : +0.01;
+		// double eps = 0.0;
 
 		double theta = Common::wrapToPi(wayPtTheta - dTheta + eps);
 
-		std::cout << "final theta: " << theta  << std::endl;
+		// std::cout << "final theta: " << theta  << std::endl;
 
 		FlatVector newWayPtDirec;
 		newWayPtDirec << cos(theta),
@@ -1541,12 +1606,15 @@ namespace aiv
 
 		// std::cout << FG_B_L_RED << "void PathPlannerRecHor::_plan()" << RESET << std::endl;
 
-		_findNextWayPt();
+		// if (_planStage != INIT)
+		// {
+		// 	_findNextWayPt();
+		// }
 		//
 		//_wayPt = _targetedFlat;
 		newDirec = _wayPt - _latestFlat;
 		newDirec /= newDirec.norm();
-		//std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
+		// std::cout <<  "current orientation: " << _latestPose(FlatoutputMonocycle::oriIdx, 0) << std::endl;
 		// std::cout <<  "waypt orientation: " << atan2(_wayPt(1,0), _wayPt(0,0)) << std::endl;
 		// std::cout <<  "waypt direction: " << newDirec << std::endl;
 		//
@@ -1559,7 +1627,7 @@ namespace aiv
 		// self._latest_rot2rob_mat = np.hstack((np.multiply(init_direc, np.vstack((1,-1))), np.flipud(init_direc)))
 		
 		FlatVector rotatedNewDirec = _rotMat2RRef*newDirec;
-		//std::cout <<  "rotated waypt direction: " << rotatedNewDirec << std::endl;
+		// std::cout <<  "rotated waypt direction: " << rotatedNewDirec << std::endl;
 
 
 		// COMBINING CURVES FOR INTERPOLATION
@@ -1646,7 +1714,7 @@ namespace aiv
 			FlatVector fromGoalDirec;
 			fromGoalDirec<< cos(_targetedPose.tail<1>()(0,0) - M_PI),
 							sin(_targetedPose.tail<1>()(0,0) - M_PI);
-			std::cout << "fromGoalDirec bef rot\n" << fromGoalDirec << std::endl;
+			// std::cout << "fromGoalDirec bef rot\n" << fromGoalDirec << std::endl;
 
 			fromGoalDirec = _rotMat2RRef * fromGoalDirec;
 
@@ -1678,7 +1746,7 @@ namespace aiv
 			// Matrix<double, FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDim> rot180;
 			// rot180 << -1, 0, 0, -1;
 			Matrix<double, FlatoutputMonocycle::flatDim, Dynamic> finalFromGoalCurve;
-			std::cout << "fromGoalCurve bef changes\n" << fromGoalCurve << std::endl;
+			// std::cout << "fromGoalCurve bef changes\n" << fromGoalCurve << std::endl;
 
 			finalFromGoalCurve = fromGoalCurve.rowwise().reverse() + (_rotMat2RRef*(_targetedFlat - _latestFlat)).replicate(1, _optTrajectory.nParam());
 
@@ -1690,7 +1758,7 @@ namespace aiv
 
 			// toGoalCurve = rot180*toGoalCurve;
 			// toGoalCurve = toGoalCurve - toGoalCurve.rightCols<1>().replicate(1, _optTrajectory.nParam());	
-			std::cout << "fromGoalCurve\n" << finalFromGoalCurve << std::endl;
+			// std::cout << "fromGoalCurve\n" << finalFromGoalCurve << std::endl;
 
 			double magicNumber = 1.2; //FIXME no magic numbers, at least no hard coded
 			double p;
@@ -1709,30 +1777,36 @@ namespace aiv
 
 		// Feed aux trajectory with desired points and time horizon
 		_optTrajectory.interpolate(curve, _optPlanHorizon);
-		std::cout << name << FG_B_L_YELLOW << "BEFORE OPT, WRT ROBOT:"<< RESET << std::endl;
-		std::cout << _optTrajectory.getCtrlPts() << std::endl;
+		// std::cout << name << FG_B_L_YELLOW << "BEFORE OPT, WRT ROBOT:"<< RESET << std::endl;
+		// std::cout << _optTrajectory.getCtrlPts() << std::endl;
 
 
 		// CALL OPT SOLVER
+
+		_collisionAIVs.clear();
+		_comOutAIVs.clear();
+		_pathsFromConflictualAIVs.clear();
+		
 
 		bool gotInterrupted;
 
 		try
 		{
+			_detectedObstaclesMutex.lock();
 			gotInterrupted = _solveOptPbl(); // after this call _optTrajectory has the optimized solution
+			_detectedObstaclesMutex.unlock();
 		}
 		catch (std::exception& e)
 		{
 			// std::cout << "\033[1;31m!!!!!!!!!!!!!!!!!!!!!!!!!\033[0m\n";
 			std::stringstream ss;
 			ss << "PathPlannerRecHor::_plan: call to solve optimization problem failed. " << e.what();
-			std::cout << ss.str() << std::endl;
+			// std::cout << ss.str() << std::endl;
 
 			// return;
 			throw(Common::MyException(ss.str()));
 		}
 
-		
 		//---------------------------------------------------------------------------
 		_sharedSolMutex.lock();
 		//---------------------------------------------------------------------------
@@ -1741,14 +1815,16 @@ namespace aiv
 		_sharedPlanHor = _optPlanHorizon;
 		_sharedBasePos = _latestFlat;
 		_sharedBaseTime = _baseTime;
+		_radiusMutex.lock();
 		_sharedRadius = _radius;
+		_radiusMutex.unlock();
 		_sharedTargetedPose = _targetedPose;
 
 		//---------------------------------------------------------------------------
 		_sharedSolMutex.unlock();
 		//---------------------------------------------------------------------------
-
-		if (!gotInterrupted)
+		
+		if (!gotInterrupted && _planStage != INIT)
 		{
 			_conflictEval();
 
@@ -1767,28 +1843,31 @@ namespace aiv
 
 
 
-				std::cout << _pathsFromConflictualAIVs[_collisionAIVs.begin()->first] << std::endl;
-				std::cout << std::endl;
+				// std::cout << _pathsFromConflictualAIVs[_collisionAIVs.begin()->first] << std::endl;
+				// std::cout << std::endl;
 
-				FlatVector derivFlat;
-				for(int i = 1; i <= int(_nTimeSamples); ++i)
-				{
-					derivFlat = _optTrajectory(double(i) / _nTimeSamples * _optPlanHorizon);
-					std::cout << derivFlat.transpose() << std::endl;
-				}
+				// FlatVector derivFlat;
+				// for(int i = 1; i <= int(_nTimeSamples); ++i)
+				// {
+				// 	derivFlat = _optTrajectory(double(i) / _nTimeSamples * _optPlanHorizon);
+				// 	// std::cout << derivFlat.transpose() << std::endl;
+				// }
 
 				try
 				{
+					_detectedObstaclesMutex.lock();
 					_solveOptPbl(); // after this call _optTrajectory has the optimized solution
+					_detectedObstaclesMutex.unlock();
 				}
 				catch (std::exception& e)
 				{
 					std::stringstream ss;
 					ss << "PathPlannerRecHor::_plan: call to solve optimization problem failed. " << e.what();
-					std::cout << ss.str() << std::endl;
+					// std::cout << ss.str() << std::endl;
 					throw(Common::MyException(ss.str()));
 				}
 			}
+			
 
 			//---------------------------------------------------------------------------
 			_sharedSolMutex.lock();
@@ -1803,11 +1882,11 @@ namespace aiv
 		
 		}
 
-		std::cout << "AFTER OPT, WRT DISPLACED WORLD:\n";
-		std::cout << _optTrajectory.getCtrlPts() << std::endl;
-		std::cout << name << FG_B_L_GREEN << " AFTER OPT, WRT ROBOT:" << RESET << std::endl;
-		std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
-		//std::cout << _optTrajectory.getCtrlPts() << std::endl;
+		// std::cout << "AFTER OPT, WRT DISPLACED WORLD:\n";
+		// std::cout << _optTrajectory.getCtrlPts() << std::endl;
+		// std::cout << name << FG_B_L_GREEN << " AFTER OPT, WRT ROBOT:" << RESET << std::endl;
+		// std::cout << _rotMat2RRef * _optTrajectory.getCtrlPts() << std::endl;
+		// std::cout << _optTrajectory.getCtrlPts() << std::endl;
 
 		// CONFLICT COMPUTATION
 
@@ -1831,7 +1910,7 @@ namespace aiv
 		_latestVelocity = FlatoutputMonocycle::flatToVelocity(derivFlat);
 
 		//boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-		//std::cout << "planning thread elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
+		// std::cout << "planning thread elapsed time: " <<  Common::getRealTime() - tic << std::endl; 
 		_planOngoingMutex.unlock();
 		// std::cout << "END OF PLAN\n";
 	}
@@ -1868,7 +1947,7 @@ namespace aiv
 				_collisionAIVs.size() * _nTimeSamples +
 				_comOutAIVs.size() * _nTimeSamples;
 
-			//std::cout <<  "======  Number of detected obstacles: " << _detectedObstacles.size() << std::endl;
+			// std::cout <<  "======  Number of detected obstacles: " << _detectedObstacles.size() << std::endl;
 
 			optParam = new double[nParam];
 			backupOptParam = new double[nParam];
@@ -1989,7 +2068,7 @@ namespace aiv
 			
 			_optIterCnter=0;
 
-			std::cout << "Optimizing..." << std::endl;
+			std::cout << std::string(name).substr(0,10) << "::Optimizing..." << std::endl;
 			
 			status = nlopt_optimize(_opt, optParam, &minf);
 			
@@ -2041,7 +2120,11 @@ namespace aiv
 		else if (_optimizerType == "TESTINIT")
 		{
 			//do nothing
-			//std::cout << "TESTINIT" << std::endl;
+			
+			// TESTING FOR INTERRUPTIONS
+			// try { boost::this_thread::sleep(boost::posix_time::milliseconds(20000)); }
+			// catch (boost::thread_interrupted&) { gotInterrupted = true; }
+			std::cout << "TESTINIT" << std::endl;
 			status = 1;
 		}
 		else
@@ -2076,31 +2159,31 @@ namespace aiv
 			// std::cout << "gradObjF: " << std::endl;
 			// for (auto i=0; i<nParam; ++i)
 			// {
-			// 	std::cout << gradObjF[i] << ", ";
+				// std::cout << gradObjF[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// std::cout << "eq: " << std::endl;
 			// for (auto i=0; i<nEq; ++i)
 			// {
-			// 	std::cout << constrEq[i] << ", ";
+				// std::cout << constrEq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// std::cout << "gradEq: " << std::endl;
 			// for (auto i=0; i<nParam*nEq; ++i)
 			// {
-			// 	std::cout << gradEq[i] << ", ";
+				// std::cout << gradEq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// std::cout << "ineq: " << std::endl;
 			// for (auto i=0; i<nIneq; ++i)
 			// {
-			// 	std::cout << constrIneq[i] << ", ";
+				// std::cout << constrIneq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// std::cout << "gradIneq: " << std::endl;
 			// for (auto i=0; i<nParam*nIneq; ++i)
 			// {
-			// 	std::cout << gradIneq[i] << ", ";
+				// std::cout << gradIneq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// delete[] constrEq;
@@ -2119,13 +2202,13 @@ namespace aiv
 			// std::cout << "eq: " << std::endl;
 			// for (auto i=0; i<nEq; ++i)
 			// {
-			// 	std::cout << constrEq[i] << ", ";
+				// std::cout << constrEq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// std::cout << "ineq: " << std::endl;
 			// for (auto i=0; i<nIneq; ++i)
 			// {
-			// 	std::cout << constrIneq[i] << ", ";
+				// std::cout << constrIneq[i] << ", ";
 			// }
 			// std::cout << std::endl;
 			// delete[] constrEq;
@@ -2210,8 +2293,8 @@ namespace aiv
 					//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(backupOptParam));
 				else
 				{
-					std::cout << "\033[1;34mREJECTED, WRT ROBOT:\033[0m\n";
-					std::cout << _optTrajectory.cArray2CtrlPtsMat(optParam) << std::endl;
+					// std::cout << "\033[1;34mREJECTED, WRT ROBOT:\033[0m\n";
+					// std::cout << _optTrajectory.cArray2CtrlPtsMat(optParam) << std::endl;
 					_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(backupOptParam));
 					// _optTrajectory.update((const double*)backupOptParam);
 				}
@@ -2224,8 +2307,8 @@ namespace aiv
 					//_optTrajectory.updateFromUniform(_rotMat2WRef*_optTrajectory.cArray2CtrlPtsMat(&(backupOptParam[1])), backupOptParam[0]);
 				else
 				{
-					std::cout << "\033[1;34mREJECTED, WRT ROBOT:\033[0m\n";
-					std::cout << _optTrajectory.cArray2CtrlPtsMat(&(optParam[1])) << std::endl;
+					// std::cout << "\033[1;34mREJECTED, WRT ROBOT:\033[0m\n";
+					// std::cout << _optTrajectory.cArray2CtrlPtsMat(&(optParam[1])) << std::endl;
 					_optTrajectory.update(_rotMat2WRef * _optTrajectory.cArray2CtrlPtsMat(&(backupOptParam[1])), backupOptParam[0]);
 					// _optTrajectory.update((const double*)&(backupOptParam[1]), backupOptParam[0]);
 				}
@@ -2257,6 +2340,7 @@ namespace aiv
 	void PathPlannerRecHor::computeNumGrad(unsigned m, unsigned n, const double* x, double* grad, void (*eval)(double*, unsigned, volatile double*, PathPlannerRecHor*))
 	{
 		const double eps = sqrt(std::numeric_limits< double >::epsilon()*_numDerivativeFactor);
+		// const double eps = 1e-6;
 
 		double *constrPre = new double[m];
 		double *constrPos = new double[m];
@@ -2302,6 +2386,13 @@ namespace aiv
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
 
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+
+		// Increment number of eval obj calls
+		context->_optIterCnter++;
+
 		double result;
 		
 		evalObj(&result, n, x, context);
@@ -2315,7 +2406,7 @@ namespace aiv
 		// std::cout << "ObjFGrad: " << std::endl;
 		// for (auto i=0; i<n; ++i)
 		// {
-		// 	std::cout << grad[i] << ", ";
+			// std::cout << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 		return result;
@@ -2325,7 +2416,9 @@ namespace aiv
 	{
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-		
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 		evalEq(result, n, x, context);
 
 		if (grad)
@@ -2335,13 +2428,13 @@ namespace aiv
 		// std::cout << "EqResults: " << std::endl;
 		// for (auto i=0; i < m; ++i)
 		// {
-		// 	std::cout << result[i] << ", ";
+			// std::cout << result[i] << ", ";
 		// }
 		// std::cout << std::endl << std::endl;
 		// std::cout << "EqGrad: " << std::endl;
 		// for (auto i=0; i<n*m; ++i)
 		// {
-		// 	std::cout << grad[i] << ", ";
+			// std::cout << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 	}
@@ -2350,7 +2443,9 @@ namespace aiv
 	{
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-		
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 		evalIneq(result, n, x, context);
 
 		if (grad)
@@ -2360,13 +2455,13 @@ namespace aiv
 		// std::cout << "IneqResults: " << std::endl;
 		// for (auto i=0; i < m; ++i)
 		// {
-		// 	std::cout << result[i] << ", ";
+			// std::cout << result[i] << ", ";
 		// }
 		// std::cout << std::endl << std::endl;
 		// std::cout << "IneqGrad: " << std::endl;
 		// for (auto i=0; i<n*m; ++i)
 		// {
-		// 	std::cout << grad[i] << ", ";
+			// std::cout << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 	}
@@ -2377,8 +2472,13 @@ namespace aiv
 	{
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 		double result;
+
+		// Increment number of eval obj calls
+		context->_optIterCnter++;
 		
 		evalObjLS(&result, n, x, context);
 
@@ -2391,7 +2491,7 @@ namespace aiv
 		// std::cout << "ObjFGrad (" << n << "): " << std::endl;
 		// for (auto i=0; i<n; ++i)
 		// {
-		// 	std::cout << grad[i] << ", ";
+			// std::cout << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 		return result;
@@ -2401,13 +2501,15 @@ namespace aiv
 	{
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-		
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 		evalEqLS(result, n, x, context);
 
 		// std::cout << "EqResults (" << m << "): " << std::endl;
 		// for (auto i=0; i < m; ++i)
 		// {
-		// 	std::cout << "R[" << i << "]=" << result[i] << ", ";
+			// std::cout << "R[" << i << "]=" << result[i] << ", ";
 		// }
 		// std::cout << std::endl << std::endl;
 
@@ -2419,7 +2521,7 @@ namespace aiv
 		// std::cout << "EqGrad (" << n << ", " << m << "): " << std::endl;
 		// for (auto i=0; i<n*m; ++i)
 		// {
-		// 	std::cout << "G[" << i << "]=" << grad[i] << ", ";
+			// std::cout << "G[" << i << "]=" << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 	}
@@ -2428,7 +2530,9 @@ namespace aiv
 	{
 		// get this path planner pointer
 		PathPlannerRecHor *context = static_cast< PathPlannerRecHor *>(data);
-		
+		// TESTING FOR INTERRUPTIONS
+		// try { boost::this_thread::sleep(boost::posix_time::milliseconds(2000)); }
+		// catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 		evalIneqLS(result, n, x, context);
 
 		if (grad)
@@ -2438,13 +2542,13 @@ namespace aiv
 		// std::cout << "IneqResults: " << std::endl;
 		// for (auto i=0; i < m; ++i)
 		// {
-		// 	std::cout << result[i] << ", ";
+			// std::cout << result[i] << ", ";
 		// }
 		// std::cout << std::endl << std::endl;
 		// std::cout << "IneqGrad (" << n << ", " << m << "): " << std::endl;
 		// for (auto i=0; i<n; ++i)
 		// {
-		// 	std::cout << grad[i] << ", ";
+			// std::cout << grad[i] << ", ";
 		// }
 		// std::cout << std::endl;
 	}
@@ -2454,14 +2558,9 @@ namespace aiv
 	// int PathPlannerRecHor::findspan(const double t)
 	// {
 	// 	int ret = 0;
-	// 	//std::cout << "\n all knots :\n" << this->auxSpline.knots() << std::endl;
-	// 	//std::cout << "\n knots@0 :\n" << this->auxSpline.knots()(0, 0) << std::endl;
-	// 	//std::cout << "\n knots@4 :\n" << this->auxSpline.knots()(0, 4) << std::endl;
-	// 	//std::cout << "\n knots@5 :\n" << this->auxSpline.knots()(0, 5) << std::endl;
-	// 	//std::cout << "\nt :\n"  << t << std::endl;
 	// 	while (ret <= _nCtrlPts - 1 &&  t >= this->auxSpline.knots()(0,ret))
 	// 		ret++;
-	// 	////std::cout << "\nspan:\n" << ret - 1 << std::endl;
+	// 	std::cout << "\nspan:\n" << ret - 1 << std::endl;
 	// 	return ret - 1;
 	// }
 }

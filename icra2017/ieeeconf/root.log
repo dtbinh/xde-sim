@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (MiKTeX 2.9 64-bit) (preloaded format=pdflatex 2015.11.17)  3 JUN 2016 00:13
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (MiKTeX 2.9 64-bit) (preloaded format=pdflatex 2015.11.20)  16 JUN 2016 13:55
 entering extended mode
 **root.tex
 (root.tex
@@ -183,7 +183,7 @@ Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
 Package hyperref Info: Bookmarks ON on input line 4688.
 \c@Hy@tempcnt=\count94
 
-("C:\Program Files\MiKTeX 2.9\tex\latex\url\url.sty"
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\url\url.sty
 \Urlmuskip=\muskip10
 Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
 )
@@ -241,15 +241,15 @@ File: pdftex.def 2011/05/27 v0.06d Graphics/color for pdfTeX
 \Gin@req@height=\dimen117
 \Gin@req@width=\dimen118
 )
-("C:\Program Files\MiKTeX 2.9\tex\latex\caption\subcaption.sty"
-Package: subcaption 2016/05/22 v1.1-161 Sub-captions (AR)
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\subcaption.sty
+Package: subcaption 2015/09/15 v1.1-100 Sub-captions (AR)
 
-("C:\Program Files\MiKTeX 2.9\tex\latex\caption\caption.sty"
-Package: caption 2016/02/21 v3.3-144 Customizing captions (AR)
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\caption.sty
+Package: caption 2015/09/17 v3.3-111 Customizing captions (AR)
 
-("C:\Program Files\MiKTeX 2.9\tex\latex\caption\caption3.sty"
-Package: caption3 2016/05/22 v1.7-166 caption3 kernel (AR)
-Package caption3 Info: TeX engine: e-TeX on input line 67.
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\caption3.sty
+Package: caption3 2015/09/20 v1.7-115 caption3 kernel (AR)
+Package caption3 Info: TeX engine: e-TeX on input line 57.
 \captionmargin=\dimen119
 \captionmargin@=\dimen120
 \captionwidth=\dimen121
@@ -278,7 +278,7 @@ Package caption Info: hyperref package is loaded.
 )
 \c@subfigure=\count103
 \c@subtable=\count104
-) ("C:\Program Files\MiKTeX 2.9\tex\latex\dstroke\dsfont.sty"
+) (C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\dstroke\dsfont.sty
 Package: dsfont 1995/08/01 v0.1 Double stroke roman fonts
 )
 ("C:\Program Files\MiKTeX 2.9\tex\latex\amsmath\amsmath.sty"
@@ -338,25 +338,28 @@ LaTeX Font Info:    Redeclaring font encoding OMS on input line 567.
 \mathdisplay@stack=\toks20
 LaTeX Info: Redefining \[ on input line 2665.
 LaTeX Info: Redefining \] on input line 2666.
-) (root.aux)
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 56.
-LaTeX Font Info:    ... okay on input line 56.
+)
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\cancel\cancel.sty
+Package: cancel 2013/04/12 v2.2 Cancel math terms
+)
+(root.aux)
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 57.
+LaTeX Font Info:    ... okay on input line 57.
 \AtBeginShipoutBox=\box29
-Package hyperref Info: Link coloring OFF on input line 56.
-
-("C:\Program Files\MiKTeX 2.9\tex\latex\hyperref\nameref.sty"
+Package hyperref Info: Link coloring OFF on input line 57.
+ ("C:\Program Files\MiKTeX 2.9\tex\latex\hyperref\nameref.sty"
 Package: nameref 2012/10/27 v2.43 Cross-referencing by name of section
 
 ("C:\Program Files\MiKTeX 2.9\tex\generic\oberdiek\gettitlestring.sty"
@@ -364,14 +367,14 @@ Package: gettitlestring 2010/12/03 v1.4 Cleanup title references (HO)
 )
 \c@section@level=\count117
 )
-LaTeX Info: Redefining \ref on input line 56.
-LaTeX Info: Redefining \pageref on input line 56.
-LaTeX Info: Redefining \nameref on input line 56.
+LaTeX Info: Redefining \ref on input line 57.
+LaTeX Info: Redefining \pageref on input line 57.
+LaTeX Info: Redefining \nameref on input line 57.
 
 (root.out) (root.out)
 \@outlinefile=\write3
 
-("C:\Program Files\MiKTeX 2.9\tex\context\base\supp-pdf.mkii"
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\context\base\supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count118
 \scratchdimen=\dimen135
@@ -387,86 +390,103 @@ LaTeX Info: Redefining \nameref on input line 56.
 )
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: End \AtBeginDocument code.
-LaTeX Font Info:    Calculating math sizes for size <11> on input line 61.
-LaTeX Font Info:    Try loading font information for OT1+pcr on input line 61.
+LaTeX Font Info:    Calculating math sizes for size <11> on input line 62.
+LaTeX Font Info:    Try loading font information for OT1+pcr on input line 62.
  ("C:\Program Files\MiKTeX 2.9\tex\latex\psnfss\ot1pcr.fd"
 File: ot1pcr.fd 2001/06/04 font definitions for OT1/pcr.
 )
 
-LaTeX Warning: Citation `Gizmag' on page 1 undefined on input line 78.
+LaTeX Warning: Citation `Gizmag' on page 1 undefined on input line 79.
 
 
-LaTeX Warning: Citation `supplychain' on page 1 undefined on input line 78.
+LaTeX Warning: Citation `supplychain' on page 1 undefined on input line 79.
 
 
-Underfull \hbox (badness 4132) in paragraph at lines 82--83
+Underfull \hbox (badness 4132) in paragraph at lines 83--84
 \OT1/ptm/m/n/10 dif-fer-ent con-straints must be taken into ac-count, in
  []
 
 
-Underfull \hbox (badness 5245) in paragraph at lines 82--83
+Underfull \hbox (badness 5245) in paragraph at lines 83--84
 \OT1/ptm/m/n/10 in par-tic-u-lar, in non-holo-nomic con-straints. Dy-nam-ics
  []
 
-[1{C:/Users/jmagn/AppData/Local/MiKTeX/2.9/pdftex/config/pdftex.map}
+[1{C:/Users/JM246044/AppData/Local/MiKTeX/2.9/pdftex/config/pdftex.map}
 
 
 ]
+<./images/MotionPlanning.pdf, id=69, 712.6625pt x 347.2975pt>
+File: ./images/MotionPlanning.pdf Graphic file (type pdf)
 
-LaTeX Warning: Citation `Defoort2009' on page 2 undefined on input line 152.
+<use ./images/MotionPlanning.pdf>
+Package pdftex.def Info: ./images/MotionPlanning.pdf used on input line 165.
+(pdftex.def)             Requested size: 245.71811pt x 119.74358pt.
 
-
-LaTeX Warning: Reference `fig:recedinghor' on page 2 undefined on input line 15
-9.
-
-
-Underfull \hbox (badness 4492) in paragraph at lines 159--160
-\OT1/ptm/m/n/10 through time by the re-ced-ing hori-zon scheme with
+Underfull \hbox (badness 1354) in paragraph at lines 175--176
+\OT1/ptm/m/n/10 re-gard-ing kine-mat-ics but not nec-es-sarely re-gard-ing the
  []
 
+LaTeX Font Info:    Try loading font information for U+dsrom on input line 224.
 
-Overfull \hbox (8.05865pt too wide) in alignment at lines 184--211
- [][][] []
- []
-
-LaTeX Font Info:    Try loading font information for U+dsrom on input line 213.
-
-("C:\Program Files\MiKTeX 2.9\tex\latex\dstroke\udsrom.fd"
+(C:\Users\JM246044\AppData\Roaming\MiKTeX\2.9\tex\latex\dstroke\udsrom.fd
 File: Udsrom.fd 1995/08/01 v0.1 Double stroke roman font definitions
-) [2]
-Overfull \hbox (54.9475pt too wide) in paragraph at lines 447--447
-[] 
- []
-
-
-Underfull \hbox (badness 2990) in paragraph at lines 453--454
+)
+[2 <./images/MotionPlanning.pdf>]
+Underfull \hbox (badness 2608) in paragraph at lines 356--357
 []\OT1/ptm/m/n/10 the prod-uct $\OML/cmm/m/it/10 D[]D$ \OT1/ptm/m/n/10 is non-s
 ingular, $\OML/cmm/m/it/10 D$ \OT1/ptm/m/n/10 be-ing the
  []
 
 
-Overfull \hbox (31.9923pt too wide) in alignment at lines 497--503
+Overfull \hbox (12.75624pt too wide) in alignment at lines 358--365
  [][][] []
  []
 
 
-Overfull \hbox (2.44716pt too wide) in alignment at lines 505--511
- [][][] []
- []
-
-[3]
-Overfull \hbox (8.45935pt too wide) in alignment at lines 536--543
- [][][] []
+Underfull \hbox (badness 7064) in paragraph at lines 464--466
+[]$\OT1/ptm/m/n/10 , can be given by the plan-ner for any
  []
 
 
-Overfull \hbox (1.9527pt too wide) in alignment at lines 545--558
+Underfull \vbox (badness 10000) has occurred while \output is active []
+
+ [3]
+Underfull \hbox (badness 1424) in paragraph at lines 558--559
+\OT1/ptm/m/n/10 pre-dic-tion out-put ma-trix and $\OML/cmm/m/it/10 R[]$ \OT1/pt
+m/m/n/10 the fu-ture out-put of
+ []
+
+
+Underfull \vbox (badness 2707) has occurred while \output is active []
+
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `math shift' on input line 647.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (PDFDocEncoding):
+(hyperref)                removing `math shift' on input line 647.
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 668--669
+[]\OT1/ptm/m/n/10 For $[]$, $[]$ for all
+ []
+
+
+Overfull \hbox (41.95454pt too wide) in alignment at lines 698--704
+ [][][] []
+ []
+
+[4]
+Overfull \hbox (5.38933pt too wide) in alignment at lines 706--712
  [][][] []
  []
 
 
-LaTeX Warning: Citation `siciliano2008springer' on page 4 undefined on input li
-ne 573.
+Overfull \hbox (13.35344pt too wide) in alignment at lines 739--746
+ [][][] []
+ []
 
 (root.bbl)
 
@@ -480,28 +500,28 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the US letter (8.5in X 11in) paper size.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 654.
-[4]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 654.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 905.
+[5]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 905.
  (root.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 654.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 654.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 905.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 905.
 Package rerunfilecheck Info: File `root.out' has not changed.
-(rerunfilecheck)             Checksum: 3D5BAF49E1B76EDD122CCB0A75F540A3;576.
+(rerunfilecheck)             Checksum: 36A8421B694816D456C724101481A749;797.
 
 
 LaTeX Warning: There were undefined references.
 
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 654.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 905.
  ) 
 Here is how much of TeX's memory you used:
- 7336 strings out of 493673
- 112012 string characters out of 3143959
- 217675 words of memory out of 3000000
- 10591 multiletter control sequences out of 15000+200000
- 44552 words of font info for 92 fonts, out of 3000000 for 9000
+ 7359 strings out of 493673
+ 112746 string characters out of 3143950
+ 222103 words of memory out of 3000000
+ 10606 multiletter control sequences out of 15000+200000
+ 42396 words of font info for 90 fonts, out of 3000000 for 9000
  1025 hyphenation exceptions out of 8191
- 42i,22n,40p,859b,324s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 42i,21n,40p,838b,356s stack positions out of 5000i,500n,10000p,200000b,50000s
 {C:/Program Files/MiKTeX 2.9/fonts/enc/dvips/fontname/8r.enc}<C:/Program File
 s/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Program Files/MiKTeX
  2.9/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Program Files/MiKTeX 2.9/fon
@@ -510,20 +530,21 @@ public/amsfonts/cm/cmmi6.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/am
 sfonts/cm/cmmi7.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm
 /cmmi8.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr10.pf
 b><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr5.pfb><C:/Prog
-ram Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr6.pfb><C:/Program Files/
-MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Program Files/MiKTeX 2.9
-/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Program Files/MiKTeX 2.9/fonts/t
-ype1/public/amsfonts/cm/cmsy5.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/publ
-ic/amsfonts/cm/cmsy6.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfon
-ts/cm/cmsy7.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cms
-y8.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/dstroke/dsrom10.pfb><C:/
-Program Files/MiKTeX 2.9/fonts/type1/urw/courier/ucrr8a.pfb><C:/Program Files/M
-iKTeX 2.9/fonts/type1/urw/times/utmb8a.pfb><C:/Program Files/MiKTeX 2.9/fonts/t
-ype1/urw/times/utmbi8a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw/times/u
-tmr8a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw/times/utmri8a.pfb>
-Output written on root.pdf (4 pages, 247646 bytes).
+ram Files/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Program Files/
+MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Program Files/MiKTeX 2
+.9/fonts/type1/public/amsfonts/cm/cmsy5.pfb><C:/Program Files/MiKTeX 2.9/fonts/
+type1/public/amsfonts/cm/cmsy6.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/pub
+lic/amsfonts/cm/cmsy7.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfo
+nts/cm/cmsy8.pfb><C:/Users/JM246044/AppData/Roaming/MiKTeX/2.9/fonts/type1/publ
+ic/dstroke/dsrom10.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/public/amsfonts
+/latxfont/line10.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw/courier/ucrr8
+a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw/times/utmb8a.pfb><C:/Program
+ Files/MiKTeX 2.9/fonts/type1/urw/times/utmbi8a.pfb><C:/Program Files/MiKTeX 2.
+9/fonts/type1/urw/times/utmr8a.pfb><C:/Program Files/MiKTeX 2.9/fonts/type1/urw
+/times/utmri8a.pfb>
+Output written on root.pdf (5 pages, 280893 bytes).
 PDF statistics:
- 191 PDF objects out of 1000 (max. 8388607)
- 41 named destinations out of 1000 (max. 500000)
- 73 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 237 PDF objects out of 1000 (max. 8388607)
+ 45 named destinations out of 1000 (max. 500000)
+ 94 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -205,6 +205,9 @@ namespace aiv
 
 		boost::mutex _comAIVsSetMutex;
 		boost::mutex _knownRobotsMutex;
+		boost::mutex _detectedObstaclesMutex;
+		boost::mutex _radiusMutex;
+		boost::mutex _currentInfoMutex;
 		boost::mutex _sharedSolMutex;
 
 		unsigned _optIterCnter;
@@ -363,11 +366,11 @@ namespace aiv
 		try { boost::this_thread::interruption_point(); }
 		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 
-		// Increment number of eval obj calls
-		context->_optIterCnter++;
+		// std::cout << "evalObj @ " << context->_optIterCnter << std::endl;
 
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
+		// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant Tp (1.0)
 		NDerivativesMatrix derivFlat = context->_optTrajectory(context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg);
@@ -380,6 +383,12 @@ namespace aiv
 
 		// Compute euclidian distance to square from position at Tp and goal position which will be the cost
 		double fx = pow((context->_wayPt - flatAtTp).norm(), 2);
+		if (fx != fx)
+		{
+			// std::cout << "FOUND QNAN @ evalObj\n";
+			// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+			// nlopt_force_stop(context->_opt);
+		}
 
 		*result = fx;
 	}
@@ -389,12 +398,14 @@ namespace aiv
 	{
 		try { boost::this_thread::interruption_point(); }
 		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
+		
+		// std::cout << "evalEq @ " << context->_optIterCnter << std::endl;
 
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		NDerivativesMatrix derivFlatEq = context->_optTrajectory(1e-6, FlatoutputMonocycle::flatDerivDeg);
+		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0+1e-6, FlatoutputMonocycle::flatDerivDeg);
 
 		// Get error from pose at T0 and pose at the end of the previous plan (or initial position if this is the very first plan)
 		PoseVector diffPoseAtT0 = FlatoutputMonocycle::flatToPose(derivFlatEq);
@@ -406,10 +417,22 @@ namespace aiv
 		for (i = 0; i < FlatoutputMonocycle::poseDim; ++i)
 		{
 			result[i] = diffPoseAtT0[i];
+			if (result[i] != result[i])
+			{
+				// std::cout << "FOUND QNAN @ evalEq @ result[" << i <<"]\n";
+				// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+				// nlopt_force_stop(context->_opt);
+			}
 		}
 		for (int j = i; j - i < FlatoutputMonocycle::veloDim; ++j)
 		{
 			result[j] = diffVelocityAtT0[j - i];
+			if (result[j] != result[j])
+			{
+				// std::cout << "FOUND QNAN @ evalEq @ result[" << j <<"]\n";
+				// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+				// nlopt_force_stop(context->_opt);
+			}
 		}
 	}
 
@@ -419,8 +442,12 @@ namespace aiv
 		try { boost::this_thread::interruption_point(); }
 		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 
+		// std::cout << "evalIneq @ " << context->_optIterCnter << std::endl;
+
 		// Update optimization trajectory with x
 		context->_optTrajectory.update(x);
+		// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+
 
 		// Matrix for storing flat output derivatives		
 		Np1DerivativesMatrix derivFlat;
@@ -432,7 +459,7 @@ namespace aiv
 		AccelVector acceleration;
 
 		// Get first "flatDerivDeg + 1" derivatives
-		derivFlat = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
+		derivFlat = context->_optTrajectory(0.0+1e-6, FlatoutputMonocycle::flatDerivDeg + 1);
 
 		// ACCELERATION AT 0.0
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
@@ -441,6 +468,14 @@ namespace aiv
 		for (i = 0; i < FlatoutputMonocycle::accelDim; ++i)
 		{
 			result[i] = abs(acceleration(i,0)) - context->_maxAcceleration(i, 0);
+			// result[i] = result[i] != result[i] ? 0.0 : result[i];
+			if (result[i] != result[i])
+			{
+				// std::cout << "FOUND QNAN @ evalIneq @ result[" << i <<"]\n";
+				// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+				// nlopt_force_stop(context->_opt);
+			}
+			// std::cout << "result[" << i << "] = " << result[i] << std::endl;
 		}
 
 		unsigned nAcc = i;
@@ -449,7 +484,10 @@ namespace aiv
 		//#pragma omp parallel for <== DO NOT USE IT, BREAKS THE EVALUATION OF CONSTRAINTS SOMEHOW
 		for (i = 1; i <= int(context->_nTimeSamples); ++i)
 		{
-			derivFlat = context->_optTrajectory(double(i) / context->_nTimeSamples * context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
+			double evalTime = double(i) / context->_nTimeSamples * context->_optPlanHorizon;
+			evalTime = evalTime == context->_optPlanHorizon ? evalTime-1e-6 : evalTime;
+			
+			derivFlat = context->_optTrajectory(evalTime, FlatoutputMonocycle::flatDerivDeg + 1);
 
 			derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
 
@@ -459,18 +497,42 @@ namespace aiv
 
 			for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
 			{
-				result[nAcc + j + (i - 1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
+				result[nAcc+j+(i-1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
+				// result[nAcc+j+(i-1)*ieqPerSample] = result[nAcc+j+(i-1)*ieqPerSample] != result[nAcc+j+(i-1)*ieqPerSample] ? 0.0 : result[nAcc+j+(i-1)*ieqPerSample];
+				if (result[nAcc+j+(i-1)*ieqPerSample] != result[nAcc+j+(i-1)*ieqPerSample])
+				{
+					// std::cout << "FOUND QNAN @ evalIneq @ result[" << nAcc+j+(i-1)*ieqPerSample <<"]\n";
+					// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+					// nlopt_force_stop(context->_opt);
+				}
+				// std::cout << "result[" << nAcc+j+(i-1)*ieqPerSample << "] = " << result[nAcc+j+(i-1)*ieqPerSample] << std::endl;
 			}
 			for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
 			{
-				result[nAcc + k + (i - 1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
+				result[nAcc+k+(i-1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
+				// result[nAcc+k+(i-1)*ieqPerSample] = result[nAcc+k+(i-1)*ieqPerSample] != result[nAcc+k+(i-1)*ieqPerSample] ? 0.0 : result[nAcc+k+(i-1)*ieqPerSample];
+				if (result[nAcc+k+(i-1)*ieqPerSample] != result[nAcc+k+(i-1)*ieqPerSample])
+				{
+					// std::cout << "FOUND QNAN @ evalIneq @ result[" << nAcc+k+(i-1)*ieqPerSample <<"]\n";
+					// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+					// nlopt_force_stop(context->_opt);
+				}
+				// std::cout << "result[" << nAcc+k+(i-1)*ieqPerSample << "] = " << result[nAcc+k+(i-1)*ieqPerSample] << std::endl;
 			}
 
 			MapObst::iterator obsIt;
 			for (obsIt = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++obsIt)
 			{
-				result[nAcc + j + (i - 1)*ieqPerSample] =
+				result[nAcc+j+(i-1)*ieqPerSample] =
 					-1. * obsIt->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
+				// result[nAcc+j+(i-1)*ieqPerSample] = result[nAcc+j+(i-1)*ieqPerSample] != result[nAcc+j+(i-1)*ieqPerSample] ? 0.0 : result[nAcc+j+(i-1)*ieqPerSample];
+				if (result[nAcc+j+(i-1)*ieqPerSample] != result[nAcc+j+(i-1)*ieqPerSample])
+				{
+					// std::cout << "FOUND QNAN @ evalIneq @ result[" << nAcc+j+(i-1)*ieqPerSample <<"]\n";
+					// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+					// nlopt_force_stop(context->_opt);
+				}	
+				// std::cout << "result[" << nAcc+j+(i-1)*ieqPerSample << "] = " << result[nAcc+j+(i-1)*ieqPerSample] << std::endl;
 			}
 
 			MapAIV::iterator aivIt;
@@ -487,10 +549,17 @@ namespace aiv
 
 				double dSecurity = max(context->_interRobotSafetyDist, aivIt->second->getPathPlanner()->getInterRobSafDist());
 
-				result[nAcc + k + (i - 1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
-
+				result[nAcc+k+(i-1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
+				// result[nAcc+k+(i-1)*ieqPerSample] = result[nAcc+k+(i-1)*ieqPerSample] != result[nAcc+k+(i-1)*ieqPerSample] ? 0.0 : result[nAcc+k+(i-1)*ieqPerSample];
+				if (result[nAcc+k+(i-1)*ieqPerSample] != result[nAcc+k+(i-1)*ieqPerSample])
+				{
+					// std::cout << "FOUND QNAN @ evalIneq @ result[" << nAcc+k+(i-1)*ieqPerSample <<"]\n";
+					// std::cout << context->_optTrajectory.getCtrlPts() << std::endl;
+					// nlopt_force_stop(context->_opt);
+				}
+				// std::cout << "result[" << nAcc+k+(i-1)*ieqPerSample << "] = " << result[nAcc+k+(i-1)*ieqPerSample] << std::endl;
 				 // - distanceInterRobots + ;
-				// std::cout << "result[nAcc + k + (i - 1)*ieqPerSample] " << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
+				// std::cout << "result[nAcc+k+(i-1)*ieqPerSample] " << result[nAcc+k+(i-1)*ieqPerSample] << std::endl;
 
 			}
 			
@@ -509,9 +578,6 @@ namespace aiv
 		try { boost::this_thread::interruption_point(); }
 		catch (boost::thread_interrupted&) { nlopt_force_stop(context->_opt); }
 
-		// Increment number of eval obj calls
-		context->_optIterCnter++;
-
 		*result = x[0]*x[0];
 	}
 
@@ -525,7 +591,7 @@ namespace aiv
 		context->_optTrajectory.update(&(x[1]), x[0]);
 
 		// Create a Matrix consisting of the flat output and its needed derivatives for the instant T0 (0.0)
-		NDerivativesMatrix derivFlatEq = context->_optTrajectory(1e-6, FlatoutputMonocycle::flatDerivDeg);
+		NDerivativesMatrix derivFlatEq = context->_optTrajectory(0.0+1e-6, FlatoutputMonocycle::flatDerivDeg);
 
 		PoseVector diffPose = FlatoutputMonocycle::flatToPose(derivFlatEq);
 		diffPose.tail<1>()(0,0) = Common::wrapToPi(diffPose.tail<1>()(0,0));
@@ -551,9 +617,11 @@ namespace aiv
 		// 2 equivalent things:
 		// diff = [Rw*p + latest_p, theta + latest_theta]T - targetpose
 		// diff = [p, theta]T - [Rr*(target_p - latest_p), target_theta - latest_theta]T
-		diffPose = poseAtTfWRTMySelf - (PoseVector() << context->_rotMat2RRef*(context->_targetedPose.head<2>() - context->_latestFlat), Common::wrapToPi(context->_targetedPose.tail<1>()(0,0) - context->_latestPose.tail<1>()(0,0))).finished();
-		//diffPose = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.head<2>() + context->_latestFlat, _signed_angle(poseAtTfWRTMySelf.tail<1>()(0,0)+context->_latestPose.tail<1>()(0,0))).finished() - context->_targetedPose;
-		//std::cout << context->_rotMat2RRef * context->_rotMat2WRef << std::endl;
+		diffPose = poseAtTfWRTMySelf - (PoseVector() << context->_rotMat2RRef*(context->_targetedPose.head<2>() - context->_latestFlat),
+			Common::wrapToPi(context->_targetedPose.tail<1>()(0,0) - context->_latestPose.tail<1>()(0,0))).finished();
+		// diffPose = (PoseVector() << context->_rotMat2WRef * poseAtTfWRTMySelf.head<2>() +
+		// context->_latestFlat, _signed_angle(poseAtTfWRTMySelf.tail<1>()(0,0)+context->_latestPose.tail<1>()(0,0))).finished() - context->_targetedPose;
+		// std::cout << context->_rotMat2RRef * context->_rotMat2WRef << std::endl;
 
 		diffVelocity = FlatoutputMonocycle::flatToVelocity(derivFlatEq) - context->_targetedVelocity;
 
@@ -589,7 +657,7 @@ namespace aiv
 		result[0] = -x[0]; // time has to be positive
 
 		// ACCELERATION AT 0.0
-		derivFlat = context->_optTrajectory(0.0, FlatoutputMonocycle::flatDerivDeg + 1);
+		derivFlat = context->_optTrajectory(0.0+1e-6, FlatoutputMonocycle::flatDerivDeg + 1);
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
@@ -601,7 +669,7 @@ namespace aiv
 		}
 
 		// ACCELERATION AT Tf
-		derivFlat = context->_optTrajectory(x[0], FlatoutputMonocycle::flatDerivDeg + 1);
+		derivFlat = context->_optTrajectory(x[0]-1e-6, FlatoutputMonocycle::flatDerivDeg + 1);
 
 		acceleration = FlatoutputMonocycle::flatToAcceleration(derivFlat);
 
@@ -617,7 +685,8 @@ namespace aiv
 
 		for (int i = 1; i < int(context->_nTimeSamples); ++i)
 		{
-			derivFlat = context->_optTrajectory(double(i) / context->_nTimeSamples * context->_optPlanHorizon, FlatoutputMonocycle::flatDerivDeg + 1);
+			double evalTime = double(i) / context->_nTimeSamples * context->_optPlanHorizon;
+			derivFlat = context->_optTrajectory(evalTime, FlatoutputMonocycle::flatDerivDeg + 1);
 
 			derivFlatSmall = derivFlat.block<FlatoutputMonocycle::flatDim, FlatoutputMonocycle::flatDerivDeg + 1>(0, 0);
 
@@ -627,22 +696,22 @@ namespace aiv
 
 			for (j = 0; j < FlatoutputMonocycle::accelDim; ++j)
 			{
-				result[nAcc + j + (i - 1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
-				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
+				result[nAcc+j+(i-1)*ieqPerSample] = abs(acceleration(j,0)) - context->_maxAcceleration(j, 0);
+				// std::cout << "r[" << nAcc+j+(i-1)*ieqPerSample << "]=" << result[nAcc+j+(i-1)*ieqPerSample] << std::endl;
 			}
 
 			for (k = j; k - j < FlatoutputMonocycle::veloDim; ++k)
 			{
-				result[nAcc + k + (i - 1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
-				// std::cout << "r[" << nAcc + k + (i - 1)*ieqPerSample << "]=" << result[nAcc + k + (i - 1)*ieqPerSample] << std::endl;
+				result[nAcc+k+(i-1)*ieqPerSample] = abs(velocity(k - j, 0)) - context->_maxVelocity(k - j, 0);
+				// std::cout << "r[" << nAcc+k+(i-1)*ieqPerSample << "]=" << result[nAcc+k+(i-1)*ieqPerSample] << std::endl;
 			}
 
 			MapObst::iterator it;
 			for (it = context->_detectedObstacles.begin(), j = k; j - k < context->_detectedObstacles.size(); ++j, ++it)
 			{
-				result[nAcc + j + (i - 1)*ieqPerSample] =
+				result[nAcc+j+(i-1)*ieqPerSample] =
 					-1. * it->second->distToAIV(context->_rotMat2WRef*pose.head<2>() + context->_latestPose.head<2>(), context->_robotObstacleSafetyDist + context->_radius);
-				// std::cout << "r[" << nAcc + j + (i - 1)*ieqPerSample << "]=" << result[nAcc + j + (i - 1)*ieqPerSample] << std::endl;
+				// std::cout << "r[" << nAcc+j+(i-1)*ieqPerSample << "]=" << result[nAcc+j+(i-1)*ieqPerSample] << std::endl;
 			}
 
 			
@@ -660,7 +729,7 @@ namespace aiv
 
 				double dSecurity = max(context->_interRobotSafetyDist, aivIt->second->getPathPlanner()->getInterRobSafDist());
 
-				result[nAcc + k + (i - 1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
+				result[nAcc+k+(i-1)*ieqPerSample] = - distanceInterRobots + radii + dSecurity;
 
 			}
 		}

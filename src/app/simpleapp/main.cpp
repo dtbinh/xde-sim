@@ -118,7 +118,7 @@ int main()
 		std::remove(str.c_str());
 	}*/
 
-	// OPEN FOR WRITING (OVERWRITES PREVIOUS CONTENT) TODO TEST
+	// OPEN FOR WRITING (OVERWRITES PREVIOUS CONTENT)
 	for (std::map<std::string, aiv::AIV*>::iterator it = vehicles.begin(); it != vehicles.end(); ++it)
 	{
 		index = std::distance(vehicles.begin(), it);
