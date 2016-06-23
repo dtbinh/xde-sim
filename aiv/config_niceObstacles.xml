@@ -1,0 +1,220 @@
+<?xml version="1.0" ?>
+<root>
+	<simspeed>100.0</simspeed>
+	<timestep unit="s">0.01</timestep>
+	<timeoffset unit="s">1.0</timeoffset>
+	<aivs>
+		<aiv>
+			<frame>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/frame.dae</cadmodel>
+				<mass>55.0</mass>
+				<color>xde/GreenOpaque</color>
+			</frame>
+			<leftdrivewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+				<mass>1.5</mass>
+				<color>xde/RedOpaque</color>
+				<radius>0.096845</radius>
+				<material>rubber</material>
+			</leftdrivewheel>
+			<rightdrivewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/drivewheel.dae</cadmodel>
+				<mass>1.5</mass>
+				<color>xde/BlueOpaque</color>
+				<radius>0.096845</radius>
+				<material>rubber</material>
+			</rightdrivewheel>
+			<leftfrontfreewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+				<mass>0.5</mass>
+				<color>xde/YellowOpaque</color>
+				<radius>0.0375</radius>
+				<material>rubber</material>
+			</leftfrontfreewheel>
+			<leftbackfreewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+				<mass>0.5</mass>
+				<color>xde/YellowOpaque</color>
+				<radius>0.0375</radius>
+				<material>rubber</material>
+			</leftbackfreewheel>
+			<rightfrontfreewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+				<mass>0.5</mass>
+				<color>xde/YellowOpaque</color>
+				<radius>0.0375</radius>
+				<material>rubber</material>
+			</rightfrontfreewheel>
+			<rightbackfreewheel>
+				<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/adeptlynx/freewheel.dae</cadmodel>
+				<mass>0.5</mass>
+				<color>xde/YellowOpaque</color>
+				<radius>0.0375</radius>
+				<material>rubber</material>
+			</rightbackfreewheel>
+			<track>0.19664</track>
+			<detectionradius>6.0</detectionradius>
+			<initpose>
+				<x unit="m">5.656854</x>
+				<y unit="m">-5.656854</y>
+				<theta unit="rad">2.35619449</theta>
+			</initpose>
+			<initvelo>
+				<linear unit="mps">0.0</linear>
+				<angular unit="radps">0.0</angular>
+			</initvelo>
+			<goalpose>
+				<x unit="m">-5.656854</x>
+				<y unit="m">5.656854</y>
+				<theta unit="rad">2.35619449</theta>
+			</goalpose>
+			<goalvelo>
+				<linear unit="mps">0.0</linear>
+				<angular unit="radps">0.0</angular>
+			</goalvelo>
+			<maxvelo>
+				<linear unit="mps">1.0</linear>
+				<angular unit="radps">8.0</angular>
+			</maxvelo>
+			<maxacc>
+				<linear unit="mps2">0.8</linear>
+				<angular unit="radps2">2.0</angular>
+			</maxacc>
+			<dynmodelparam>
+				<p1> 0.04200441</p1>
+				<p2> 0.27468742</p2>
+				<p3>-0.01248822</p3>
+				<p4> 1.00119437</p4>
+				<p5> 0.00545974</p5>
+				<p6> 1.03107639</p6>
+			</dynmodelparam>
+		</aiv>
+	</aivs>
+	<obstacles>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">1.0983</x>
+				<y unit="m">2.0116</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.3788</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">-1.247</x>
+				<y unit="m">0.4837</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.3496</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">2.8877</x>
+				<y unit="m">-1.5086</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.8791</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">0.0547</x>
+				<y unit="m">5.3414</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.784</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">-1.9934</x>
+				<y unit="m">3.7412</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.504</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">4.215</x>
+				<y unit="m">2.4132</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.5612</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">0.8235</x>
+				<y unit="m">-4.747</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.5652</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+		<circular>
+			<cadmodel>C:/Users/JM246044/workspace/dev/xde/xde/xde/xde/share/resources/scenes/cilinder_.dae</cadmodel>
+			<cmposition>
+				<x unit="m">0.4182</x>
+				<y unit="m">-2.8712</y>
+				<z unit="m">0.3</z>
+			</cmposition>
+			<radius unit="m">0.8669</radius>
+			<mass>55.0</mass>
+			<material>rubber</material>
+			<color>xde/BlackOpaque</color>
+		</circular>
+	</obstacles>
+	<mpmethod type="receding horizon with termination">
+		<comphorizon unit="s">0.3</comphorizon>
+		<planninghorizon unit="s">1.2</planninghorizon>
+		<waitforthread>false</waitforthread>
+		<sampling>14</sampling>
+		<interknots>5</interknots>
+		<terminationdist unit="m">0.5</terminationdist>
+		<interrobotsafetydist unit="m">0.1</interrobotsafetydist>
+		<conflictfreepathdeviation unit="m">5.0</conflictfreepathdeviation>
+		<numderivativefactor>1.0</numderivativefactor>
+		<optimizer type="TESTINIT">
+			<maxiteration>
+				<first>100</first>
+				<inter>100</inter>
+				<last>100</last>
+			</maxiteration>
+			<xtolerance>1e-06</xtolerance>
+			<ftolerance>1e-06</ftolerance>
+			<eqtolerance>0.0001</eqtolerance>
+			<ineqtolerance>1e-06</ineqtolerance>
+		</optimizer>
+	</mpmethod>
+	<controller type="NCGPC">
+		<threshold>
+			<u1>2.0</u1>
+			<u2>18.0</u2>
+		</threshold>
+		<predictionhorizon>0.6</predictionhorizon>
+	</controller>
+</root>
